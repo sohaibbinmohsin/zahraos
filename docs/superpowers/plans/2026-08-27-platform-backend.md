@@ -21,6 +21,7 @@
 - The staff JWT's `org_roles` claim carries only `organization_id` (no role name); all authorization decisions in a module backend are driven by the JWT's `module_access[].permissions` (spec §3, §4).
 - No hard deletes outside append-only concerns; use `deactivated_at` / `status` (spec §3, matching the soft-delete convention already used in `vms`).
 - `syncOrganization()` calls into a module backend are authenticated with a staff token minted for `platform_owner: true` — no separate secret (spec §4).
+- **This plan runs against a hosted Supabase Cloud project, not local Docker.** The plan was originally written assuming `npx supabase start` (a local Postgres/Auth/Edge-Functions stack via Docker) for every task's test cycle. Neither the local dev machine nor the intended cloud execution environment for this plan has Docker available, so every task below has been rewritten to work against a real hosted project instead — this is a substitution, not a design change; nothing about the schema, RLS policies, or Edge Function logic differs. Concretely: `npx supabase db reset && npx supabase test db` becomes `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done` (push whatever new migration the task just added, then run every pgTAP test file directly against the hosted database over `psql`); a standalone `npx supabase test db` (used to confirm a test fails *before* its migration exists) becomes just the `psql` loop, with no push; `deno test`/`deno task test` commands are unchanged — they already just read `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` from the environment, local or hosted makes no difference to them. Running pgTAP files directly via `psql` is safe to repeat against a shared project because every test file wraps its assertions in `begin; ...; rollback;` — nothing persists past the file. `.env` (git-ignored, from `.env.example`) must be sourced (`set -a; source .env; set +a`) before any of these commands in a given shell. This project must stay a genuinely separate hosted Supabase project from `vms/backend`'s (spec §2, "Module = separate project") — `SUPABASE_URL`/`SUPABASE_DB_URL`/etc. here must never point at the same project as `youth-republic/backend/.env`.
 
 ---
 
@@ -106,9 +107,12 @@ Each Edge Function directory splits `handler.ts` (pure logic, takes a Supabase c
 - Create: `supabase/deno.jsonc`
 - Create: `supabase/functions/_shared/supabaseAdmin.ts`
 - Create: `README.md`
+- Consumes (already committed, not created by this task): `.env.example` — copy it to `.env` and fill in real values before starting Task 1; every command in this plan reads from that file.
 
 **Interfaces:**
-- Produces: `getAdminClient(): SupabaseClient` — every Edge Function handler test and `index.ts` wrapper uses this to get a service-role client against the local instance.
+- Produces: `getAdminClient(): SupabaseClient` — every Edge Function handler test and `index.ts` wrapper uses this to get a service-role client against the project's own database.
+
+**Environment note:** this plan runs against a real hosted Supabase Cloud project, not a local Docker-based stack — see the Global Constraints section for the full rationale (same one `vms-backend`'s plan documents, since both hit the identical Docker-unavailable constraint).
 
 - [ ] **Step 1: Install the Supabase CLI and initialize the project**
 
@@ -116,10 +120,19 @@ Each Edge Function directory splits `handler.ts` (pure logic, takes a Supabase c
 npx supabase init
 ```
 
-- [ ] **Step 2: Start the local stack and confirm it's healthy**
+`supabase init` is local scaffolding only — it doesn't need Docker.
 
-Run: `npx supabase start`
-Expected: output lists API URL, DB URL, Studio URL, and a `service_role` key. Copy them for local `.env` use — never commit them.
+- [ ] **Step 2: Link to the hosted Supabase Cloud project and confirm connectivity**
+
+Copy `.env.example` to `.env` (if not already done) and fill in `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_PROJECT_REF`, and `SUPABASE_ACCESS_TOKEN` from the project's dashboard (Settings > API for the first three, Settings > Database > Connection string > URI for `SUPABASE_DB_URL`, Settings > General for the project ref, and https://supabase.com/dashboard/account/tokens for a personal access token). Then, from the repo root:
+
+```bash
+set -a; source .env; set +a
+npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+psql "$SUPABASE_DB_URL" -c "select 1;"
+```
+
+Expected: `link` completes without error, and the `psql` sanity check returns a single row containing `1`. Every later task's `Run:` commands assume `.env` has already been sourced this way in the current shell.
 
 - [ ] **Step 3: Add the Deno config for Edge Functions**
 
@@ -155,22 +168,32 @@ export function getAdminClient(): SupabaseClient {
 }
 ```
 
-- [ ] **Step 5: Document local dev in the README**
+- [ ] **Step 5: Document dev setup in the README**
 
 Create `README.md`:
 
 ```markdown
 # platform
 
-Local dev:
+Runs against a real hosted Supabase Cloud project — no local Docker stack.
 
-    npx supabase start
-    npx supabase db reset      # applies all migrations fresh
-    cd supabase && deno task test   # runs Edge Function unit tests
-    npx supabase test db       # runs pgTAP database/RLS tests
+Setup (once):
 
-Required environment variables (never committed): `SUPABASE_URL`,
-`SUPABASE_SERVICE_ROLE_KEY`, `STAFF_JWT_SECRET` (shared with every module
+    cp .env.example .env       # then fill in real values, see .env.example for where each comes from
+    set -a; source .env; set +a
+    npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
+Every dev session:
+
+    set -a; source .env; set +a
+    npx supabase db push --linked                                                          # applies any new migrations
+    for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done   # runs pgTAP database/RLS tests
+    cd supabase && deno task test                                                           # runs Edge Function unit tests
+
+Required environment variables (see `.env.example`, values are set
+per-environment, never committed): `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `SUPABASE_PROJECT_REF`,
+`SUPABASE_ACCESS_TOKEN`, `STAFF_JWT_SECRET` (shared with every module
 backend), `VMS_BACKEND_FUNCTIONS_URL` (vms/backend's Edge Functions base
 URL, used to push organization syncs).
 ```
@@ -178,7 +201,7 @@ URL, used to push organization syncs).
 - [ ] **Step 6: Commit**
 
 ```bash
-git add supabase/config.toml supabase/deno.jsonc supabase/functions/_shared/supabaseAdmin.ts README.md supabase/.gitignore
+git add supabase/config.toml supabase/deno.jsonc supabase/functions/_shared/supabaseAdmin.ts README.md
 git commit -m "chore: bootstrap platform Supabase project"
 ```
 
@@ -229,7 +252,7 @@ rollback;
 
 - [ ] **Step 3: Run tests to verify they fail**
 
-Run: `npx supabase test db`
+Run: `for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: FAIL — `staff` table does not exist.
 
 - [ ] **Step 4: Write the migration**
@@ -262,7 +285,7 @@ $$ language sql stable;
 
 - [ ] **Step 5: Apply the migration and run tests**
 
-Run: `npx supabase db reset && npx supabase test db`
+Run: `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: PASS on all 6 assertions.
 
 - [ ] **Step 6: Commit**
@@ -303,7 +326,7 @@ rollback;
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx supabase test db`
+Run: `for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: FAIL — table does not exist.
 
 - [ ] **Step 3: Write the migration**
@@ -323,7 +346,7 @@ create table organizations (
 
 - [ ] **Step 4: Apply and run tests**
 
-Run: `npx supabase db reset && npx supabase test db`
+Run: `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -361,7 +384,7 @@ rollback;
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx supabase test db`
+Run: `for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: FAIL — table does not exist.
 
 - [ ] **Step 3: Write the migration**
@@ -380,7 +403,7 @@ insert into modules (key, display_name) values ('vms', 'Volunteer Management Sys
 
 - [ ] **Step 4: Apply and run tests**
 
-Run: `npx supabase db reset && npx supabase test db`
+Run: `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -424,7 +447,7 @@ rollback;
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx supabase test db`
+Run: `for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: FAIL — table does not exist.
 
 - [ ] **Step 3: Write the migration**
@@ -442,7 +465,7 @@ create table org_modules (
 
 - [ ] **Step 4: Apply and run tests**
 
-Run: `npx supabase db reset && npx supabase test db`
+Run: `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -495,7 +518,7 @@ rollback;
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx supabase test db`
+Run: `for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: FAIL — table does not exist.
 
 - [ ] **Step 3: Write the migration**
@@ -529,7 +552,7 @@ where m.key = 'vms';
 
 - [ ] **Step 4: Apply and run tests**
 
-Run: `npx supabase db reset && npx supabase test db`
+Run: `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: PASS on all 3 assertions.
 
 - [ ] **Step 5: Commit**
@@ -583,7 +606,7 @@ rollback;
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx supabase test db`
+Run: `for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: FAIL — table does not exist.
 
 - [ ] **Step 3: Write the migration**
@@ -612,7 +635,7 @@ $$ language sql stable;
 
 - [ ] **Step 4: Apply and run tests**
 
-Run: `npx supabase db reset && npx supabase test db`
+Run: `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: PASS on all 4 assertions.
 
 - [ ] **Step 5: Commit**
@@ -673,7 +696,7 @@ rollback;
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx supabase test db`
+Run: `for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: FAIL — tables do not exist.
 
 - [ ] **Step 3: Write the migration**
@@ -721,7 +744,7 @@ $$ language plpgsql;
 
 - [ ] **Step 4: Apply and run tests**
 
-Run: `npx supabase db reset && npx supabase test db`
+Run: `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: PASS on all 5 assertions.
 
 - [ ] **Step 5: Commit**
@@ -777,7 +800,7 @@ rollback;
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx supabase test db`
+Run: `for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: FAIL — table does not exist.
 
 - [ ] **Step 3: Write the migration**
@@ -798,7 +821,7 @@ create index staff_module_roles_org_module_idx on staff_module_roles (organizati
 
 - [ ] **Step 4: Apply and run tests**
 
-Run: `npx supabase db reset && npx supabase test db`
+Run: `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: PASS on all 3 assertions.
 
 - [ ] **Step 5: Commit**
@@ -852,7 +875,7 @@ Note: `auth.uid()` reads `sub` from `request.jwt.claims`, matching how vms/backe
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `npx supabase test db`
+Run: `for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
 Expected: FAIL — RLS not yet enabled, so the "no session means no visible rows" assertion fails.
 
 - [ ] **Step 3: Write the migration**
@@ -927,8 +950,8 @@ create policy staff_module_roles_select on staff_module_roles
 
 - [ ] **Step 4: Apply and run tests**
 
-Run: `npx supabase db reset && npx supabase test db`
-Expected: PASS on all 3 assertions, and the full suite (`npx supabase test db`) still passes end to end.
+Run: `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`
+Expected: PASS on all 3 assertions, and the full suite (`for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done`) still passes end to end.
 
 - [ ] **Step 5: Commit**
 
@@ -1279,7 +1302,7 @@ export async function mintStaffToken(
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx supabase db reset && cd supabase && deno test --allow-net --allow-env functions/mint-staff-token/handler.test.ts`
+Run: `npx supabase db push --linked && cd supabase && deno test --allow-net --allow-env functions/mint-staff-token/handler.test.ts`
 Expected: PASS on both tests.
 
 - [ ] **Step 5: Write the HTTP wrapper**
@@ -1475,7 +1498,7 @@ export async function createStaff(
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx supabase db reset && cd supabase && deno test --allow-net --allow-env functions/create-staff/handler.test.ts`
+Run: `npx supabase db push --linked && cd supabase && deno test --allow-net --allow-env functions/create-staff/handler.test.ts`
 Expected: PASS on both tests.
 
 - [ ] **Step 5: Write the HTTP wrapper**
@@ -1595,7 +1618,7 @@ export async function setPassword(
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `npx supabase db reset && cd supabase && deno test --allow-net --allow-env functions/set-password/handler.test.ts`
+Run: `npx supabase db push --linked && cd supabase && deno test --allow-net --allow-env functions/set-password/handler.test.ts`
 Expected: PASS.
 
 - [ ] **Step 5: Write the HTTP wrapper**
@@ -1781,7 +1804,7 @@ Deno.serve(async (req) => {
 
 - [ ] **Step 5: Run test to verify it passes, then commit**
 
-Run: `npx supabase db reset && cd supabase && deno test --allow-net --allow-env functions/create-organization/handler.test.ts`
+Run: `npx supabase db push --linked && cd supabase && deno test --allow-net --allow-env functions/create-organization/handler.test.ts`
 Expected: PASS on both tests.
 
 ```bash
@@ -1901,7 +1924,7 @@ Deno.serve(async (req) => {
 
 - [ ] **Step 9: Run test to verify it passes, then commit**
 
-Run: `npx supabase db reset && cd supabase && deno test --allow-net --allow-env functions/update-organization/handler.test.ts`
+Run: `npx supabase db push --linked && cd supabase && deno test --allow-net --allow-env functions/update-organization/handler.test.ts`
 Expected: PASS.
 
 ```bash
@@ -2037,7 +2060,7 @@ Deno.serve(async (req) => {
 
 - [ ] **Step 13: Run test to verify it passes, then commit**
 
-Run: `npx supabase db reset && cd supabase && deno test --allow-net --allow-env functions/enable-module/handler.test.ts`
+Run: `npx supabase db push --linked && cd supabase && deno test --allow-net --allow-env functions/enable-module/handler.test.ts`
 Expected: PASS on both tests.
 
 ```bash
@@ -2189,7 +2212,7 @@ export async function assignStaffModuleRole(
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx supabase db reset && cd supabase && deno test --allow-net --allow-env functions/assign-staff-module-role/handler.test.ts`
+Run: `npx supabase db push --linked && cd supabase && deno test --allow-net --allow-env functions/assign-staff-module-role/handler.test.ts`
 Expected: PASS on both tests.
 
 - [ ] **Step 5: Write the HTTP wrapper**
@@ -2403,7 +2426,7 @@ export async function createCustomRole(
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx supabase db reset && cd supabase && deno test --allow-net --allow-env functions/create-custom-role/handler.test.ts`
+Run: `npx supabase db push --linked && cd supabase && deno test --allow-net --allow-env functions/create-custom-role/handler.test.ts`
 Expected: PASS on all 3 tests.
 
 - [ ] **Step 5: Write the HTTP wrapper**
@@ -2681,7 +2704,7 @@ export async function deactivateStaff(
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `npx supabase db reset && cd supabase && deno test --allow-net --allow-env functions/deactivate-staff/handler.test.ts`
+Run: `npx supabase db push --linked && cd supabase && deno test --allow-net --allow-env functions/deactivate-staff/handler.test.ts`
 Expected: PASS on all 5 tests.
 
 - [ ] **Step 5: Write the HTTP wrapper**
@@ -2719,7 +2742,7 @@ git commit -m "feat: add deactivate-staff Edge Function with admin/super_admin h
 
 ## Post-plan checklist (not a task — verify before moving to Plan 2)
 
-- [ ] `npx supabase db reset && npx supabase test db` passes in full.
+- [ ] `npx supabase db push --linked && for f in supabase/tests/database/*.sql; do psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"; done` passes in full.
 - [ ] `cd supabase && deno task test` passes in full.
 - [ ] Every table listed in spec §3 exists with RLS enabled (`select relrowsecurity from pg_class where relname = '<table>';` for each).
 - [ ] `STAFF_JWT_SECRET`, `VMS_BACKEND_FUNCTIONS_URL` are documented in `README.md` as required environment variables (values set per-environment, never committed), and `STAFF_JWT_SECRET`'s value matches `vms/backend`'s exactly — a mismatch here fails every cross-project call silently until checked.
