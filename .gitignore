@@ -14,8 +14,8 @@ out/
 .deno/
 
 # Supabase local dev artifacts (irrelevant once running against a hosted project, harmless either way)
-supabase/.temp/
-supabase/.branches/
+**/supabase/.temp/
+**/supabase/.branches/
 
 # OS
 .DS_Store
