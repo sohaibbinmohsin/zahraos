@@ -1,14 +1,23 @@
 import { render, screen, waitFor, act } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AppShell } from "./AppShell";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
+
+const { routerPush, routerRefresh } = vi.hoisted(() => ({
+  routerPush: vi.fn(),
+  routerRefresh: vi.fn(),
+}));
 
 vi.mock("@/lib/supabase/browserClient");
 vi.mock("@/lib/staffToken", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/staffToken")>();
   return { ...actual, fetchStaffToken: vi.fn() };
 });
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: routerPush, refresh: routerRefresh }),
+}));
 
 function encodeFakeToken(payload: Record<string, unknown>) {
   const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
@@ -33,6 +42,7 @@ function mockSupabase(options: {
         authStateListeners.push(callback);
         return { data: { subscription: { unsubscribe: vi.fn() } } };
       }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
     },
     from(table: string) {
       if (table === "staff") {
@@ -69,6 +79,8 @@ function mockSupabase(options: {
 describe("AppShell", () => {
   beforeEach(() => {
     vi.mocked(fetchStaffToken).mockReset();
+    routerPush.mockReset();
+    routerRefresh.mockReset();
   });
 
   it("renders children, the staff's name, and an Organizations link for a platform_owner", async () => {
@@ -188,5 +200,35 @@ describe("AppShell", () => {
     await waitFor(() => expect(screen.getByText("Late Login Person")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Staff" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Roles" })).toBeInTheDocument();
+  });
+
+  it("signs the staff out, clears the shell's claims, and redirects to login", async () => {
+    const supabaseClient = mockSupabase({
+      staffRow: { full_name: "Owner Person", platform_owner: true },
+      orgTierRows: [],
+      organizations: [],
+    });
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(supabaseClient as never);
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({ actor_type: "staff", staff_id: "s1", platform_owner: true, org_roles: [], module_access: [] }),
+    );
+
+    const user = userEvent.setup();
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Organizations" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+
+    expect(supabaseClient.auth.signOut).toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByText("Owner Person")).not.toBeInTheDocument());
+    expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+    expect(routerPush).toHaveBeenCalledWith("/login");
   });
 });

@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "@/lib/staffToken";
 import { resolveOrgSwitcherOptions, pickInitialOrgId, readStoredOrgId, writeStoredOrgId } from "@/lib/selectedOrg";
@@ -29,6 +30,7 @@ export function useOrgTier() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [fullName, setFullName] = useState<string | null>(null);
   const [platformOwner, setPlatformOwner] = useState(false);
   const [claims, setClaims] = useState<StaffTokenClaims | null>(null);
@@ -36,18 +38,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [orgTiers, setOrgTiers] = useState<Record<string, string>>({});
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
+  function resetShellState() {
+    setFullName(null);
+    setPlatformOwner(false);
+    setClaims(null);
+    setOrgNames({});
+    setOrgTiers({});
+    setSelectedOrgId(null);
+  }
+
   useEffect(() => {
     const supabase = getBrowserSupabaseClient();
     let cancelled = false;
 
     function clearClaims() {
       if (cancelled) return;
-      setFullName(null);
-      setPlatformOwner(false);
-      setClaims(null);
-      setOrgNames({});
-      setOrgTiers({});
-      setSelectedOrgId(null);
+      resetShellState();
     }
 
     async function loadFromSession(session: { access_token: string; user?: { id?: string } } | null) {
@@ -128,6 +134,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     writeStoredOrgId(orgId);
   }
 
+  async function handleSignOut() {
+    const supabase = getBrowserSupabaseClient();
+    await supabase.auth.signOut();
+    resetShellState();
+    router.push("/login");
+    router.refresh();
+  }
+
   const availableOrgIds = claims ? resolveOrgSwitcherOptions(claims.orgRoles, claims.moduleAccess) : [];
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
   const isOrgAdminOrAbove = orgTier === "admin" || orgTier === "super_admin";
@@ -156,6 +170,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <OrgSwitcher orgIds={availableOrgIds} selectedOrgId={selectedOrgId} orgNames={orgNames} onSelect={handleSelectOrg} />
               )}
               {fullName && <span>{fullName}</span>}
+              {claims && (
+                <button type="button" onClick={handleSignOut} className="text-sm underline">
+                  Sign out
+                </button>
+              )}
             </div>
           </div>
         </header>
