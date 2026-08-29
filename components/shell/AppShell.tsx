@@ -37,16 +37,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function load() {
-      const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
+    const supabase = getBrowserSupabaseClient();
+    let cancelled = false;
 
-      const { data: user } = await supabase.auth.getSession();
-      const authUserId = user.session?.user?.id;
+    function clearClaims() {
+      if (cancelled) return;
+      setFullName(null);
+      setPlatformOwner(false);
+      setClaims(null);
+      setOrgNames({});
+      setOrgTiers({});
+      setSelectedOrgId(null);
+    }
 
-      const staffToken = await fetchStaffToken(sessionData.session.access_token);
+    async function loadFromSession(session: { access_token: string; user?: { id?: string } } | null) {
+      if (!session) {
+        clearClaims();
+        return;
+      }
+
+      const authUserId = session.user?.id;
+
+      const staffToken = await fetchStaffToken(session.access_token);
       const decoded = decodeStaffTokenClaims(staffToken);
+      if (cancelled) return;
       setClaims(decoded);
       setPlatformOwner(decoded.platformOwner);
 
@@ -55,12 +69,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         .select("full_name, platform_owner")
         .eq("auth_user_id", authUserId)
         .single();
+      if (cancelled) return;
       if (staffRow) setFullName(staffRow.full_name);
 
       const { data: orgTierRows } = await supabase
         .from("staff_org_roles")
         .select("organization_id, org_tier")
         .eq("staff_id", decoded.staffId);
+      if (cancelled) return;
       const tiersByOrg: Record<string, string> = {};
       for (const row of orgTierRows ?? []) {
         tiersByOrg[row.organization_id] = row.org_tier;
@@ -73,6 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       if (availableOrgIds.length > 0) {
         const { data: organizations } = await supabase.from("organizations").select("id, name").in("id", availableOrgIds);
+        if (cancelled) return;
         const names: Record<string, string> = {};
         for (const org of organizations ?? []) {
           names[org.id] = org.name;
@@ -80,7 +97,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setOrgNames(names);
       }
     }
-    load();
+
+    async function init() {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (cancelled) return;
+      await loadFromSession(sessionData.session);
+    }
+    init();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        clearClaims();
+        return;
+      }
+      if (session) {
+        loadFromSession(session);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   function handleSelectOrg(orgId: string) {

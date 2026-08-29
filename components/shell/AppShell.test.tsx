@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AppShell } from "./AppShell";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
@@ -17,13 +17,22 @@ function encodeFakeToken(payload: Record<string, unknown>) {
 }
 
 function mockSupabase(options: {
+  initialSession?: { access_token: string } | null;
   staffRow: { full_name: string; platform_owner: boolean };
   orgTierRows: Array<{ organization_id: string; org_tier: string }>;
   organizations: Array<{ id: string; name: string }>;
 }) {
+  const authStateListeners: Array<(event: string, session: { access_token: string } | null) => void> = [];
+
   return {
     auth: {
-      getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }),
+      getSession: vi.fn().mockResolvedValue({
+        data: { session: options.initialSession === undefined ? { access_token: "platform-token" } : options.initialSession },
+      }),
+      onAuthStateChange: vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
+        authStateListeners.push(callback);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      }),
     },
     from(table: string) {
       if (table === "staff") {
@@ -50,6 +59,9 @@ function mockSupabase(options: {
         };
       }
       throw new Error(`unexpected table ${table}`);
+    },
+    __emitAuthStateChange(event: string, session: { access_token: string } | null) {
+      for (const listener of authStateListeners) listener(event, session);
     },
   };
 }
@@ -138,5 +150,43 @@ describe("AppShell", () => {
     await waitFor(() => expect(screen.getByText("Regular Staff")).toBeInTheDocument());
     expect(screen.queryByRole("link", { name: "Staff" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
+  });
+
+  it("loads claims once a login completes after mount, without requiring a reload", async () => {
+    const supabaseClient = mockSupabase({
+      initialSession: null,
+      staffRow: { full_name: "Late Login Person", platform_owner: false },
+      orgTierRows: [{ organization_id: "org-1", org_tier: "admin" }],
+      organizations: [{ id: "org-1", name: "Rizq" }],
+    });
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(supabaseClient as never);
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({
+        actor_type: "staff",
+        staff_id: "s4",
+        platform_owner: false,
+        org_roles: [{ organization_id: "org-1" }],
+        module_access: [],
+      }),
+    );
+
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    // Mounted before the session was hydrated: no staff name or nav yet.
+    expect(screen.queryByText("Late Login Person")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Staff" })).not.toBeInTheDocument();
+
+    // Simulate the login completing after mount via Supabase's auth state change event.
+    await act(async () => {
+      supabaseClient.__emitAuthStateChange("SIGNED_IN", { access_token: "fresh-token" });
+    });
+
+    await waitFor(() => expect(screen.getByText("Late Login Person")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Staff" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Roles" })).toBeInTheDocument();
   });
 });
