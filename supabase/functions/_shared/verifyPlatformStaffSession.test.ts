@@ -1,7 +1,9 @@
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { verifyPlatformStaffSession } from "./verifyPlatformStaffSession.ts";
 
-function fakeSupabase(options: { user?: { id: string } | null; staff?: { id: string; platform_owner: boolean } | null }) {
+function fakeSupabase(
+  options: { user?: { id: string } | null; staff?: { id: string; platform_owner: boolean; status: string } | null },
+) {
   return {
     auth: {
       async getUser(_token: string) {
@@ -31,7 +33,7 @@ function fakeSupabase(options: { user?: { id: string } | null; staff?: { id: str
 }
 
 Deno.test("verifyPlatformStaffSession resolves staffId and platformOwner for a valid session", async () => {
-  const supabase = fakeSupabase({ user: { id: "auth-1" }, staff: { id: "staff-1", platform_owner: true } });
+  const supabase = fakeSupabase({ user: { id: "auth-1" }, staff: { id: "staff-1", platform_owner: true, status: "active" } });
   const result = await verifyPlatformStaffSession(supabase as never, "Bearer good-token");
   assertEquals(result.staffId, "staff-1");
   assertEquals(result.platformOwner, true);
@@ -44,5 +46,18 @@ Deno.test("verifyPlatformStaffSession rejects a missing header", async () => {
 
 Deno.test("verifyPlatformStaffSession rejects a session with no staff row", async () => {
   const supabase = fakeSupabase({ user: { id: "auth-1" }, staff: null });
+  await assertRejects(() => verifyPlatformStaffSession(supabase as never, "Bearer good-token"), Error, "unauthorized");
+});
+
+// Regression test for the "no session revocation on staff deactivation"
+// finding: deactivateStaff only ever flipped staff.status to "deactivated" —
+// nothing checked that flag again, so a deactivated staff member's still-valid
+// Supabase Auth session kept working against every platform Edge Function,
+// including minting a brand new VMS staff JWT.
+Deno.test("verifyPlatformStaffSession rejects a deactivated staff member", async () => {
+  const supabase = fakeSupabase({
+    user: { id: "auth-1" },
+    staff: { id: "staff-1", platform_owner: false, status: "deactivated" },
+  });
   await assertRejects(() => verifyPlatformStaffSession(supabase as never, "Bearer good-token"), Error, "unauthorized");
 });

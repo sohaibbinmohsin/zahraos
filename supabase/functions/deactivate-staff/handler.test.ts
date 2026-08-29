@@ -120,3 +120,51 @@ Deno.test("deactivateStaff rejects an admin deactivating a platform_owner accoun
 
   await assertRejects(() => deactivateStaff(supabase, adminId, false, ownerId), Error, "forbidden");
 });
+
+// Regression test for the "no session revocation on staff deactivation"
+// finding: flipping staff.status alone left the target's existing Supabase
+// Auth session (and any already-issued access token) fully usable until it
+// naturally expired/refreshed — including for reading/writing tables the
+// target's RLS policies allow directly, outside of any Edge Function gate.
+// deactivateStaff must kill that session immediately.
+Deno.test("deactivateStaff revokes the target's Supabase Auth session so their old access token stops working", async () => {
+  const supabase = testClient();
+  const orgId = await makeOrg(supabase);
+  const adminId = await makeStaff(supabase);
+  await grantOrgTier(supabase, adminId, orgId, "admin");
+
+  const email = `deactivate-session-${crypto.randomUUID()}@example.com`;
+  const password = "Deactivate-Session-Test-1!";
+  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  if (authError || !authUser.user) {
+    throw new Error(`failed to create auth user: ${authError?.message}`);
+  }
+  const { data: targetRow } = await supabase.from("staff").insert({
+    auth_user_id: authUser.user.id,
+    full_name: "Session Kill Test",
+    email,
+  }).select("id").single();
+  const targetId = targetRow!.id as string;
+  await grantModuleAffiliation(supabase, targetId, orgId);
+
+  const anon = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!);
+  const { data: signIn, error: signInError } = await anon.auth.signInWithPassword({ email, password });
+  if (signInError || !signIn.session) {
+    throw new Error(`failed to sign in test staff member: ${signInError?.message}`);
+  }
+  const oldAccessToken = signIn.session.access_token;
+
+  // Sanity check: the token genuinely works before deactivation, so a
+  // rejection afterward is meaningful rather than a fluke of a bad token.
+  const { error: beforeError } = await supabase.auth.getUser(oldAccessToken);
+  assertEquals(beforeError, null);
+
+  await deactivateStaff(supabase, adminId, false, targetId);
+
+  const { error: afterError } = await supabase.auth.getUser(oldAccessToken);
+  assertEquals(afterError !== null, true);
+});
