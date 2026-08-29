@@ -63,8 +63,16 @@ function mockSupabase(options: {
       }
       if (table === "organizations") {
         return {
+          // A platform_owner fetches ALL organizations with a bare .select()
+          // (no .in() filter — they aren't limited to claims-derived orgs);
+          // everyone else still goes through .select().in(availableOrgIds).
+          // Supabase's real query builder is thenable at every step, so this
+          // mock needs to support both `await .select(...)` directly and
+          // `await .select(...).in(...)`.
           select: () => ({
             in: () => Promise.resolve({ data: options.organizations, error: null }),
+            then: (resolve: (value: { data: typeof options.organizations; error: null }) => void) =>
+              resolve({ data: options.organizations, error: null }),
           }),
         };
       }
@@ -104,6 +112,42 @@ describe("AppShell", () => {
     expect(screen.getByText("page content")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Organizations" })).toBeInTheDocument();
+  });
+
+  it("shows Staff and Roles links for a platform_owner even with no staff_org_roles row, and lets them pick any organization", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Owner Person", platform_owner: true },
+        // A platform_owner deliberately has NO staff_org_roles row — their
+        // authority is the global flag, not a per-org tier assignment.
+        orgTierRows: [],
+        // Two orgs: the switcher intentionally hides itself for a single
+        // option (OrgSwitcher.tsx), so this also proves the switcher
+        // actually renders with every org, not just that Staff/Roles show.
+        organizations: [
+          { id: "org-1", name: "Rizq Test Org" },
+          { id: "org-2", name: "Some Other Org" },
+        ],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      // org_roles/module_access are empty too — mintStaffToken never
+      // populates them from a bare platform_owner flag alone.
+      encodeFakeToken({ actor_type: "staff", staff_id: "s1", platform_owner: true, org_roles: [], module_access: [] }),
+    );
+
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByRole("link", { name: "Staff" })).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Roles" })).toBeInTheDocument();
+    const switcher = screen.getByLabelText("Organization");
+    expect(screen.getByText("Rizq Test Org")).toBeInTheDocument();
+    expect(screen.getByText("Some Other Org")).toBeInTheDocument();
+    expect(switcher).toHaveValue("org-1");
   });
 
   it("shows Staff and Roles links only when the staff is admin/super_admin for the selected org", async () => {

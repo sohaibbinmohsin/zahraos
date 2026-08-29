@@ -43,6 +43,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [claims, setClaims] = useState<StaffTokenClaims | null>(null);
   const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [orgTiers, setOrgTiers] = useState<Record<string, string>>({});
+  const [availableOrgIds, setAvailableOrgIds] = useState<string[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [status, setStatus] = useState<ShellLoadStatus>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setClaims(null);
     setOrgNames({});
     setOrgTiers({});
+    setAvailableOrgIds([]);
     setSelectedOrgId(null);
     setAccessToken(null);
   }
@@ -105,23 +107,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }
         setOrgTiers(tiersByOrg);
 
-        const availableOrgIds = resolveOrgSwitcherOptions(decoded.orgRoles, decoded.moduleAccess);
-        const initialOrgId = pickInitialOrgId(availableOrgIds, readStoredOrgId());
-        setSelectedOrgId(initialOrgId);
-
-        if (availableOrgIds.length > 0) {
-          const { data: organizations, error: organizationsError } = await supabase
+        // A platform_owner's authority is the global flag, not a per-org
+        // affiliation — mintStaffToken() never populates org_roles/
+        // module_access from platform_owner alone, so the claims-derived
+        // list would always be empty for them otherwise. They can manage
+        // every organization, so fetch all of them directly instead.
+        let orgIds: string[];
+        if (decoded.platformOwner) {
+          const { data: allOrgs, error: allOrgsError } = await supabase
             .from("organizations")
-            .select("id, name")
-            .in("id", availableOrgIds);
-          if (organizationsError) throw organizationsError;
+            .select("id, name");
+          if (allOrgsError) throw allOrgsError;
           if (cancelled) return;
+          orgIds = (allOrgs ?? []).map((org) => org.id as string);
           const names: Record<string, string> = {};
-          for (const org of organizations ?? []) {
+          for (const org of allOrgs ?? []) {
             names[org.id] = org.name;
           }
           setOrgNames(names);
+        } else {
+          orgIds = resolveOrgSwitcherOptions(decoded.orgRoles, decoded.moduleAccess);
+          if (orgIds.length > 0) {
+            const { data: organizations, error: organizationsError } = await supabase
+              .from("organizations")
+              .select("id, name")
+              .in("id", orgIds);
+            if (organizationsError) throw organizationsError;
+            if (cancelled) return;
+            const names: Record<string, string> = {};
+            for (const org of organizations ?? []) {
+              names[org.id] = org.name;
+            }
+            setOrgNames(names);
+          }
         }
+        setAvailableOrgIds(orgIds);
+        const initialOrgId = pickInitialOrgId(orgIds, readStoredOrgId());
+        setSelectedOrgId(initialOrgId);
 
         if (!cancelled) {
           setStatus("ready");
@@ -214,9 +236,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setReloadToken((t) => t + 1);
   }
 
-  const availableOrgIds = claims ? resolveOrgSwitcherOptions(claims.orgRoles, claims.moduleAccess) : [];
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
-  const isOrgAdminOrAbove = orgTier === "admin" || orgTier === "super_admin";
+  // A platform_owner bypasses per-org tier checks entirely — same authority
+  // as super_admin everywhere, without ever holding a staff_org_roles row.
+  const isOrgAdminOrAbove = orgTier === "admin" || orgTier === "super_admin" || platformOwner;
   const moduleLinks = selectedOrgId
     ? MODULE_REGISTRY.filter((m) => claims?.moduleAccess.some((a) => a.organizationId === selectedOrgId && a.module === m.key))
     : [];
