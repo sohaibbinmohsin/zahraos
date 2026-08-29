@@ -121,6 +121,32 @@ Deno.test("deactivateStaff rejects an admin deactivating a platform_owner accoun
   await assertRejects(() => deactivateStaff(supabase, adminId, false, ownerId), Error, "forbidden");
 });
 
+// Regression test for the "no self-deactivation guard" finding: a
+// platform_owner bypasses callerMayDeactivate entirely (the
+// `if (!callerPlatformOwner)` check at the top of deactivateStaff), so
+// nothing ever stopped one from deactivating themselves — which, if they're
+// the only platform_owner, locks the whole platform out.
+Deno.test("deactivateStaff rejects a platform_owner attempting to deactivate themselves", async () => {
+  const supabase = testClient();
+  const ownerId = await makeStaff(supabase, true);
+
+  await assertRejects(() => deactivateStaff(supabase, ownerId, true, ownerId), Error, "forbidden");
+});
+
+// Regression test for the same finding, the super_admin path: inside
+// callerMayDeactivate, a super_admin targeting someone in an org where the
+// caller also holds super_admin returns true as soon as
+// `callerRole.org_tier === "super_admin"`, with no check that the target
+// isn't the caller themselves — so a super_admin could self-deactivate too.
+Deno.test("deactivateStaff rejects a super_admin attempting to deactivate themselves", async () => {
+  const supabase = testClient();
+  const orgId = await makeOrg(supabase);
+  const superAdminId = await makeStaff(supabase);
+  await grantOrgTier(supabase, superAdminId, orgId, "super_admin");
+
+  await assertRejects(() => deactivateStaff(supabase, superAdminId, false, superAdminId), Error, "forbidden");
+});
+
 // Regression test for the "no session revocation on staff deactivation"
 // finding: flipping staff.status alone left the target's existing Supabase
 // Auth session (and any already-issued access token) fully usable until it

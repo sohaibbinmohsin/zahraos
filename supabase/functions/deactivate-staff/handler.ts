@@ -83,6 +83,18 @@ export async function deactivateStaff(
   callerPlatformOwner: boolean,
   targetStaffId: string,
 ): Promise<{ staffId: string }> {
+  // Unconditional, no-exceptions guard: nobody may deactivate themselves,
+  // not even a platform_owner (who otherwise bypasses every check below) or
+  // a super_admin (who otherwise short-circuits callerMayDeactivate's loop
+  // as soon as they hold super_admin in a shared org — which trivially
+  // includes an org they share with themselves). Self-deactivation by the
+  // only platform_owner, or the only super_admin in an org, would lock that
+  // account/org out with no one left to reverse it. This must run before
+  // the callerPlatformOwner bypass, not inside callerMayDeactivate.
+  if (callerStaffId === targetStaffId) {
+    throw new Error("forbidden");
+  }
+
   if (!callerPlatformOwner) {
     const authorized = await callerMayDeactivate(supabase, callerStaffId, targetStaffId);
     if (!authorized) {
