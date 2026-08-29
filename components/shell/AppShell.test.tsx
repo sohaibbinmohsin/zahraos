@@ -287,4 +287,45 @@ describe("AppShell", () => {
     await waitFor(() => expect(screen.getByText("Recovered Person")).toBeInTheDocument());
     expect(screen.queryByText(/could not load your account/i)).not.toBeInTheDocument();
   });
+
+  it("refreshes staff claims periodically so a long-lived session's token doesn't go stale", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+        mockSupabase({
+          staffRow: { full_name: "Owner Person", platform_owner: false },
+          orgTierRows: [],
+          organizations: [],
+        }) as never,
+      );
+      vi.mocked(fetchStaffToken)
+        .mockResolvedValueOnce(
+          encodeFakeToken({ actor_type: "staff", staff_id: "s1", platform_owner: false, org_roles: [], module_access: [] }),
+        )
+        .mockResolvedValueOnce(
+          encodeFakeToken({ actor_type: "staff", staff_id: "s1", platform_owner: true, org_roles: [], module_access: [] }),
+        );
+
+      render(
+        <AppShell>
+          <p>page content</p>
+        </AppShell>,
+      );
+
+      await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
+      expect(fetchStaffToken).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
+
+      // Advance past the refresh interval — a second fetchStaffToken call should
+      // land updated claims (platform_owner flips true) without any user action.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(45 * 60 * 1000);
+      });
+
+      await waitFor(() => expect(fetchStaffToken).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(screen.getByRole("link", { name: "Organizations" })).toBeInTheDocument());
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

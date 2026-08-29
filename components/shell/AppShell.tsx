@@ -11,6 +11,11 @@ import { OrgSwitcher } from "./OrgSwitcher";
 
 type ShellLoadStatus = "loading" | "ready" | "error";
 
+// mintStaffToken sets a 1-hour expiry (exp: getNumericDate(60 * 60)) server-side.
+// Refresh well inside that window so a long-lived session's claims never go
+// stale in practice, even accounting for a slow network or a missed tick.
+const CLAIMS_REFRESH_INTERVAL_MS = 45 * 60 * 1000;
+
 interface ShellContextValue {
   selectedOrgId: string | null;
   staffClaims: StaffTokenClaims | null;
@@ -42,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<ShellLoadStatus>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
 
   function resetShellState() {
     setFullName(null);
@@ -50,6 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setOrgNames({});
     setOrgTiers({});
     setSelectedOrgId(null);
+    setAccessToken(null);
   }
 
   useEffect(() => {
@@ -116,7 +123,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           setOrgNames(names);
         }
 
-        if (!cancelled) setStatus("ready");
+        if (!cancelled) {
+          setStatus("ready");
+          setAccessToken(session.access_token);
+        }
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : "Unknown error");
@@ -155,6 +165,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       subscription.unsubscribe();
     };
   }, [reloadToken]);
+
+  // Keep the VMS staff JWT's claims from going stale for a long-lived session:
+  // re-mint and re-decode it well before its 1-hour server-side expiry, for as
+  // long as the shell stays mounted with a loaded session. Additive to the
+  // load-on-mount/auth-state-change effect above — doesn't touch it.
+  useEffect(() => {
+    if (!accessToken) return;
+
+    let cancelled = false;
+
+    const intervalId = setInterval(async () => {
+      try {
+        const staffToken = await fetchStaffToken(accessToken);
+        const decoded = decodeStaffTokenClaims(staffToken);
+        if (cancelled) return;
+        setClaims(decoded);
+        setPlatformOwner(decoded.platformOwner);
+      } catch (err) {
+        // A transient refresh failure shouldn't disrupt an already-loaded shell;
+        // the previous claims simply remain in effect until the next tick.
+        console.error("Failed to refresh staff claims", err);
+      }
+    }, CLAIMS_REFRESH_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [accessToken]);
 
   function handleSelectOrg(orgId: string) {
     setSelectedOrgId(orgId);
