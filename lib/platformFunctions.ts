@@ -93,6 +93,18 @@ export function assignStaffModuleRole(payload: AssignStaffModuleRolePayload, acc
   return callFunction<AssignStaffModuleRoleResponse>("assign-staff-module-role", payload, accessToken);
 }
 
+export interface AssignStaffOrgRolePayload {
+  staffId: string;
+  organizationId: string;
+  orgTier: "admin" | "super_admin";
+}
+export interface AssignStaffOrgRoleResponse {
+  staffId: string;
+}
+export function assignStaffOrgRole(payload: AssignStaffOrgRolePayload, accessToken: string) {
+  return callFunction<AssignStaffOrgRoleResponse>("assign-staff-org-role", payload, accessToken);
+}
+
 export interface CreateCustomRolePayload {
   organizationId: string;
   moduleId: string;

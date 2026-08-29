@@ -6,6 +6,7 @@ import {
   updateOrganization,
   enableModule,
   assignStaffModuleRole,
+  assignStaffOrgRole,
   createCustomRole,
   deactivateStaff,
 } from "./platformFunctions";
@@ -77,6 +78,17 @@ describe("assignStaffModuleRole", () => {
       "session-token",
     );
     expect(result.staffId).toBe("s2");
+  });
+});
+
+describe("assignStaffOrgRole", () => {
+  it("posts to assign-staff-org-role", async () => {
+    mockOk({ staffId: "s3" });
+    const result = await assignStaffOrgRole(
+      { staffId: "s3", organizationId: "org-1", orgTier: "super_admin" },
+      "session-token",
+    );
+    expect(result.staffId).toBe("s3");
   });
 });
 

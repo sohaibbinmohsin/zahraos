@@ -5,6 +5,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { useSelectedOrg } from "@/components/shell/AppShell";
 import { StaffList, type StaffSummary } from "@/components/StaffList";
 import { CreateStaffForm } from "@/components/CreateStaffForm";
+import { AssignStaffOrgRoleForm } from "@/components/AssignStaffOrgRoleForm";
 
 export default function StaffPage() {
   const organizationId = useSelectedOrg();
@@ -74,6 +75,19 @@ export default function StaffPage() {
       <div>
         <h2 className="mb-2 text-lg font-medium">Create staff</h2>
         <CreateStaffForm organizationId={organizationId} accessToken={accessToken} onCreated={load} />
+      </div>
+      <div>
+        <h2 className="mb-2 text-lg font-medium">Assign org role</h2>
+        {staff.length === 0 ? (
+          <p className="text-sm text-gray-600">No staff in this organization yet — create one above first.</p>
+        ) : (
+          <AssignStaffOrgRoleForm
+            organizationId={organizationId}
+            staffOptions={staff.map((s) => ({ id: s.id, fullName: s.fullName }))}
+            accessToken={accessToken}
+            onAssigned={load}
+          />
+        )}
       </div>
     </div>
   );
