@@ -231,4 +231,60 @@ describe("AppShell", () => {
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
     expect(routerPush).toHaveBeenCalledWith("/login");
   });
+
+  it("shows a loading indicator until claims load, then hides it on the success path", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Owner Person", platform_owner: true },
+        orgTierRows: [],
+        organizations: [],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({ actor_type: "staff", staff_id: "s1", platform_owner: true, org_roles: [], module_access: [] }),
+    );
+
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    expect(screen.getByText(/loading/i)).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
+    expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+  });
+
+  it("shows a visible error state (not a blank no-access shell) when loading claims fails, and can retry", async () => {
+    const supabaseClient = mockSupabase({
+      staffRow: { full_name: "Recovered Person", platform_owner: true },
+      orgTierRows: [],
+      organizations: [],
+    });
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(supabaseClient as never);
+    vi.mocked(fetchStaffToken)
+      .mockRejectedValueOnce(new Error("network_error"))
+      .mockResolvedValueOnce(
+        encodeFakeToken({ actor_type: "staff", staff_id: "s5", platform_owner: true, org_roles: [], module_access: [] }),
+      );
+
+    const user = userEvent.setup();
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText(/could not load your account/i)).toBeInTheDocument());
+    expect(screen.queryByText("Recovered Person")).not.toBeInTheDocument();
+    // Page content still renders underneath the error banner — the shell doesn't blank the page.
+    expect(screen.getByText("page content")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+
+    await waitFor(() => expect(screen.getByText("Recovered Person")).toBeInTheDocument());
+    expect(screen.queryByText(/could not load your account/i)).not.toBeInTheDocument();
+  });
 });

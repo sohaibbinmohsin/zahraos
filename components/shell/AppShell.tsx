@@ -9,6 +9,8 @@ import { resolveOrgSwitcherOptions, pickInitialOrgId, readStoredOrgId, writeStor
 import { MODULE_REGISTRY } from "@/registry/modules";
 import { OrgSwitcher } from "./OrgSwitcher";
 
+type ShellLoadStatus = "loading" | "ready" | "error";
+
 interface ShellContextValue {
   selectedOrgId: string | null;
   staffClaims: StaffTokenClaims | null;
@@ -37,6 +39,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [orgTiers, setOrgTiers] = useState<Record<string, string>>({});
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [status, setStatus] = useState<ShellLoadStatus>("loading");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadToken, setReloadToken] = useState(0);
 
   function resetShellState() {
     setFullName(null);
@@ -59,55 +64,76 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     async function loadFromSession(session: { access_token: string; user?: { id?: string } } | null) {
       if (!session) {
         clearClaims();
+        if (!cancelled) setStatus("ready");
         return;
       }
 
-      const authUserId = session.user?.id;
+      try {
+        const authUserId = session.user?.id;
 
-      const staffToken = await fetchStaffToken(session.access_token);
-      const decoded = decodeStaffTokenClaims(staffToken);
-      if (cancelled) return;
-      setClaims(decoded);
-      setPlatformOwner(decoded.platformOwner);
-
-      const { data: staffRow } = await supabase
-        .from("staff")
-        .select("full_name, platform_owner")
-        .eq("auth_user_id", authUserId)
-        .single();
-      if (cancelled) return;
-      if (staffRow) setFullName(staffRow.full_name);
-
-      const { data: orgTierRows } = await supabase
-        .from("staff_org_roles")
-        .select("organization_id, org_tier")
-        .eq("staff_id", decoded.staffId);
-      if (cancelled) return;
-      const tiersByOrg: Record<string, string> = {};
-      for (const row of orgTierRows ?? []) {
-        tiersByOrg[row.organization_id] = row.org_tier;
-      }
-      setOrgTiers(tiersByOrg);
-
-      const availableOrgIds = resolveOrgSwitcherOptions(decoded.orgRoles, decoded.moduleAccess);
-      const initialOrgId = pickInitialOrgId(availableOrgIds, readStoredOrgId());
-      setSelectedOrgId(initialOrgId);
-
-      if (availableOrgIds.length > 0) {
-        const { data: organizations } = await supabase.from("organizations").select("id, name").in("id", availableOrgIds);
+        const staffToken = await fetchStaffToken(session.access_token);
+        const decoded = decodeStaffTokenClaims(staffToken);
         if (cancelled) return;
-        const names: Record<string, string> = {};
-        for (const org of organizations ?? []) {
-          names[org.id] = org.name;
+        setClaims(decoded);
+        setPlatformOwner(decoded.platformOwner);
+
+        const { data: staffRow, error: staffError } = await supabase
+          .from("staff")
+          .select("full_name, platform_owner")
+          .eq("auth_user_id", authUserId)
+          .single();
+        if (staffError) throw staffError;
+        if (cancelled) return;
+        if (staffRow) setFullName(staffRow.full_name);
+
+        const { data: orgTierRows, error: orgTierError } = await supabase
+          .from("staff_org_roles")
+          .select("organization_id, org_tier")
+          .eq("staff_id", decoded.staffId);
+        if (orgTierError) throw orgTierError;
+        if (cancelled) return;
+        const tiersByOrg: Record<string, string> = {};
+        for (const row of orgTierRows ?? []) {
+          tiersByOrg[row.organization_id] = row.org_tier;
         }
-        setOrgNames(names);
+        setOrgTiers(tiersByOrg);
+
+        const availableOrgIds = resolveOrgSwitcherOptions(decoded.orgRoles, decoded.moduleAccess);
+        const initialOrgId = pickInitialOrgId(availableOrgIds, readStoredOrgId());
+        setSelectedOrgId(initialOrgId);
+
+        if (availableOrgIds.length > 0) {
+          const { data: organizations, error: organizationsError } = await supabase
+            .from("organizations")
+            .select("id, name")
+            .in("id", availableOrgIds);
+          if (organizationsError) throw organizationsError;
+          if (cancelled) return;
+          const names: Record<string, string> = {};
+          for (const org of organizations ?? []) {
+            names[org.id] = org.name;
+          }
+          setOrgNames(names);
+        }
+
+        if (!cancelled) setStatus("ready");
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Unknown error");
+        setStatus("error");
       }
     }
 
     async function init() {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (cancelled) return;
-      await loadFromSession(sessionData.session);
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (cancelled) return;
+        await loadFromSession(sessionData.session);
+      } catch (err) {
+        if (cancelled) return;
+        setLoadError(err instanceof Error ? err.message : "Unknown error");
+        setStatus("error");
+      }
     }
     init();
 
@@ -116,6 +142,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
         clearClaims();
+        setStatus("ready");
         return;
       }
       if (session) {
@@ -127,7 +154,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [reloadToken]);
 
   function handleSelectOrg(orgId: string) {
     setSelectedOrgId(orgId);
@@ -140,6 +167,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     resetShellState();
     router.push("/login");
     router.refresh();
+  }
+
+  function handleRetry() {
+    setLoadError(null);
+    setStatus("loading");
+    setReloadToken((t) => t + 1);
   }
 
   const availableOrgIds = claims ? resolveOrgSwitcherOptions(claims.orgRoles, claims.moduleAccess) : [];
@@ -178,7 +211,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
         </header>
-        <div className="mx-auto max-w-5xl px-4 py-6">{children}</div>
+        <div className="mx-auto max-w-5xl px-4 py-6">
+          {status === "loading" && <p className="mb-4 text-sm text-gray-500">Loading your account…</p>}
+          {status === "error" && (
+            <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+              <p>We could not load your account. {loadError}</p>
+              <button type="button" onClick={handleRetry} className="mt-2 underline">
+                Retry
+              </button>
+            </div>
+          )}
+          {children}
+        </div>
       </div>
     </ShellContext.Provider>
   );
