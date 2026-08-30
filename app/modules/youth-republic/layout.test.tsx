@@ -1,17 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import { describe, it, expect, vi } from "vitest";
-import VmsModuleLayout from "./layout";
+import YouthRepublicModuleLayout from "./layout";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/modules/vms/dashboard",
+  usePathname: () => "/modules/youth-republic/dashboard",
 }));
 
-describe("VmsModuleLayout", () => {
+describe("YouthRepublicModuleLayout", () => {
   it("renders a tab for each of the 5 admin screens plus the page content", () => {
     render(
-      <VmsModuleLayout>
+      <YouthRepublicModuleLayout>
         <p>screen content</p>
-      </VmsModuleLayout>,
+      </YouthRepublicModuleLayout>,
     );
 
     expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();

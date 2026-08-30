@@ -19,14 +19,14 @@ describe("ModuleEnablementPanel", () => {
     render(
       <ModuleEnablementPanel
         organizationId="org-1"
-        allModules={[{ id: "mod-vms", key: "vms", displayName: "Volunteer Management System" }, { id: "mod-health", key: "health", displayName: "Health" }]}
-        enabledModuleKeys={["vms"]}
+        allModules={[{ id: "mod-youth-republic", key: "youth-republic", displayName: "Youth Republic" }, { id: "mod-health", key: "health", displayName: "Health" }]}
+        enabledModuleKeys={["youth-republic"]}
         accessToken="session-token"
         onEnabled={onEnabled}
       />,
     );
 
-    expect(screen.getByText("Volunteer Management System")).toBeInTheDocument();
+    expect(screen.getByText("Youth Republic")).toBeInTheDocument();
     expect(screen.getByText("Enabled")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Enable" }));

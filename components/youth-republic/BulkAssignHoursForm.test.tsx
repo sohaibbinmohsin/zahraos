@@ -2,17 +2,17 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { BulkAssignHoursForm } from "./BulkAssignHoursForm";
-import * as vmsFunctions from "@/lib/vmsFunctions";
+import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
 
-vi.mock("@/lib/vmsFunctions");
+vi.mock("@/lib/youthRepublicFunctions");
 
 describe("BulkAssignHoursForm", () => {
   beforeEach(() => {
-    vi.mocked(vmsFunctions.bulkAssignHours).mockReset();
+    vi.mocked(youthRepublicFunctions.bulkAssignHours).mockReset();
   });
 
   it("submits date, hours, and only the checked participants' ids to bulkAssignHours", async () => {
-    vi.mocked(vmsFunctions.bulkAssignHours).mockResolvedValue({ createdCount: 2 });
+    vi.mocked(youthRepublicFunctions.bulkAssignHours).mockResolvedValue({ createdCount: 2 });
     const onAssigned = vi.fn();
     const user = userEvent.setup();
 
@@ -35,7 +35,7 @@ describe("BulkAssignHoursForm", () => {
     await user.click(screen.getByRole("button", { name: "Bulk-assign hours" }));
 
     await waitFor(() => {
-      expect(vmsFunctions.bulkAssignHours).toHaveBeenCalledWith(
+      expect(youthRepublicFunctions.bulkAssignHours).toHaveBeenCalledWith(
         { organizationId: "org-1", opportunityId: "opp-1", activityDate: "2026-02-01", hoursSubmitted: 3, participationIds: ["p-1"] },
         "staff-jwt",
       );

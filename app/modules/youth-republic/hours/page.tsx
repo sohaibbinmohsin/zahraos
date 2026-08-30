@@ -8,14 +8,14 @@ import {
   verifyHours,
   listOpportunities,
   listParticipationForOpportunity,
-  exportVmsCsv,
+  exportYouthRepublicCsv,
   type ActivityListRow,
   type OpportunitySummary,
-} from "@/lib/vmsFunctions";
+} from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
-import { BulkAssignHoursForm, type ParticipantOption } from "@/components/vms/BulkAssignHoursForm";
+import { BulkAssignHoursForm, type ParticipantOption } from "@/components/youth-republic/BulkAssignHoursForm";
 
-export default function VmsHoursPage() {
+export default function YouthRepublicHoursPage() {
   const organizationId = useSelectedOrg();
   const [activity, setActivity] = useState<ActivityListRow[]>([]);
   const [opportunities, setOpportunities] = useState<OpportunitySummary[]>([]);
@@ -70,7 +70,7 @@ export default function VmsHoursPage() {
 
   async function handleExport() {
     if (!organizationId || !staffToken) return;
-    const csv = await exportVmsCsv({ organizationId, entity: "activity_hours" }, staffToken);
+    const csv = await exportYouthRepublicCsv({ organizationId, entity: "activity_hours" }, staffToken);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

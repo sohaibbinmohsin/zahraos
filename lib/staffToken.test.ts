@@ -39,7 +39,7 @@ describe("decodeStaffTokenClaims", () => {
       staff_id: "staff-1",
       platform_owner: false,
       org_roles: [{ organization_id: "org-1" }],
-      module_access: [{ organization_id: "org-1", module: "vms", permissions: ["applications:read"] }],
+      module_access: [{ organization_id: "org-1", module: "youth-republic", permissions: ["applications:read"] }],
     }));
     const fakeToken = `${header}.${payload}.fakesignature`;
 
@@ -48,6 +48,6 @@ describe("decodeStaffTokenClaims", () => {
     expect(claims.staffId).toBe("staff-1");
     expect(claims.platformOwner).toBe(false);
     expect(claims.orgRoles).toEqual([{ organizationId: "org-1" }]);
-    expect(claims.moduleAccess).toEqual([{ organizationId: "org-1", module: "vms", permissions: ["applications:read"] }]);
+    expect(claims.moduleAccess).toEqual([{ organizationId: "org-1", module: "youth-republic", permissions: ["applications:read"] }]);
   });
 });

@@ -10,8 +10,8 @@ describe("resolveOrgSwitcherOptions", () => {
     // matches how real callers (e.g. AppShell.tsx) pass claims.moduleAccess,
     // a variable of the wider StaffTokenClaims shape, not a fresh literal.
     const moduleAccess: { organizationId: string; module: string; permissions: string[] }[] = [
-      { organizationId: "org-1", module: "vms", permissions: [] },
-      { organizationId: "org-2", module: "vms", permissions: [] },
+      { organizationId: "org-1", module: "youth-republic", permissions: [] },
+      { organizationId: "org-2", module: "youth-republic", permissions: [] },
     ];
     const result = resolveOrgSwitcherOptions([{ organizationId: "org-1" }], moduleAccess);
     expect(result.sort()).toEqual(["org-1", "org-2"]);

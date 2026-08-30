@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
-import { listOpportunities, exportVmsCsv, type OpportunitySummary } from "@/lib/vmsFunctions";
+import { listOpportunities, exportYouthRepublicCsv, type OpportunitySummary } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
-import { CreateOpportunityForm } from "@/components/vms/CreateOpportunityForm";
+import { CreateOpportunityForm } from "@/components/youth-republic/CreateOpportunityForm";
 
-export default function VmsOpportunitiesPage() {
+export default function YouthRepublicOpportunitiesPage() {
   const organizationId = useSelectedOrg();
   const [opportunities, setOpportunities] = useState<OpportunitySummary[]>([]);
   const [staffToken, setStaffToken] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export default function VmsOpportunitiesPage() {
 
   async function handleExport() {
     if (!organizationId || !staffToken) return;
-    const csv = await exportVmsCsv({ organizationId, entity: "opportunities" }, staffToken);
+    const csv = await exportYouthRepublicCsv({ organizationId, entity: "opportunities" }, staffToken);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

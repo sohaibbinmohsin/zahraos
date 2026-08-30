@@ -1,6 +1,6 @@
 export function functionsUrlForModule(moduleKey: string): string | null {
-  if (moduleKey === "vms") {
-    return Deno.env.get("VMS_BACKEND_FUNCTIONS_URL") ?? null;
+  if (moduleKey === "youth-republic") {
+    return Deno.env.get("YOUTH_REPUBLIC_BACKEND_FUNCTIONS_URL") ?? null;
   }
   return null;
 }

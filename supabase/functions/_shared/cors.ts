@@ -1,5 +1,5 @@
 // Closes the "no CORS handling" finding from the platform-backend post-build
-// review (shared with vms-backend, fixed separately there): every function's
+// review (shared with youth-republic backend, fixed separately there): every function's
 // index.ts did a bare Deno.serve with no OPTIONS handling and no
 // Access-Control-* headers on any response, so a browser calling these from
 // the platform frontend's origin would fail the CORS preflight before the

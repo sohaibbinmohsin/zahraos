@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
-import { getKpiSummary, type KpiSummary } from "@/lib/vmsFunctions";
+import { getKpiSummary, type KpiSummary } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
 
 function StatTile({ label, value }: { label: string; value: number }) {
@@ -36,7 +36,7 @@ function BreakdownList({ title, counts }: { title: string; counts: Record<string
   );
 }
 
-export default function VmsDashboardPage() {
+export default function YouthRepublicDashboardPage() {
   const organizationId = useSelectedOrg();
   const [kpis, setKpis] = useState<KpiSummary | null>(null);
 
@@ -53,12 +53,12 @@ export default function VmsDashboardPage() {
     load();
   }, [organizationId]);
 
-  if (!organizationId) return <p>Select an organization to see its VMS dashboard.</p>;
+  if (!organizationId) return <p>Select an organization to see its Youth Republic dashboard.</p>;
   if (!kpis) return <p>Loading…</p>;
 
   return (
     <div className="space-y-8">
-      <h1 className="text-xl font-semibold">VMS Dashboard</h1>
+      <h1 className="text-xl font-semibold">Youth Republic Dashboard</h1>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatTile label="Total registered" value={kpis.totalRegistered} />
         <StatTile label="Active" value={kpis.active} />

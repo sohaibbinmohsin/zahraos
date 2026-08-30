@@ -14,17 +14,17 @@ Deno.test("enable-module index carries CORS headers on a successful response", a
   const orgId = await createOrg(supabase);
   const owner = await createStaffSession(supabase, { platformOwner: true });
 
-  // VMS_BACKEND_FUNCTIONS_URL is unset in this test environment, so the
+  // YOUTH_REPUBLIC_BACKEND_FUNCTIONS_URL is unset in this test environment, so the
   // org-sync push this handler makes afterward no-ops rather than making a
   // real cross-project network call (see moduleBackends.ts).
-  const res = await handleRequest(jsonRequest({ organizationId: orgId, moduleKey: "vms" }, owner.accessToken));
+  const res = await handleRequest(jsonRequest({ organizationId: orgId, moduleKey: "youth-republic" }, owner.accessToken));
 
   assertEquals(res.status, 200);
   assertEquals(res.headers.get("Access-Control-Allow-Origin"), "*");
 });
 
 Deno.test("enable-module index carries CORS headers on an error response", async () => {
-  const res = await handleRequest(jsonRequest({ organizationId: "x", moduleKey: "vms" }));
+  const res = await handleRequest(jsonRequest({ organizationId: "x", moduleKey: "youth-republic" }));
   assertEquals(res.status, 401);
   assertEquals(res.headers.get("Access-Control-Allow-Origin"), "*");
 });

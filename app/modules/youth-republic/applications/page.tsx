@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
-import { listApplications, decideApplication, exportVmsCsv, type ApplicationListRow, type DecideApplicationPayload } from "@/lib/vmsFunctions";
+import { listApplications, decideApplication, exportYouthRepublicCsv, type ApplicationListRow, type DecideApplicationPayload } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
 
-export default function VmsApplicationsPage() {
+export default function YouthRepublicApplicationsPage() {
   const organizationId = useSelectedOrg();
   const [applications, setApplications] = useState<ApplicationListRow[]>([]);
   const [staffToken, setStaffToken] = useState<string | null>(null);
@@ -36,7 +36,7 @@ export default function VmsApplicationsPage() {
 
   async function handleExport() {
     if (!organizationId || !staffToken) return;
-    const csv = await exportVmsCsv({ organizationId, entity: "applications" }, staffToken);
+    const csv = await exportYouthRepublicCsv({ organizationId, entity: "applications" }, staffToken);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

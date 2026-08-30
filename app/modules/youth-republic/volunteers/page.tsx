@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
-import { listVolunteers, exportVmsCsv, type VolunteerSummary } from "@/lib/vmsFunctions";
+import { listVolunteers, exportYouthRepublicCsv, type VolunteerSummary } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
 
-export default function VmsVolunteersPage() {
+export default function YouthRepublicVolunteersPage() {
   const organizationId = useSelectedOrg();
   const [volunteers, setVolunteers] = useState<VolunteerSummary[]>([]);
   const [search, setSearch] = useState("");
@@ -35,7 +35,7 @@ export default function VmsVolunteersPage() {
 
   async function handleExport() {
     if (!organizationId || !staffToken) return;
-    const csv = await exportVmsCsv({ organizationId, entity: "volunteers" }, staffToken);
+    const csv = await exportYouthRepublicCsv({ organizationId, entity: "volunteers" }, staffToken);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -76,7 +76,7 @@ export default function VmsVolunteersPage() {
             {volunteers.map((v) => (
               <tr key={v.id} className="border-b border-gray-100">
                 <td className="py-2 pr-4">
-                  <Link href={`/modules/vms/volunteers/${v.id}`} className="underline">{v.fullName}</Link>
+                  <Link href={`/modules/youth-republic/volunteers/${v.id}`} className="underline">{v.fullName}</Link>
                 </td>
                 <td className="py-2 pr-4">{v.city}</td>
                 <td className="py-2 pr-4">{v.institution}</td>

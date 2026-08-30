@@ -1,8 +1,8 @@
 /**
  * Requirements doc §4 (Admin navigation), §5D/5E (admin side), §5F, §8
- * — the Admin Portal & Reporting scope for the Youth Republic VMS.
+ * — the Admin Portal & Reporting scope for the Youth Republic module.
  *
- * The admin-facing VMS screens live in `tmp-partner-admin` as a module
+ * The admin-facing Youth Republic screens live in `tmp-partner-admin` as a module
  * mounted through `registry/modules.ts` (platform-design.md §5–6), shipped
  * via `docs/superpowers/plans/2026-08-30-vms-admin-portal-frontend.md`
  * (execution/vms-admin-portal-frontend) against 7 new `youth-republic/backend`
@@ -21,9 +21,9 @@
 import { describe, it, expect } from "vitest";
 import { MODULE_REGISTRY } from "@/registry/modules";
 
-describe("§4/§6 VMS admin module — mount point", () => {
-  it("[4] the module registry is the single place the shell learns about the VMS admin UI", () => {
-    // Now has exactly one entry (key 'vms') per the admin-portal-frontend
+describe("§4/§6 Youth Republic admin module — mount point", () => {
+  it("[4] the module registry is the single place the shell learns about the Youth Republic admin UI", () => {
+    // Now has exactly one entry (key 'youth-republic') per the admin-portal-frontend
     // plan's Task 2. This test's own shape-check needed no change — it was
     // already written to validate whatever's in the array, not that it's
     // empty.
@@ -43,48 +43,48 @@ describe("§4/§6 VMS admin module — mount point", () => {
   // construction, but nobody wrote a test exercising it with the registry
   // actually populated (AppShell.test.tsx predates that). Untested, not
   // unbuilt.
-  it.todo("[4] a staff member granted a VMS role for the selected org sees a 'VMS' nav entry");
-  it.todo("[4] a staff member with no VMS role for the selected org does not see it");
+  it.todo("[4] a staff member granted a Youth Republic role for the selected org sees a 'Youth Republic' nav entry");
+  it.todo("[4] a staff member with no Youth Republic role for the selected org does not see it");
 });
 
 describe("§8 Admin Dashboard — core KPIs", () => {
-  // All 10 verified in one test: app/modules/vms/dashboard/page.test.tsx
+  // All 10 verified in one test: app/modules/youth-republic/dashboard/page.test.tsx
   // → "shows all 10 KPI figures once loaded".
-  it("[8] Total Registered Volunteers — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Total Registered Volunteers — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Active Volunteers — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Active Volunteers — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Completed Participations — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Completed Participations — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Applications Received — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Applications Received — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Selected Volunteers — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Selected Volunteers — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Total Verified Volunteer Hours — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Total Verified Volunteer Hours — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Volunteers by City — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Volunteers by City — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Volunteers by Province — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Volunteers by Province — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Volunteers by Institution — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Volunteers by Institution — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Participation by Opportunity / Activity Type — see app/modules/vms/dashboard/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] Participation by Opportunity / Activity Type — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
 });
 
 describe("§8/§5F Volunteers list — search, filter, view, export", () => {
-  it("[8] search volunteers by name, email, or phone — see app/modules/vms/volunteers/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[8] search volunteers by name, email, or phone — see app/modules/youth-republic/volunteers/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
   // GAP — list-volunteers (the backend endpoint) already accepts city/
   // province/institution/status filter params and is tested at that layer,
@@ -94,23 +94,23 @@ describe("§8/§5F Volunteers list — search, filter, view, export", () => {
   it.todo("[8] filter by Province");
   it.todo("[8] filter by Institution");
   it.todo("[8] filter by Volunteer Status (Pending Verification / Active / Inactive)");
-  it("[5F] open a volunteer to see every application, activity, role and verified hour (§7 bidirectional nav) — see app/modules/vms/volunteers/[id]/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[5F] open a volunteer to see every application, activity, role and verified hour (§7 bidirectional nav) — see app/modules/youth-republic/volunteers/[id]/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  // GAP — the Export CSV button exists and calls the real exportVmsCsv
+  // GAP — the Export CSV button exists and calls the real exportYouthRepublicCsv
   // wrapper, but no test clicks it; "export" here means the button exists
   // and is wired, not that its behavior is asserted anywhere.
   it.todo("[8] export the current (filtered) volunteer list to CSV/Excel");
 });
 
 describe("§5C admin — Opportunities: create, edit, publish", () => {
-  it("[5C] create an opportunity with all §5C fields — see components/vms/CreateOpportunityForm.test.tsx (name + type only; the full §5C field set — dates, eligibility, capacity — isn't in this form)", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[5C] create an opportunity with all §5C fields — see components/youth-republic/CreateOpportunityForm.test.tsx (name + type only; the full §5C field set — dates, eligibility, capacity — isn't in this form)", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
   // GAP — no edit-opportunity form exists at all; only create.
   it.todo("[5C] edit an opportunity");
   // GAP — no status-override control exists; updateOpportunity's
-  // statusOverride/deactivatedAt fields are wired in lib/vmsFunctions.ts but
+  // statusOverride/deactivatedAt fields are wired in lib/youthRepublicFunctions.ts but
   // nothing in the UI calls updateOpportunity with them.
   it.todo("[5C] publish an opportunity / set a manual status override");
   // GAP — list-opportunities accepts type/status filters server-side; the
@@ -127,11 +127,11 @@ describe("§5D admin — Applications: review & decide", () => {
   // GAP — the list itself renders; opportunity/status filter UI does not
   // exist (same shape as the Volunteers/Opportunities filter gaps above).
   it.todo("[5D] list applications, filter by Opportunity and Application Status");
-  it("[5D] decide an application: selected / waitlisted / rejected / under_review (calls decideApplication) — see app/modules/vms/applications/page.test.tsx (only the 'selected' path is click-tested; Waitlist/Reject buttons render and call the same decideApplication wrapper but aren't individually exercised)", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[5D] decide an application: selected / waitlisted / rejected / under_review (calls decideApplication) — see app/modules/youth-republic/applications/page.test.tsx (only the 'selected' path is click-tested; Waitlist/Reject buttons render and call the same decideApplication wrapper but aren't individually exercised)", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[5D] promote a waitlisted application to selected when a spot opens (manual — no auto-promotion) — see app/modules/vms/applications/page.test.tsx", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[5D] promote a waitlisted application to selected when a spot opens (manual — no auto-promotion) — see app/modules/youth-republic/applications/page.test.tsx", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
   // GAP — decideApplication's real error surface was never verified for
   // this specific rejection reason from the admin UI; the applications
@@ -143,11 +143,11 @@ describe("§5E admin — Activities & Hours: record, verify, bulk-assign", () =>
   // GAP — no "record hours for a participant" form exists; only verify
   // (for already-recorded rows) and bulk-assign.
   it.todo("[5E] record an activity / hours for a participant");
-  it("[5E] verify hours — approve, or adjust hours_verified, or reject with a reason (calls verifyHours) — see app/modules/vms/hours/page.test.tsx (only the approve path is click-tested; there is no reject-with-reason control in the UI yet, only Verify)", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[5E] verify hours — approve, or adjust hours_verified, or reject with a reason (calls verifyHours) — see app/modules/youth-republic/hours/page.test.tsx (only the approve path is click-tested; there is no reject-with-reason control in the UI yet, only Verify)", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[5E] bulk-assign standard hours to all participants of a fixed-duration activity (calls bulkAssignHours) — see components/vms/BulkAssignHoursForm.test.tsx (the built form lets the admin choose which participants via checkboxes, a superset of 'all')", () => {
-    expect(MODULE_REGISTRY.some((m) => m.key === "vms")).toBe(true);
+  it("[5E] bulk-assign standard hours to all participants of a fixed-duration activity (calls bulkAssignHours) — see components/youth-republic/BulkAssignHoursForm.test.tsx (the built form lets the admin choose which participants via checkboxes, a superset of 'all')", () => {
+    expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
   // GAP — list-activity-hours accepts activityType/participationStatus
   // filters server-side; the Hours screen has no filter UI at all.
@@ -183,7 +183,7 @@ describe("§9 Access control — Super Admin / Admin distinction gates destructi
   // re-verifies it from here.
   it.todo("[9] a staff token without applications:write cannot decide an application (backend refuses)");
   // GAP — moot as originally worded: the earlier session's own review found
-  // and closed every hard-delete path on vms-backend (dropped the 3
+  // and closed every hard-delete path on youth-republic backend (dropped the 3
   // orphaned delete RLS policies; there is no admin-facing hard-delete
   // action anywhere in this system anymore). Rewrite or retire this item
   // rather than build toward a hard-delete feature that's deliberately gone.

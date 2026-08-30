@@ -26,8 +26,8 @@ Deno.test("createCustomRole builds a role from the module's own permissions", as
     name: "Custom Role Test Org",
     slug: `custom-role-${crypto.randomUUID()}`,
   }).select("id").single();
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
-  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: vmsModule!.id });
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: youthRepublicModule!.id });
 
   const adminEmail = `custom-role-admin-${crypto.randomUUID()}@example.com`;
   const adminAuthUserId = await createAuthUser(supabase, adminEmail);
@@ -36,11 +36,11 @@ Deno.test("createCustomRole builds a role from the module's own permissions", as
   }).select("id").single();
   await supabase.from("staff_org_roles").insert({ staff_id: admin!.id, organization_id: org!.id, org_tier: "super_admin" });
 
-  const { data: perms } = await supabase.from("permissions").select("id").eq("module_id", vmsModule!.id).in("resource", ["hours"]).eq("action", "update");
+  const { data: perms } = await supabase.from("permissions").select("id").eq("module_id", youthRepublicModule!.id).in("resource", ["hours"]).eq("action", "update");
 
   const result = await createCustomRole(supabase, admin!.id, false, {
     organizationId: org!.id,
-    moduleId: vmsModule!.id,
+    moduleId: youthRepublicModule!.id,
     name: "Hours Verifier",
     permissionIds: perms!.map((p) => p.id),
   });
@@ -57,16 +57,16 @@ Deno.test("createCustomRole rejects a permission from a different module", async
     slug: `custom-role-reject-${crypto.randomUUID()}`,
   }).select("id").single();
 
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
   const { data: otherModule } = await supabase.from("modules").insert({ key: `other-${crypto.randomUUID()}`, display_name: "Other" }).select("id").single();
   const { data: otherPerm } = await supabase.from("permissions").insert({ module_id: otherModule!.id, resource: "widgets", action: "read" }).select("id").single();
 
-  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: vmsModule!.id });
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: youthRepublicModule!.id });
 
   await assertRejects(
     () => createCustomRole(supabase, crypto.randomUUID(), true, {
       organizationId: org!.id,
-      moduleId: vmsModule!.id,
+      moduleId: youthRepublicModule!.id,
       name: "Bad Role",
       permissionIds: [otherPerm!.id],
     }),
@@ -81,15 +81,15 @@ Deno.test("createCustomRole rejects building a role for a module the org hasn't 
     name: "Custom Role Unenabled Module Test Org",
     slug: `custom-role-unenabled-${crypto.randomUUID()}`,
   }).select("id").single();
-  // Deliberately no org_modules row for this org — vms is a real, globally-readable
+  // Deliberately no org_modules row for this org — youth-republic is a real, globally-readable
   // module/permission catalog, but this org was never sold/enabled for it.
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
-  const { data: perms } = await supabase.from("permissions").select("id").eq("module_id", vmsModule!.id).limit(1);
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  const { data: perms } = await supabase.from("permissions").select("id").eq("module_id", youthRepublicModule!.id).limit(1);
 
   await assertRejects(
     () => createCustomRole(supabase, crypto.randomUUID(), true, {
       organizationId: org!.id,
-      moduleId: vmsModule!.id,
+      moduleId: youthRepublicModule!.id,
       name: "Should Not Exist",
       permissionIds: perms!.map((p) => p.id),
     }),

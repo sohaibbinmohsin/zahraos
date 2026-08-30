@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { bulkAssignHours } from "@/lib/vmsFunctions";
+import { bulkAssignHours } from "@/lib/youthRepublicFunctions";
 
 export interface ParticipantOption {
   participationId: string;

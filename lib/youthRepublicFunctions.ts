@@ -1,7 +1,7 @@
-async function callVmsFunction<TResponse>(name: string, body: unknown, staffToken: string): Promise<TResponse> {
-  const baseUrl = process.env.NEXT_PUBLIC_VMS_FUNCTIONS_URL;
+async function callYouthRepublicFunction<TResponse>(name: string, body: unknown, staffToken: string): Promise<TResponse> {
+  const baseUrl = process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL;
   if (!baseUrl) {
-    throw new Error("NEXT_PUBLIC_VMS_FUNCTIONS_URL is not set");
+    throw new Error("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
   }
 
   const response = await fetch(`${baseUrl}/${name}`, {
@@ -20,10 +20,10 @@ async function callVmsFunction<TResponse>(name: string, body: unknown, staffToke
   return data as TResponse;
 }
 
-async function callVmsFunctionForCsv(name: string, body: unknown, staffToken: string): Promise<string> {
-  const baseUrl = process.env.NEXT_PUBLIC_VMS_FUNCTIONS_URL;
+async function callYouthRepublicFunctionForCsv(name: string, body: unknown, staffToken: string): Promise<string> {
+  const baseUrl = process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL;
   if (!baseUrl) {
-    throw new Error("NEXT_PUBLIC_VMS_FUNCTIONS_URL is not set");
+    throw new Error("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
   }
 
   const response = await fetch(`${baseUrl}/${name}`, {
@@ -68,7 +68,7 @@ export interface ListVolunteersResponse {
   total: number;
 }
 export function listVolunteers(payload: ListVolunteersPayload, staffToken: string) {
-  return callVmsFunction<ListVolunteersResponse>("list-volunteers", payload, staffToken);
+  return callYouthRepublicFunction<ListVolunteersResponse>("list-volunteers", payload, staffToken);
 }
 
 export interface VolunteerDetail extends VolunteerSummary {
@@ -80,7 +80,7 @@ export interface VolunteerDetail extends VolunteerSummary {
   }>;
 }
 export function getVolunteerDetail(payload: { organizationId: string; volunteerId: string }, staffToken: string) {
-  return callVmsFunction<VolunteerDetail>("get-volunteer-detail", payload, staffToken);
+  return callYouthRepublicFunction<VolunteerDetail>("get-volunteer-detail", payload, staffToken);
 }
 
 export interface OpportunitySummary {
@@ -102,7 +102,7 @@ export interface ListOpportunitiesResponse {
   total: number;
 }
 export function listOpportunities(payload: ListOpportunitiesPayload, staffToken: string) {
-  return callVmsFunction<ListOpportunitiesResponse>("list-opportunities", payload, staffToken);
+  return callYouthRepublicFunction<ListOpportunitiesResponse>("list-opportunities", payload, staffToken);
 }
 
 export interface ParticipationForOpportunityResponse {
@@ -113,7 +113,7 @@ export function listParticipationForOpportunity(
   payload: { organizationId: string; opportunityId: string },
   staffToken: string,
 ) {
-  return callVmsFunction<ParticipationForOpportunityResponse>("list-participation-for-opportunity", payload, staffToken);
+  return callYouthRepublicFunction<ParticipationForOpportunityResponse>("list-participation-for-opportunity", payload, staffToken);
 }
 
 export interface ApplicationListRow {
@@ -137,7 +137,7 @@ export interface ListApplicationsResponse {
   total: number;
 }
 export function listApplications(payload: ListApplicationsPayload, staffToken: string) {
-  return callVmsFunction<ListApplicationsResponse>("list-applications", payload, staffToken);
+  return callYouthRepublicFunction<ListApplicationsResponse>("list-applications", payload, staffToken);
 }
 
 export interface ActivityListRow {
@@ -164,7 +164,7 @@ export interface ListActivityHoursResponse {
   total: number;
 }
 export function listActivityHours(payload: ListActivityHoursPayload, staffToken: string) {
-  return callVmsFunction<ListActivityHoursResponse>("list-activity-hours", payload, staffToken);
+  return callYouthRepublicFunction<ListActivityHoursResponse>("list-activity-hours", payload, staffToken);
 }
 
 export interface KpiSummary {
@@ -181,7 +181,7 @@ export interface KpiSummary {
   participationByActivityType: Record<string, number>;
 }
 export function getKpiSummary(payload: { organizationId: string }, staffToken: string) {
-  return callVmsFunction<KpiSummary>("get-kpi-summary", payload, staffToken);
+  return callYouthRepublicFunction<KpiSummary>("get-kpi-summary", payload, staffToken);
 }
 
 export interface CreateOpportunityPayload {
@@ -199,7 +199,7 @@ export interface CreateOpportunityPayload {
   capacity?: number;
 }
 export function createOpportunity(payload: CreateOpportunityPayload, staffToken: string) {
-  return callVmsFunction<{ opportunityId: string }>("create-opportunity", payload, staffToken);
+  return callYouthRepublicFunction<{ opportunityId: string }>("create-opportunity", payload, staffToken);
 }
 
 export interface UpdateOpportunityPayload {
@@ -219,7 +219,7 @@ export interface UpdateOpportunityPayload {
   deactivatedAt?: string | null;
 }
 export function updateOpportunity(payload: UpdateOpportunityPayload, staffToken: string) {
-  return callVmsFunction<{ opportunityId: string }>("update-opportunity", payload, staffToken);
+  return callYouthRepublicFunction<{ opportunityId: string }>("update-opportunity", payload, staffToken);
 }
 
 // No organizationId here — decideApplication derives it from the
@@ -234,7 +234,7 @@ export interface DecideApplicationResponse {
   participationId: string | null;
 }
 export function decideApplication(payload: DecideApplicationPayload, staffToken: string) {
-  return callVmsFunction<DecideApplicationResponse>("decide-application", payload, staffToken);
+  return callYouthRepublicFunction<DecideApplicationResponse>("decide-application", payload, staffToken);
 }
 
 // decision is required — the handler has no separate "verify" vs "reject"
@@ -248,7 +248,7 @@ export interface VerifyHoursPayload {
   rejectionReason?: string;
 }
 export function verifyHours(payload: VerifyHoursPayload, staffToken: string) {
-  return callVmsFunction<{ activityHoursId: string }>("verify-hours", payload, staffToken);
+  return callYouthRepublicFunction<{ activityHoursId: string }>("verify-hours", payload, staffToken);
 }
 
 // Assigns hours to a specific set of participations, not "everyone in this
@@ -261,9 +261,9 @@ export interface BulkAssignHoursPayload {
   participationIds: string[];
 }
 export function bulkAssignHours(payload: BulkAssignHoursPayload, staffToken: string) {
-  return callVmsFunction<{ createdCount: number }>("bulk-assign-hours", payload, staffToken);
+  return callYouthRepublicFunction<{ createdCount: number }>("bulk-assign-hours", payload, staffToken);
 }
 
-export function exportVmsCsv(payload: { organizationId: string; entity: "volunteers" | "applications" | "opportunities" | "activity_hours" }, staffToken: string) {
-  return callVmsFunctionForCsv("export-csv", payload, staffToken);
+export function exportYouthRepublicCsv(payload: { organizationId: string; entity: "volunteers" | "applications" | "opportunities" | "activity_hours" }, staffToken: string) {
+  return callYouthRepublicFunctionForCsv("export-csv", payload, staffToken);
 }

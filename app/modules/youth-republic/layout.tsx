@@ -4,14 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/modules/vms/dashboard", label: "Dashboard" },
-  { href: "/modules/vms/volunteers", label: "Volunteers" },
-  { href: "/modules/vms/opportunities", label: "Opportunities" },
-  { href: "/modules/vms/applications", label: "Applications" },
-  { href: "/modules/vms/hours", label: "Hours" },
+  { href: "/modules/youth-republic/dashboard", label: "Dashboard" },
+  { href: "/modules/youth-republic/volunteers", label: "Volunteers" },
+  { href: "/modules/youth-republic/opportunities", label: "Opportunities" },
+  { href: "/modules/youth-republic/applications", label: "Applications" },
+  { href: "/modules/youth-republic/hours", label: "Hours" },
 ];
 
-export default function VmsModuleLayout({ children }: { children: React.ReactNode }) {
+export default function YouthRepublicModuleLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (

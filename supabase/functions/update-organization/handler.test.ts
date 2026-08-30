@@ -16,12 +16,12 @@ Deno.test("updateOrganization renames the org and reports which modules need a r
     slug: `update-test-${crypto.randomUUID()}`,
   }).select("id").single();
 
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
-  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: vmsModule!.id });
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: youthRepublicModule!.id });
 
   const result = await updateOrganization(supabase, true, { organizationId: org!.id, name: "New Name" });
 
-  assertEquals(result.enabledModuleKeys, ["vms"]);
+  assertEquals(result.enabledModuleKeys, ["youth-republic"]);
   const { data: updated } = await supabase.from("organizations").select("name").eq("id", org!.id).single();
   assertEquals(updated!.name, "New Name");
 });

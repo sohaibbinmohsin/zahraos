@@ -193,7 +193,7 @@ describe("AppShell", () => {
         staff_id: "s3",
         platform_owner: false,
         org_roles: [],
-        module_access: [{ organization_id: "org-1", module: "vms", permissions: ["applications:read"] }],
+        module_access: [{ organization_id: "org-1", module: "youth-republic", permissions: ["applications:read"] }],
       }),
     );
 

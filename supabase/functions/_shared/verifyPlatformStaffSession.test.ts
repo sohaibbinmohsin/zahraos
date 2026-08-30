@@ -53,7 +53,7 @@ Deno.test("verifyPlatformStaffSession rejects a session with no staff row", asyn
 // finding: deactivateStaff only ever flipped staff.status to "deactivated" —
 // nothing checked that flag again, so a deactivated staff member's still-valid
 // Supabase Auth session kept working against every platform Edge Function,
-// including minting a brand new VMS staff JWT.
+// including minting a brand new Youth Republic staff JWT.
 Deno.test("verifyPlatformStaffSession rejects a deactivated staff member", async () => {
   const supabase = fakeSupabase({
     user: { id: "auth-1" },

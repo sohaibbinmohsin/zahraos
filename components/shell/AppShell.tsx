@@ -188,7 +188,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [reloadToken]);
 
-  // Keep the VMS staff JWT's claims from going stale for a long-lived session:
+  // Keep the Youth Republic staff JWT's claims from going stale for a long-lived session:
   // re-mint and re-decode it well before its 1-hour server-side expiry, for as
   // long as the shell stays mounted with a loaded session. Additive to the
   // load-on-mount/auth-state-change effect above — doesn't touch it.

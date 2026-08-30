@@ -3,7 +3,7 @@ import { handleRequest } from "./index.ts";
 import { adminTestClient, createStaffSession, jsonRequest, optionsRequest } from "../_shared/testSupport.ts";
 
 // Regression tests for the "no CORS handling" finding. mint-staff-token
-// mints a brand new cross-project VMS staff JWT, exactly the call the
+// mints a brand new cross-project Youth Republic staff JWT, exactly the call the
 // session-revocation fix was concerned with a deactivated staff member
 // re-invoking — it's just as reachable from a browser as any other function
 // here, so it needs the same CORS treatment.

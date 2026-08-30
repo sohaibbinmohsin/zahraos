@@ -44,20 +44,20 @@ Deno.test("mintStaffToken resolves full permissions for an org_super_admin", asy
     slug: `mint-test-${crypto.randomUUID()}`,
   }).select("id").single();
 
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
-  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: vmsModule!.id });
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: youthRepublicModule!.id });
   await supabase.from("staff_org_roles").insert({ staff_id: staff!.id, organization_id: org!.id, org_tier: "super_admin" });
 
   const token = await mintStaffToken(supabase, staff!.id, false);
   const payload = await verify(token, await verifyKey());
 
   const moduleAccess = payload.module_access as Array<{ organization_id: string; module: string; permissions: string[] }>;
-  const vmsAccess = moduleAccess.find((m) => m.organization_id === org!.id && m.module === "vms");
+  const youthRepublicAccess = moduleAccess.find((m) => m.organization_id === org!.id && m.module === "youth-republic");
 
   assertEquals(payload.platform_owner, false);
   assertEquals(payload.staff_id, staff!.id);
-  assertEquals(vmsAccess!.permissions.includes("applications:read"), true);
-  assertEquals(vmsAccess!.permissions.includes("opportunities:delete"), true);
+  assertEquals(youthRepublicAccess!.permissions.includes("applications:read"), true);
+  assertEquals(youthRepublicAccess!.permissions.includes("opportunities:delete"), true);
 });
 
 Deno.test("mintStaffToken resolves only the granted role's permissions for a regular staff member", async () => {
@@ -84,14 +84,14 @@ Deno.test("mintStaffToken resolves only the granted role's permissions for a reg
     slug: `mint-test-2-${crypto.randomUUID()}`,
   }).select("id").single();
 
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
-  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: vmsModule!.id });
-  await supabase.rpc("seed_system_roles_for_module", { p_org_id: org!.id, p_module_id: vmsModule!.id });
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: youthRepublicModule!.id });
+  await supabase.rpc("seed_system_roles_for_module", { p_org_id: org!.id, p_module_id: youthRepublicModule!.id });
   const { data: viewerRole } = await supabase.from("roles").select("id").eq("organization_id", org!.id).eq("name", "Viewer").single();
   await supabase.from("staff_module_roles").insert({
     staff_id: staff!.id,
     organization_id: org!.id,
-    module_id: vmsModule!.id,
+    module_id: youthRepublicModule!.id,
     role_id: viewerRole!.id,
   });
 
@@ -99,9 +99,9 @@ Deno.test("mintStaffToken resolves only the granted role's permissions for a reg
   const payload = await verify(token, await verifyKey());
 
   const moduleAccess = payload.module_access as Array<{ organization_id: string; module: string; permissions: string[] }>;
-  const vmsAccess = moduleAccess.find((m) => m.organization_id === org!.id && m.module === "vms");
+  const youthRepublicAccess = moduleAccess.find((m) => m.organization_id === org!.id && m.module === "youth-republic");
 
   assertEquals(payload.staff_id, staff!.id);
-  assertEquals(vmsAccess!.permissions.includes("applications:read"), true);
-  assertEquals(vmsAccess!.permissions.includes("applications:write"), false);
+  assertEquals(youthRepublicAccess!.permissions.includes("applications:read"), true);
+  assertEquals(youthRepublicAccess!.permissions.includes("applications:write"), false);
 });

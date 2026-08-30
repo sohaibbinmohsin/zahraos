@@ -1,14 +1,14 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import VmsVolunteerDetailPage from "./page";
+import YouthRepublicVolunteerDetailPage from "./page";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
-import * as vmsFunctions from "@/lib/vmsFunctions";
+import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
 import * as shell from "@/components/shell/AppShell";
 
 vi.mock("@/lib/supabase/browserClient");
 vi.mock("@/lib/staffToken");
-vi.mock("@/lib/vmsFunctions");
+vi.mock("@/lib/youthRepublicFunctions");
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
   return { ...actual, useSelectedOrg: vi.fn() };
@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "vol-1" }),
 }));
 
-describe("VmsVolunteerDetailPage", () => {
+describe("YouthRepublicVolunteerDetailPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
@@ -27,7 +27,7 @@ describe("VmsVolunteerDetailPage", () => {
   });
 
   it("shows the volunteer's profile, applications, participations, and activity (with admin notes)", async () => {
-    vi.mocked(vmsFunctions.getVolunteerDetail).mockResolvedValue({
+    vi.mocked(youthRepublicFunctions.getVolunteerDetail).mockResolvedValue({
       id: "vol-1", volunteerCode: "YR-2026-00001", fullName: "Aisha Khan", email: "aisha@example.com",
       phone: "0300-1111111", city: "Lahore", province: "Punjab", institution: "LUMS", status: "active",
       applications: [{ id: "app-1", status: "selected", opportunityName: "Beach Cleanup", appliedAt: "2026-01-01T00:00:00Z" }],
@@ -38,12 +38,12 @@ describe("VmsVolunteerDetailPage", () => {
       }],
     });
 
-    render(<VmsVolunteerDetailPage />);
+    render(<YouthRepublicVolunteerDetailPage />);
 
     expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
     expect(screen.getByText("Beach Cleanup")).toBeInTheDocument();
     expect(screen.getByText("Showed great leadership")).toBeInTheDocument();
-    expect(vmsFunctions.getVolunteerDetail).toHaveBeenCalledWith(
+    expect(youthRepublicFunctions.getVolunteerDetail).toHaveBeenCalledWith(
       { organizationId: "org-1", volunteerId: "vol-1" },
       "staff-jwt",
     );

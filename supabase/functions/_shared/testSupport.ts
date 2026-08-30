@@ -77,14 +77,14 @@ export async function grantOrgTier(
   await supabase.from("staff_org_roles").insert({ staff_id: staffId, organization_id: organizationId, org_tier: orgTier });
 }
 
-// Enables the vms module for an org and seeds its system roles, returning
+// Enables the Youth Republic module for an org and seeds its system roles, returning
 // the module's id — the precondition assign-staff-module-role,
 // create-custom-role, and deactivate-staff's affiliation check all need.
-export async function enableVmsModule(supabase: SupabaseClient, organizationId: string): Promise<string> {
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
-  await supabase.from("org_modules").upsert({ organization_id: organizationId, module_id: vmsModule!.id });
-  await supabase.rpc("seed_system_roles_for_module", { p_org_id: organizationId, p_module_id: vmsModule!.id });
-  return vmsModule!.id as string;
+export async function enableYouthRepublicModule(supabase: SupabaseClient, organizationId: string): Promise<string> {
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").upsert({ organization_id: organizationId, module_id: youthRepublicModule!.id });
+  await supabase.rpc("seed_system_roles_for_module", { p_org_id: organizationId, p_module_id: youthRepublicModule!.id });
+  return youthRepublicModule!.id as string;
 }
 
 export async function grantModuleAffiliation(
@@ -92,7 +92,7 @@ export async function grantModuleAffiliation(
   staffId: string,
   organizationId: string,
 ): Promise<void> {
-  const moduleId = await enableVmsModule(supabase, organizationId);
+  const moduleId = await enableYouthRepublicModule(supabase, organizationId);
   const { data: viewerRole } = await supabase.from("roles").select("id").eq("organization_id", organizationId).eq(
     "name",
     "Viewer",

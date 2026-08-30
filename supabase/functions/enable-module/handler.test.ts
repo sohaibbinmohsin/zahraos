@@ -16,9 +16,9 @@ Deno.test("enableModule enables the module and seeds system roles", async () => 
     slug: `enable-module-${crypto.randomUUID()}`,
   }).select("id").single();
 
-  const result = await enableModule(supabase, true, { organizationId: org!.id, moduleKey: "vms" });
+  const result = await enableModule(supabase, true, { organizationId: org!.id, moduleKey: "youth-republic" });
 
-  assertEquals(result.moduleKey, "vms");
+  assertEquals(result.moduleKey, "youth-republic");
 
   const { data: roles } = await supabase.from("roles").select("name").eq("organization_id", org!.id);
   assertEquals((roles ?? []).map((r) => r.name).sort(), ["Editor", "Viewer"]);
@@ -32,7 +32,7 @@ Deno.test("enableModule rejects a non-platform_owner caller", async () => {
   }).select("id").single();
 
   await assertRejects(
-    () => enableModule(supabase, false, { organizationId: org!.id, moduleKey: "vms" }),
+    () => enableModule(supabase, false, { organizationId: org!.id, moduleKey: "youth-republic" }),
     Error,
     "forbidden",
   );

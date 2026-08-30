@@ -7,8 +7,8 @@ describe("RolesList", () => {
     render(
       <RolesList
         roles={[
-          { id: "r1", name: "Viewer", isSystem: true, moduleKey: "vms" },
-          { id: "r2", name: "Hours Verifier", isSystem: false, moduleKey: "vms" },
+          { id: "r1", name: "Viewer", isSystem: true, moduleKey: "youth-republic" },
+          { id: "r2", name: "Hours Verifier", isSystem: false, moduleKey: "youth-republic" },
         ]}
       />,
     );

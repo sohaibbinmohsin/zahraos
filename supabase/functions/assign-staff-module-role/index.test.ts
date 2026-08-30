@@ -4,7 +4,7 @@ import {
   adminTestClient,
   createOrg,
   createStaffSession,
-  enableVmsModule,
+  enableYouthRepublicModule,
   grantOrgTier,
   jsonRequest,
   optionsRequest,
@@ -22,7 +22,7 @@ Deno.test("assign-staff-module-role index carries CORS headers on a successful r
   const orgId = await createOrg(supabase);
   const admin = await createStaffSession(supabase);
   await grantOrgTier(supabase, admin.staffId, orgId, "admin");
-  const moduleId = await enableVmsModule(supabase, orgId);
+  const moduleId = await enableYouthRepublicModule(supabase, orgId);
   const { data: viewerRole } = await supabase.from("roles").select("id").eq("organization_id", orgId).eq("name", "Viewer")
     .single();
   const target = await createStaffSession(supabase);

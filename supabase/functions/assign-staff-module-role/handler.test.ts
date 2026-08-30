@@ -20,21 +20,21 @@ async function createAuthUser(supabase: ReturnType<typeof testClient>, email: st
   return authUser.user.id;
 }
 
-async function setupOrgWithVms(supabase: ReturnType<typeof testClient>) {
+async function setupOrgWithYouthRepublic(supabase: ReturnType<typeof testClient>) {
   const { data: org } = await supabase.from("organizations").insert({
     name: "Assign Role Test Org",
     slug: `assign-role-${crypto.randomUUID()}`,
   }).select("id").single();
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
-  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: vmsModule!.id });
-  await supabase.rpc("seed_system_roles_for_module", { p_org_id: org!.id, p_module_id: vmsModule!.id });
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: youthRepublicModule!.id });
+  await supabase.rpc("seed_system_roles_for_module", { p_org_id: org!.id, p_module_id: youthRepublicModule!.id });
   const { data: editorRole } = await supabase.from("roles").select("id").eq("organization_id", org!.id).eq("name", "Editor").single();
-  return { orgId: org!.id as string, moduleId: vmsModule!.id as string, editorRoleId: editorRole!.id as string };
+  return { orgId: org!.id as string, moduleId: youthRepublicModule!.id as string, editorRoleId: editorRole!.id as string };
 }
 
 Deno.test("assignStaffModuleRole grants a role when the caller is admin", async () => {
   const supabase = testClient();
-  const { orgId, moduleId, editorRoleId } = await setupOrgWithVms(supabase);
+  const { orgId, moduleId, editorRoleId } = await setupOrgWithYouthRepublic(supabase);
 
   const adminEmail = `assign-admin-${crypto.randomUUID()}@example.com`;
   const adminAuthUserId = await createAuthUser(supabase, adminEmail);
@@ -69,11 +69,11 @@ Deno.test("assignStaffModuleRole rejects assigning a role for a module the org h
     auth_user_id: targetAuthUserId, full_name: "Target", email: targetEmail,
   }).select("id").single();
 
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
 
   await assertRejects(
     () => assignStaffModuleRole(supabase, target!.id, true, {
-      staffId: target!.id, organizationId: org!.id, moduleId: vmsModule!.id, roleId: crypto.randomUUID(),
+      staffId: target!.id, organizationId: org!.id, moduleId: youthRepublicModule!.id, roleId: crypto.randomUUID(),
     }),
     Error,
     "module_not_enabled",

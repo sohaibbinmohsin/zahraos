@@ -19,21 +19,21 @@ describe("CreateCustomRoleForm", () => {
     render(
       <CreateCustomRoleForm
         organizationId="org-1"
-        modules={[{ id: "mod-vms", key: "vms" }]}
-        permissionsByModuleId={{ "mod-vms": [{ id: "perm-1", resource: "hours", action: "update" }] }}
+        modules={[{ id: "mod-youth-republic", key: "youth-republic" }]}
+        permissionsByModuleId={{ "mod-youth-republic": [{ id: "perm-1", resource: "hours", action: "update" }] }}
         accessToken="session-token"
         onCreated={onCreated}
       />,
     );
 
-    await user.selectOptions(screen.getByLabelText("Module"), "mod-vms");
+    await user.selectOptions(screen.getByLabelText("Module"), "mod-youth-republic");
     await user.type(screen.getByLabelText("Role name"), "Hours Verifier");
     await user.click(screen.getByLabelText("hours:update"));
     await user.click(screen.getByRole("button", { name: "Create role" }));
 
     await waitFor(() => {
       expect(platformFunctions.createCustomRole).toHaveBeenCalledWith(
-        { organizationId: "org-1", moduleId: "mod-vms", name: "Hours Verifier", permissionIds: ["perm-1"] },
+        { organizationId: "org-1", moduleId: "mod-youth-republic", name: "Hours Verifier", permissionIds: ["perm-1"] },
         "session-token",
       );
       expect(onCreated).toHaveBeenCalled();

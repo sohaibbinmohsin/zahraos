@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
-import { getVolunteerDetail, type VolunteerDetail } from "@/lib/vmsFunctions";
+import { getVolunteerDetail, type VolunteerDetail } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
 
-export default function VmsVolunteerDetailPage() {
+export default function YouthRepublicVolunteerDetailPage() {
   const organizationId = useSelectedOrg();
   const { id } = useParams<{ id: string }>();
   const [detail, setDetail] = useState<VolunteerDetail | null>(null);

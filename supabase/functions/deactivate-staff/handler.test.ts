@@ -48,11 +48,11 @@ async function grantOrgTier(supabase: ReturnType<typeof testClient>, staffId: st
 // they've been granted." This is what deactivateStaff must recognize as
 // "belongs to this org" for its shared-org check to mean anything.
 async function grantModuleAffiliation(supabase: ReturnType<typeof testClient>, staffId: string, orgId: string) {
-  const { data: vmsModule } = await supabase.from("modules").select("id").eq("key", "vms").single();
-  await supabase.from("org_modules").upsert({ organization_id: orgId, module_id: vmsModule!.id });
-  await supabase.rpc("seed_system_roles_for_module", { p_org_id: orgId, p_module_id: vmsModule!.id });
+  const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").upsert({ organization_id: orgId, module_id: youthRepublicModule!.id });
+  await supabase.rpc("seed_system_roles_for_module", { p_org_id: orgId, p_module_id: youthRepublicModule!.id });
   const { data: viewerRole } = await supabase.from("roles").select("id").eq("organization_id", orgId).eq("name", "Viewer").single();
-  await supabase.from("staff_module_roles").insert({ staff_id: staffId, organization_id: orgId, module_id: vmsModule!.id, role_id: viewerRole!.id });
+  await supabase.from("staff_module_roles").insert({ staff_id: staffId, organization_id: orgId, module_id: youthRepublicModule!.id, role_id: viewerRole!.id });
 }
 
 Deno.test("deactivateStaff lets an admin deactivate a regular staff member in the same org", async () => {

@@ -39,7 +39,7 @@ describe("Home", () => {
     vi.mocked(shell.useStaffClaims).mockReturnValue({
       actorType: "staff", staffId: "s1", platformOwner: false,
       orgRoles: [{ organizationId: "org-1" }],
-      moduleAccess: [{ organizationId: "org-1", module: "vms", permissions: ["applications:read"] }],
+      moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["applications:read"] }],
     });
     vi.mocked(shell.useOrgTier).mockReturnValue(null);
 

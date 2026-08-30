@@ -25,7 +25,7 @@ export async function verifyPlatformStaffSession(
   // deactivated staff member's Supabase Auth session can otherwise stay
   // valid (until it naturally expires, or briefly even after an admin ban —
   // see deactivateStaff) and keep working against every platform Edge
-  // Function this gate protects, including minting a brand new VMS token.
+  // Function this gate protects, including minting a brand new Youth Republic token.
   if (staff.status !== "active") {
     throw new Error("unauthorized");
   }

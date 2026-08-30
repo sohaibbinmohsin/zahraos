@@ -20,21 +20,21 @@ describe("AssignStaffModuleRoleForm", () => {
       <AssignStaffModuleRoleForm
         organizationId="org-1"
         staffOptions={[{ id: "s2", fullName: "Target Staff" }]}
-        moduleOptions={[{ id: "mod-vms", key: "vms" }]}
-        roleOptionsByModuleId={{ "mod-vms": [{ id: "role-editor", name: "Editor" }] }}
+        moduleOptions={[{ id: "mod-youth-republic", key: "youth-republic" }]}
+        roleOptionsByModuleId={{ "mod-youth-republic": [{ id: "role-editor", name: "Editor" }] }}
         accessToken="session-token"
         onAssigned={onAssigned}
       />,
     );
 
     await user.selectOptions(screen.getByLabelText("Staff member"), "s2");
-    await user.selectOptions(screen.getByLabelText("Module"), "mod-vms");
+    await user.selectOptions(screen.getByLabelText("Module"), "mod-youth-republic");
     await user.selectOptions(screen.getByLabelText("Role"), "role-editor");
     await user.click(screen.getByRole("button", { name: "Assign role" }));
 
     await waitFor(() => {
       expect(platformFunctions.assignStaffModuleRole).toHaveBeenCalledWith(
-        { staffId: "s2", organizationId: "org-1", moduleId: "mod-vms", roleId: "role-editor" },
+        { staffId: "s2", organizationId: "org-1", moduleId: "mod-youth-republic", roleId: "role-editor" },
         "session-token",
       );
       expect(onAssigned).toHaveBeenCalled();

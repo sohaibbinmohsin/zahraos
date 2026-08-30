@@ -56,17 +56,17 @@ describe("createOrganization", () => {
 
 describe("updateOrganization", () => {
   it("posts to update-organization and returns enabled module keys", async () => {
-    mockOk({ enabledModuleKeys: ["vms"] });
+    mockOk({ enabledModuleKeys: ["youth-republic"] });
     const result = await updateOrganization({ organizationId: "org-1", name: "Rizq Renamed" }, "session-token");
-    expect(result.enabledModuleKeys).toEqual(["vms"]);
+    expect(result.enabledModuleKeys).toEqual(["youth-republic"]);
   });
 });
 
 describe("enableModule", () => {
   it("posts to enable-module", async () => {
-    mockOk({ moduleKey: "vms" });
-    const result = await enableModule({ organizationId: "org-1", moduleKey: "vms" }, "session-token");
-    expect(result.moduleKey).toBe("vms");
+    mockOk({ moduleKey: "youth-republic" });
+    const result = await enableModule({ organizationId: "org-1", moduleKey: "youth-republic" }, "session-token");
+    expect(result.moduleKey).toBe("youth-republic");
   });
 });
 

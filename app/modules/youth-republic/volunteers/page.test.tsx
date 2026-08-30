@@ -1,32 +1,32 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import VmsVolunteersPage from "./page";
+import YouthRepublicVolunteersPage from "./page";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
-import * as vmsFunctions from "@/lib/vmsFunctions";
+import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
 import * as shell from "@/components/shell/AppShell";
 
 vi.mock("@/lib/supabase/browserClient");
 vi.mock("@/lib/staffToken");
-vi.mock("@/lib/vmsFunctions");
+vi.mock("@/lib/youthRepublicFunctions");
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
   return { ...actual, useSelectedOrg: vi.fn() };
 });
 
-describe("VmsVolunteersPage", () => {
+describe("YouthRepublicVolunteersPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
     vi.mocked(fetchStaffToken).mockResolvedValue("staff-jwt");
-    vi.mocked(vmsFunctions.listVolunteers).mockReset();
+    vi.mocked(youthRepublicFunctions.listVolunteers).mockReset();
   });
 
   it("lists volunteers and re-fetches with the search term when submitted", async () => {
-    vi.mocked(vmsFunctions.listVolunteers).mockResolvedValue({
+    vi.mocked(youthRepublicFunctions.listVolunteers).mockResolvedValue({
       volunteers: [{
         id: "vol-1", volunteerCode: "YR-2026-00001", fullName: "Aisha Khan", email: "aisha@example.com",
         phone: "0300-1111111", city: "Lahore", province: "Punjab", institution: "LUMS", status: "active",
@@ -35,7 +35,7 @@ describe("VmsVolunteersPage", () => {
     });
     const user = userEvent.setup();
 
-    render(<VmsVolunteersPage />);
+    render(<YouthRepublicVolunteersPage />);
 
     expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
 
@@ -43,7 +43,7 @@ describe("VmsVolunteersPage", () => {
     await user.click(screen.getByRole("button", { name: "Search" }));
 
     await waitFor(() => {
-      expect(vmsFunctions.listVolunteers).toHaveBeenLastCalledWith(
+      expect(youthRepublicFunctions.listVolunteers).toHaveBeenLastCalledWith(
         expect.objectContaining({ organizationId: "org-1", search: "Aisha" }),
         "staff-jwt",
       );
@@ -51,7 +51,7 @@ describe("VmsVolunteersPage", () => {
   });
 
   it("links each row to its volunteer detail page", async () => {
-    vi.mocked(vmsFunctions.listVolunteers).mockResolvedValue({
+    vi.mocked(youthRepublicFunctions.listVolunteers).mockResolvedValue({
       volunteers: [{
         id: "vol-1", volunteerCode: "YR-2026-00001", fullName: "Aisha Khan", email: "aisha@example.com",
         phone: "0300-1111111", city: "Lahore", province: "Punjab", institution: "LUMS", status: "active",
@@ -59,9 +59,9 @@ describe("VmsVolunteersPage", () => {
       total: 1,
     });
 
-    render(<VmsVolunteersPage />);
+    render(<YouthRepublicVolunteersPage />);
 
     const link = await screen.findByRole("link", { name: "Aisha Khan" });
-    expect(link).toHaveAttribute("href", "/modules/vms/volunteers/vol-1");
+    expect(link).toHaveAttribute("href", "/modules/youth-republic/volunteers/vol-1");
   });
 });

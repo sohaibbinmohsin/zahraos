@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createOpportunity } from "@/lib/vmsFunctions";
+import { createOpportunity } from "@/lib/youthRepublicFunctions";
 
 export function CreateOpportunityForm({
   organizationId,
