@@ -30,11 +30,15 @@ describe("YouthRepublicVolunteerDetailPage", () => {
     vi.mocked(youthRepublicFunctions.getVolunteerDetail).mockResolvedValue({
       id: "vol-1", volunteerCode: "YR-2026-00001", fullName: "Aisha Khan", email: "aisha@example.com",
       phone: "0300-1111111", city: "Lahore", province: "Punjab", institution: "LUMS", status: "active",
-      applications: [{ id: "app-1", status: "selected", opportunityName: "Beach Cleanup", appliedAt: "2026-01-01T00:00:00Z" }],
+      applications: [{
+        id: "app-1", status: "selected", opportunityName: "Beach Cleanup", appliedAt: "2026-01-01T00:00:00Z",
+        answers: {}, formSnapshot: null,
+      }],
       participations: [{ id: "p-1", status: "completed", opportunityName: "Beach Cleanup" }],
       activity: [{
         id: "ah-1", role: "Lead", activityDate: "2026-02-01", hoursSubmitted: 5, hoursVerified: 5,
         verificationStatus: "verified", adminNotes: "Showed great leadership", opportunityName: "Beach Cleanup",
+        note: null, adjusted: false, photoAttachmentIds: [],
       }],
     });
 
