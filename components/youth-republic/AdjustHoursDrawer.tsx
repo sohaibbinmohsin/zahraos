@@ -56,7 +56,7 @@ export function AdjustHoursDrawer({
         activityHoursId: activityRow.id,
         decision,
         hoursVerified: decision === "verified" ? hoursAssigned : 0,
-        adminNotes: adminNotes.trim() || undefined,
+        rejectionReason: decision === "rejected" ? adminNotes.trim() || undefined : undefined,
       });
       onClose();
     } catch (err) {
