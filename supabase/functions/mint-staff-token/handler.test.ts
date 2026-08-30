@@ -60,6 +60,57 @@ Deno.test("mintStaffToken resolves full permissions for an org_super_admin", asy
   assertEquals(youthRepublicAccess!.permissions.includes("opportunities:delete"), true);
 });
 
+Deno.test("mintStaffToken sets can_verify_identity for a staff row flagged as an identity verifier", async () => {
+  Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
+  const supabase = testClient();
+
+  const email = `verifier-${crypto.randomUUID()}@example.com`;
+  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    email_confirm: true,
+  });
+  if (authError || !authUser.user) {
+    throw new Error(`failed to create auth user: ${authError?.message}`);
+  }
+
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser.user.id,
+    full_name: "Identity Verifier Test",
+    email,
+    can_verify_identity: true,
+  }).select("id").single();
+
+  const token = await mintStaffToken(supabase, staff!.id, false);
+  const payload = await verify(token, await verifyKey());
+
+  assertEquals(payload.can_verify_identity, true);
+});
+
+Deno.test("mintStaffToken leaves can_verify_identity false for an ordinary staff row", async () => {
+  Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
+  const supabase = testClient();
+
+  const email = `plain-${crypto.randomUUID()}@example.com`;
+  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    email_confirm: true,
+  });
+  if (authError || !authUser.user) {
+    throw new Error(`failed to create auth user: ${authError?.message}`);
+  }
+
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser.user.id,
+    full_name: "Plain Staff Test",
+    email,
+  }).select("id").single();
+
+  const token = await mintStaffToken(supabase, staff!.id, false);
+  const payload = await verify(token, await verifyKey());
+
+  assertEquals(payload.can_verify_identity, false);
+});
+
 Deno.test("mintStaffToken resolves only the granted role's permissions for a regular staff member", async () => {
   Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
   const supabase = testClient();
