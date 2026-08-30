@@ -58,21 +58,31 @@ Deno.test("createCustomRole rejects a permission from a different module", async
   }).select("id").single();
 
   const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  // modules/permissions are small, globally-enumerated reference tables (an
+  // "available modules" admin UI would list every row), unlike the
+  // per-test organizations/staff rows elsewhere in this suite — so this
+  // fixture is cleaned up in `finally` rather than left to accumulate
+  // against the live hosted DB run after run.
   const { data: otherModule } = await supabase.from("modules").insert({ key: `other-${crypto.randomUUID()}`, display_name: "Other" }).select("id").single();
-  const { data: otherPerm } = await supabase.from("permissions").insert({ module_id: otherModule!.id, resource: "widgets", action: "read" }).select("id").single();
+  try {
+    const { data: otherPerm } = await supabase.from("permissions").insert({ module_id: otherModule!.id, resource: "widgets", action: "read" }).select("id").single();
 
-  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: youthRepublicModule!.id });
+    await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: youthRepublicModule!.id });
 
-  await assertRejects(
-    () => createCustomRole(supabase, crypto.randomUUID(), true, {
-      organizationId: org!.id,
-      moduleId: youthRepublicModule!.id,
-      name: "Bad Role",
-      permissionIds: [otherPerm!.id],
-    }),
-    Error,
-    "permission_not_available",
-  );
+    await assertRejects(
+      () => createCustomRole(supabase, crypto.randomUUID(), true, {
+        organizationId: org!.id,
+        moduleId: youthRepublicModule!.id,
+        name: "Bad Role",
+        permissionIds: [otherPerm!.id],
+      }),
+      Error,
+      "permission_not_available",
+    );
+  } finally {
+    await supabase.from("permissions").delete().eq("module_id", otherModule!.id);
+    await supabase.from("modules").delete().eq("id", otherModule!.id);
+  }
 });
 
 Deno.test("createCustomRole rejects building a role for a module the org hasn't enabled", async () => {
