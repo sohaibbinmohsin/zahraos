@@ -18,21 +18,55 @@ export function StaffList({
   onDeactivated: () => void;
 }) {
   return (
-    <ul className="divide-y divide-gray-200">
-      {staff.map((member) => (
-        <li key={member.id} className="flex items-center justify-between py-3">
-          <div>
-            <p className="font-medium">{member.fullName}</p>
-            <p className="text-sm text-gray-500">{member.email} {member.orgTier ? `· ${member.orgTier}` : ""}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">{member.status}</span>
-            {member.status === "active" && (
-              <DeactivateStaffButton targetStaffId={member.id} accessToken={accessToken} onDeactivated={onDeactivated} />
-            )}
-          </div>
-        </li>
-      ))}
-    </ul>
+    <div className="table-card">
+      <div className="table-responsive-wrapper">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Staff Member</th>
+              <th>Email Address</th>
+              <th>Organization Role</th>
+              <th>Status</th>
+              <th style={{ textAlign: "right" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {staff.map((member) => (
+              <tr key={member.id}>
+                <td>
+                  <div className="font-bold text-[var(--ink)]">{member.fullName}</div>
+                </td>
+                <td>
+                  <span className="font-mono text-xs text-[var(--ink-2)]">{member.email}</span>
+                </td>
+                <td>
+                  {member.orgTier ? (
+                    <span className="type-pill text-[10px] uppercase font-semibold">{member.orgTier}</span>
+                  ) : (
+                    <span className="text-xs text-[var(--ink-3)]">No org tier</span>
+                  )}
+                </td>
+                <td>
+                  <span
+                    className={`badge ${member.status === "active" ? "badge-pos" : "badge-neg"}`}
+                  >
+                    {member.status}
+                  </span>
+                </td>
+                <td style={{ textAlign: "right" }}>
+                  {member.status === "active" && (
+                    <DeactivateStaffButton
+                      targetStaffId={member.id}
+                      accessToken={accessToken}
+                      onDeactivated={onDeactivated}
+                    />
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

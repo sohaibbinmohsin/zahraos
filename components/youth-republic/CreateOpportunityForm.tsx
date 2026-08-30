@@ -1,56 +1,630 @@
 "use client";
 
 import { useState } from "react";
-import { createOpportunity } from "@/lib/youthRepublicFunctions";
+import { createOpportunity, updateOpportunity, type CreateOpportunityPayload } from "@/lib/youthRepublicFunctions";
+import type { FormDefinition, FieldDef, FieldType } from "@/lib/forms";
+import { useToast } from "@/components/shell/ToastContext";
+
+interface CreateOpportunityFormProps {
+  organizationId: string;
+  staffToken: string;
+  onCreated: () => void;
+  onCancel?: () => void;
+  initialOpportunity?: {
+    id?: string;
+    name: string;
+    type: string;
+    description?: string;
+    location?: string;
+    isOnline?: boolean;
+    capacity?: number;
+    activityStartAt?: string;
+    activityEndAt?: string;
+    about?: string;
+    duties?: string[];
+    eligibility?: string[];
+    whatToBring?: string[];
+    applicationForm?: FormDefinition;
+  };
+}
+
+const DEFAULT_FORM_FIELDS: FieldDef[] = [
+  {
+    id: "academic_inst",
+    type: "short_text",
+    label: "University / College & Degree Program",
+    help: "e.g., LUMS (BS Economics) or FAST (BS CS)",
+    required: true,
+  },
+  {
+    id: "avail_shifts",
+    type: "multiselect",
+    label: "Preferred Availability / Shift Timing",
+    required: true,
+    options: [
+      { value: "morning", label: "Morning Shift (09:00 AM – 01:00 PM)" },
+      { value: "evening", label: "Evening Shift (02:00 PM – 06:00 PM)" },
+      { value: "weekend", label: "Weekends Only" },
+    ],
+  },
+  {
+    id: "prior_exp",
+    type: "long_text",
+    label: "Relevant Volunteer or Leadership Experience",
+    help: "Briefly mention any similar community drives or social initiatives you have participated in.",
+    required: false,
+  },
+  {
+    id: "cnic_doc",
+    type: "file",
+    label: "Upload Student ID Card or CNIC Copy",
+    help: "Required for university accreditation & on-site security clearance.",
+    required: true,
+    maxFiles: 1,
+    maxSizeMB: 5,
+  },
+];
 
 export function CreateOpportunityForm({
   organizationId,
   staffToken,
   onCreated,
-}: {
-  organizationId: string;
-  staffToken: string;
-  onCreated: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState("environment");
+  onCancel,
+  initialOpportunity,
+}: CreateOpportunityFormProps) {
+  const { showToast } = useToast();
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+
+  // Step 1: Specs
+  const [name, setName] = useState(initialOpportunity?.name ?? "");
+  const [type, setType] = useState(initialOpportunity?.type ?? "environment");
+  const [location, setLocation] = useState(initialOpportunity?.location ?? "");
+  const [isOnline, setIsOnline] = useState(initialOpportunity?.isOnline ?? false);
+  const [capacity, setCapacity] = useState<number | undefined>(initialOpportunity?.capacity);
+  const [activityStartAt, setActivityStartAt] = useState(initialOpportunity?.activityStartAt ?? "");
+  const [activityEndAt, setActivityEndAt] = useState(initialOpportunity?.activityEndAt ?? "");
+  const [about, setAbout] = useState(initialOpportunity?.about ?? "");
+  const [dutiesStr, setDutiesStr] = useState(initialOpportunity?.duties?.join("\n") ?? "");
+  const [eligibilityStr, setEligibilityStr] = useState(initialOpportunity?.eligibility?.join("\n") ?? "");
+  const [whatToBringStr, setWhatToBringStr] = useState(initialOpportunity?.whatToBring?.join("\n") ?? "");
+
+  // Step 2: Dynamic Form Builder Questions
+  const [fields, setFields] = useState<FieldDef[]>(
+    initialOpportunity?.applicationForm?.fields ?? []
+  );
+
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  // Dynamic Form Question Handlers
+  function handleAddQuestion() {
+    const newId = `q_${Date.now().toString(36)}`;
+    const newField: FieldDef = {
+      id: newId,
+      type: "short_text",
+      label: "New Question Title",
+      required: false,
+    };
+    setFields([...fields, newField]);
+    showToast("Added new question.");
+  }
+
+  function handleRemoveQuestion(index: number) {
+    const updated = fields.filter((_, i) => i !== index);
+    setFields(updated);
+  }
+
+  function handleFieldChange(index: number, patch: Partial<FieldDef>) {
+    const updated = [...fields];
+    updated[index] = { ...updated[index], ...patch };
+    setFields(updated);
+  }
+
+  function handleAddOption(fieldIndex: number) {
+    const field = fields[fieldIndex];
+    const opts = field.options ? [...field.options] : [];
+    const nextVal = `option_${opts.length + 1}`;
+    opts.push({ value: nextVal, label: `Option ${opts.length + 1}` });
+    handleFieldChange(fieldIndex, { options: opts });
+  }
+
+  function handleRemoveOption(fieldIndex: number, optIndex: number) {
+    const field = fields[fieldIndex];
+    if (!field.options) return;
+    const opts = field.options.filter((_, i) => i !== optIndex);
+    handleFieldChange(fieldIndex, { options: opts });
+  }
+
+  function handleOptionLabelChange(fieldIndex: number, optIndex: number, newLabel: string) {
+    const field = fields[fieldIndex];
+    if (!field.options) return;
+    const opts = [...field.options];
+    opts[optIndex] = { ...opts[optIndex], label: newLabel, value: newLabel.toLowerCase().replace(/\s+/g, "_") };
+    handleFieldChange(fieldIndex, { options: opts });
+  }
+
+  async function handleSave(isDraft: boolean = false) {
     setError(null);
+    if (!name.trim()) {
+      setError("Opportunity name is required");
+      setCurrentStep(1);
+      return;
+    }
+
     setSubmitting(true);
     try {
-      await createOpportunity({ organizationId, name, type }, staffToken);
-      setName("");
+      const duties = dutiesStr.split("\n").map((s) => s.trim()).filter(Boolean);
+      const eligibility = eligibilityStr.split("\n").map((s) => s.trim()).filter(Boolean);
+      const whatToBring = whatToBringStr.split("\n").map((s) => s.trim()).filter(Boolean);
+
+      const payload: CreateOpportunityPayload = {
+        organizationId,
+        name: name.trim(),
+        type,
+      };
+
+      if (location) payload.location = location;
+      if (isOnline) payload.isOnline = isOnline;
+      if (capacity) payload.capacity = Number(capacity);
+      if (activityStartAt) payload.activityStartAt = activityStartAt;
+      if (activityEndAt) payload.activityEndAt = activityEndAt;
+      if (about) payload.about = about;
+      if (duties.length > 0) payload.duties = duties;
+      if (eligibility.length > 0) payload.eligibility = eligibility;
+      if (whatToBring.length > 0) payload.whatToBring = whatToBring;
+      if (fields.length > 0) {
+        payload.applicationForm = {
+          version: 1,
+          fields,
+        };
+      }
+
+      if (initialOpportunity?.id) {
+        await updateOpportunity({ ...payload, opportunityId: initialOpportunity.id }, staffToken);
+        showToast("Opportunity updated successfully.");
+      } else {
+        await createOpportunity(payload, staffToken);
+        showToast(isDraft ? "Opportunity draft saved." : "Opportunity published to Noticeboard.");
+      }
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "unknown_error");
+      setError(err instanceof Error ? err.message : "Failed to save opportunity");
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2">
-      <div>
-        <label htmlFor="oppName" className="block text-sm">Name</label>
-        <input id="oppName" className="mt-1 rounded border px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} />
+    <div className="space-y-6">
+      {/* Top Page Header with Save Draft in line with title */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">
+            {initialOpportunity?.id ? "Edit Opportunity" : "Create New Opportunity"}
+          </h1>
+          <div className="page-subtitle">Full specifications &amp; built-in application form builder</div>
+        </div>
+        <div className="page-toolbar">
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => handleSave(true)}
+            disabled={submitting}
+          >
+            {submitting ? "Saving..." : "Save Draft"}
+          </button>
+          {onCancel && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
-      <div>
-        <label htmlFor="oppType" className="block text-sm">Type</label>
-        <select id="oppType" className="mt-1 rounded border px-3 py-2" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="environment">Environment</option>
-          <option value="health">Health</option>
-          <option value="education">Education</option>
-          <option value="community">Community</option>
-        </select>
+
+      {/* 3-Step Stepper */}
+      <div className="builder-stepper">
+        <button
+          type="button"
+          className={`step-tab ${currentStep === 1 ? "active" : ""}`}
+          onClick={() => setCurrentStep(1)}
+        >
+          <span className="step-num">1</span>
+          <span>Opportunity Specifications &amp; Overview</span>
+        </button>
+        <button
+          type="button"
+          className={`step-tab ${currentStep === 2 ? "active" : ""}`}
+          onClick={() => setCurrentStep(2)}
+        >
+          <span className="step-num">2</span>
+          <span>Application Form Builder</span>
+        </button>
+        <button
+          type="button"
+          className={`step-tab ${currentStep === 3 ? "active" : ""}`}
+          onClick={() => setCurrentStep(3)}
+        >
+          <span className="step-num">3</span>
+          <span>Live Volunteer Experience Preview</span>
+        </button>
       </div>
-      <button type="submit" disabled={submitting} className="rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50">
-        Create opportunity
-      </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-    </form>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 font-semibold">
+          {error}
+        </div>
+      )}
+
+      {/* STEP 1: Specifications & Overview */}
+      {currentStep === 1 && (
+        <div className="builder-pane-card">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label htmlFor="oppName" className="form-label">
+                Name
+              </label>
+              <input
+                id="oppName"
+                className="form-input"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Ramadan Food Drive (Lahore Depot)"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="oppType" className="form-label">
+                Type
+              </label>
+              <select
+                id="oppType"
+                className="form-select"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                <option value="community">Community Support &amp; Welfare</option>
+                <option value="education">Education &amp; Academic Tutoring</option>
+                <option value="environment">Environment &amp; Climate Action</option>
+                <option value="health">Healthcare &amp; Emergency Relief</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="form-group">
+              <label className="form-label">Delivery Format</label>
+              <select
+                className="form-select"
+                value={isOnline ? "online" : "onsite"}
+                onChange={(e) => setIsOnline(e.target.value === "online")}
+              >
+                <option value="onsite">On-Site (Physical Venue)</option>
+                <option value="online">Virtual / Online Volunteer Role</option>
+              </select>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">City &amp; Venue</label>
+              <input
+                className="form-input"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="e.g. Lahore · Township Depot"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Target Volunteer Capacity</label>
+              <input
+                type="number"
+                className="form-input font-mono"
+                value={capacity}
+                onChange={(e) => setCapacity(Number(e.target.value))}
+                min="1"
+                max="5000"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label className="form-label">Drive Start Date</label>
+              <input
+                type="date"
+                className="form-input font-mono"
+                value={activityStartAt}
+                onChange={(e) => setActivityStartAt(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Drive End Date</label>
+              <input
+                type="date"
+                className="form-input font-mono"
+                value={activityEndAt}
+                onChange={(e) => setActivityEndAt(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Opportunity Description / Summary</label>
+            <textarea
+              rows={3}
+              className="form-textarea"
+              value={about}
+              onChange={(e) => setAbout(e.target.value)}
+              placeholder="Describe the opportunity purpose and community impact..."
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Key Volunteer Duties (One per line)</label>
+            <textarea
+              rows={3}
+              className="form-textarea"
+              value={dutiesStr}
+              onChange={(e) => setDutiesStr(e.target.value)}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="form-group">
+              <label className="form-label">Eligibility &amp; Requirements (One per line)</label>
+              <textarea
+                rows={3}
+                className="form-textarea"
+                value={eligibilityStr}
+                onChange={(e) => setEligibilityStr(e.target.value)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">What Volunteers Should Bring (One per line)</label>
+              <textarea
+                rows={3}
+                className="form-textarea"
+                value={whatToBringStr}
+                onChange={(e) => setWhatToBringStr(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="step-actions-row">
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                className="btn btn-primary"
+                onClick={() => handleSave(false)}
+                disabled={submitting}
+              >
+                {submitting ? "Saving..." : "Create opportunity"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setCurrentStep(2)}
+              >
+                Proceed to Application Form Builder &rarr;
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 2: Google Forms-style Interactive Dynamic Form Builder */}
+      {currentStep === 2 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-2 border-b border-[var(--line)]">
+            <h2 className="text-base font-semibold uppercase tracking-wide">
+              Application Questions ({fields.length})
+            </h2>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleAddQuestion}
+            >
+              + Add Question
+            </button>
+          </div>
+
+          {fields.map((field, idx) => (
+            <div key={field.id} className="question-card">
+              <div className="q-header">
+                <div className="q-drag-handle" title="Question Index">
+                  <span className="font-mono text-xs font-semibold text-[var(--ink-3)]">#{idx + 1}</span>
+                </div>
+
+                <input
+                  className="form-input font-medium"
+                  value={field.label}
+                  onChange={(e) => handleFieldChange(idx, { label: e.target.value })}
+                  placeholder="Question text / prompt"
+                />
+
+                <select
+                  className="filter-select text-xs font-semibold"
+                  value={field.type}
+                  onChange={(e) => handleFieldChange(idx, { type: e.target.value as FieldType })}
+                >
+                  <option value="short_text">Short Answer</option>
+                  <option value="long_text">Paragraph / Long Text</option>
+                  <option value="select">Dropdown Choice</option>
+                  <option value="multiselect">Multiple Choice (Checkboxes)</option>
+                  <option value="radio">Single Choice (Radio)</option>
+                  <option value="date">Date Picker</option>
+                  <option value="file">File / Document Upload</option>
+                </select>
+              </div>
+
+              {/* Subtitle / Help text */}
+              <input
+                className="form-input text-xs text-[var(--ink-2)]"
+                value={field.help ?? ""}
+                onChange={(e) => handleFieldChange(idx, { help: e.target.value })}
+                placeholder="Help description / instructions for volunteers (optional)"
+              />
+
+              {/* Choice options editor */}
+              {(field.type === "select" || field.type === "multiselect" || field.type === "radio") && (
+                <div className="q-options-list pl-4 border-l-2 border-[var(--line)]">
+                  {field.options?.map((opt, optIdx) => (
+                    <div key={optIdx} className="q-option-row">
+                      <span className="w-2.5 h-2.5 rounded-full border border-[var(--ink-3)]" />
+                      <input
+                        className="form-input text-sm py-1 flex-1"
+                        value={opt.label}
+                        onChange={(e) => handleOptionLabelChange(idx, optIdx, e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="text-red-500 text-xs px-2 hover:underline"
+                        onClick={() => handleRemoveOption(idx, optIdx)}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-[var(--ink)] hover:underline self-start mt-1"
+                    onClick={() => handleAddOption(idx)}
+                  >
+                    + Add Option
+                  </button>
+                </div>
+              )}
+
+              <div className="q-footer">
+                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={field.required ?? false}
+                    onChange={(e) => handleFieldChange(idx, { required: e.target.checked })}
+                  />
+                  <span>Required Question</span>
+                </label>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-xs text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => handleRemoveQuestion(idx)}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+
+          <div className="add-question-card" onClick={handleAddQuestion}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>Add Custom Question Card</span>
+          </div>
+
+          <div className="step-actions-row">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setCurrentStep(1)}
+            >
+              &larr; Back to Specifications
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setCurrentStep(3)}
+            >
+              Preview Live Volunteer Experience &rarr;
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 3: Live Application Form Preview */}
+      {currentStep === 3 && (
+        <div className="builder-pane-card">
+          <div className="p-4 rounded-lg bg-[var(--bg-page)] border border-[var(--line)]">
+            <div className="flex items-center justify-between">
+              <span className="type-pill uppercase font-semibold text-xs">{type}</span>
+              <span className="badge badge-pos">Noticeboard Preview</span>
+            </div>
+            <h2 className="text-xl font-bold uppercase mt-2">{name || "Opportunity Title"}</h2>
+            <p className="text-sm text-[var(--ink-2)] mt-1">{about}</p>
+            <div className="flex items-center gap-4 mt-3 text-xs text-[var(--ink-3)]">
+              <span>📍 {location}</span>
+              <span>📅 {activityStartAt} to {activityEndAt}</span>
+              <span>👥 Max Capacity: {capacity}</span>
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-4 border-t border-[var(--line-subtle)]">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--ink-2)]">
+              Volunteer Application Simulator ({fields.length} Questions)
+            </h3>
+
+            {fields.map((field) => (
+              <div key={field.id} className="form-group p-3 rounded-lg border border-[var(--line-subtle)] bg-white">
+                <label className="form-label text-xs">
+                  {field.label} {field.required && <span className="text-red-500">*</span>}
+                </label>
+                {field.help && <p className="text-xs text-[var(--ink-3)] mb-1">{field.help}</p>}
+
+                {field.type === "short_text" && (
+                  <input className="form-input text-sm" placeholder="Applicant answer..." disabled />
+                )}
+                {field.type === "long_text" && (
+                  <textarea rows={2} className="form-textarea text-sm" placeholder="Applicant response..." disabled />
+                )}
+                {(field.type === "select" || field.type === "radio" || field.type === "multiselect") && (
+                  <div className="space-y-1">
+                    {field.options?.map((opt, idx) => (
+                      <label key={idx} className="flex items-center gap-2 text-sm text-[var(--ink-2)]">
+                        <input type={field.type === "multiselect" ? "checkbox" : "radio"} disabled />
+                        <span>{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                {field.type === "date" && (
+                  <input type="date" className="form-input text-sm" disabled />
+                )}
+                {field.type === "file" && (
+                  <div className="p-3 border-2 border-dashed border-[var(--line)] rounded text-center text-xs text-[var(--ink-3)]">
+                    📎 Document / CNIC File Attachment Area
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="step-actions-row">
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => setCurrentStep(2)}
+            >
+              &larr; Back to Form Builder
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => handleSave(false)}
+              disabled={submitting}
+            >
+              {submitting ? "Publishing..." : "Create opportunity"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

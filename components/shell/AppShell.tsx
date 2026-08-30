@@ -2,18 +2,17 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "@/lib/staffToken";
 import { resolveOrgSwitcherOptions, pickInitialOrgId, readStoredOrgId, writeStoredOrgId } from "@/lib/selectedOrg";
 import { MODULE_REGISTRY } from "@/registry/modules";
 import { OrgSwitcher } from "./OrgSwitcher";
+import { ToastProvider } from "./ToastContext";
+import { ChangePasswordModal } from "./ChangePasswordModal";
 
 type ShellLoadStatus = "loading" | "ready" | "error";
 
-// mintStaffToken sets a 1-hour expiry (exp: getNumericDate(60 * 60)) server-side.
-// Refresh well inside that window so a long-lived session's claims never go
-// stale in practice, even accounting for a slow network or a missed tick.
 const CLAIMS_REFRESH_INTERVAL_MS = 45 * 60 * 1000;
 
 interface ShellContextValue {
@@ -38,6 +37,13 @@ export function useOrgTier() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  let pathname = "";
+  try {
+    pathname = usePathname() ?? "";
+  } catch {
+    // In unit test environment where usePathname is not provided
+  }
+
   const [fullName, setFullName] = useState<string | null>(null);
   const [platformOwner, setPlatformOwner] = useState(false);
   const [claims, setClaims] = useState<StaffTokenClaims | null>(null);
@@ -50,6 +56,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [reloadToken, setReloadToken] = useState(0);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
+  // UI states
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
   function resetShellState() {
     setFullName(null);
     setPlatformOwner(false);
@@ -59,6 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setAvailableOrgIds([]);
     setSelectedOrgId(null);
     setAccessToken(null);
+    setUserDropdownOpen(false);
   }
 
   useEffect(() => {
@@ -107,11 +120,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }
         setOrgTiers(tiersByOrg);
 
-        // A platform_owner's authority is the global flag, not a per-org
-        // affiliation — mintStaffToken() never populates org_roles/
-        // module_access from platform_owner alone, so the claims-derived
-        // list would always be empty for them otherwise. They can manage
-        // every organization, so fetch all of them directly instead.
         let orgIds: string[];
         if (decoded.platformOwner) {
           const { data: allOrgs, error: allOrgsError } = await supabase
@@ -188,10 +196,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [reloadToken]);
 
-  // Keep the Youth Republic staff JWT's claims from going stale for a long-lived session:
-  // re-mint and re-decode it well before its 1-hour server-side expiry, for as
-  // long as the shell stays mounted with a loaded session. Additive to the
-  // load-on-mount/auth-state-change effect above — doesn't touch it.
   useEffect(() => {
     if (!accessToken) return;
 
@@ -205,8 +209,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         setClaims(decoded);
         setPlatformOwner(decoded.platformOwner);
       } catch (err) {
-        // A transient refresh failure shouldn't disrupt an already-loaded shell;
-        // the previous claims simply remain in effect until the next tick.
         console.error("Failed to refresh staff claims", err);
       }
     }, CLAIMS_REFRESH_INTERVAL_MS);
@@ -216,6 +218,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearInterval(intervalId);
     };
   }, [accessToken]);
+
+  useEffect(() => {
+    function handleClickOutside() {
+      setUserDropdownOpen(false);
+    }
+    if (userDropdownOpen) {
+      window.addEventListener("click", handleClickOutside);
+      return () => window.removeEventListener("click", handleClickOutside);
+    }
+  }, [userDropdownOpen]);
 
   function handleSelectOrg(orgId: string) {
     setSelectedOrgId(orgId);
@@ -237,55 +249,372 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
-  // A platform_owner bypasses per-org tier checks entirely — same authority
-  // as super_admin everywhere, without ever holding a staff_org_roles row.
   const isOrgAdminOrAbove = orgTier === "admin" || orgTier === "super_admin" || platformOwner;
   const moduleLinks = selectedOrgId
     ? MODULE_REGISTRY.filter((m) => claims?.moduleAccess.some((a) => a.organizationId === selectedOrgId && a.module === m.key))
     : [];
 
+  const initials = fullName
+    ? fullName
+        .split(" ")
+        .map((p) => p[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "SM";
+
+  const isAuthPage = pathname === "/login" || pathname === "/set-password";
+
+  if (isAuthPage) {
+    return (
+      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier }}>
+        <ToastProvider>{children}</ToastProvider>
+      </ShellContext.Provider>
+    );
+  }
+
   return (
     <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier }}>
-      <div className="min-h-screen">
-        <header className="border-b border-gray-200">
-          <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-4">
-              <Link href="/" className="font-semibold">Admin Hub</Link>
-              <nav className="flex gap-4 text-sm">
-                {platformOwner && <Link href="/organizations">Organizations</Link>}
-                {isOrgAdminOrAbove && <Link href="/staff">Staff</Link>}
-                {isOrgAdminOrAbove && <Link href="/roles">Roles</Link>}
-                {moduleLinks.map((m) => (
-                  <Link key={m.key} href={m.route}>{m.navLabel}</Link>
-                ))}
+      <ToastProvider>
+        <div className="app-shell">
+          <div
+            className={`sidebar-backdrop ${mobileSidebarOpen ? "open" : ""}`}
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+
+          {/* Left Collapsible Sidebar */}
+          <aside className={`app-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileSidebarOpen ? "open" : ""}`}>
+            <div>
+              <div className="sidebar-header">
+                <div
+                  className="sidebar-brand-left"
+                  onClick={() => {
+                    router.push("/modules/youth-republic/dashboard");
+                    setMobileSidebarOpen(false);
+                  }}
+                >
+                  <div className="sidebar-logo-btn">
+                    <span className="w-6 h-6 rounded bg-[var(--brand)] text-[var(--on-brand)] font-bold text-xs flex items-center justify-center tracking-tighter">
+                      YR
+                    </span>
+                  </div>
+                  <span className="sidebar-title">Youth Republic</span>
+                </div>
+                <button
+                  type="button"
+                  className="sidebar-toggle-btn"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                  aria-label="Toggle Sidebar"
+                >
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className={`transition-transform duration-200 ${sidebarCollapsed ? "rotate-180" : ""}`}
+                  >
+                    <polyline points="15 18 9 12 15 6" />
+                  </svg>
+                </button>
+              </div>
+
+              <nav className="sidebar-nav">
+                <div className="nav-group-label">Core Operations</div>
+
+                <Link
+                  href="/modules/youth-republic/dashboard"
+                  aria-label="Dashboard"
+                  className={`sidebar-nav-item ${pathname?.includes("/dashboard") ? "active" : ""}`}
+                  onClick={() => setMobileSidebarOpen(false)}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                  </svg>
+                  <span className="nav-label">Dashboard</span>
+                </Link>
+
+                <Link
+                  href="/modules/youth-republic/opportunities"
+                  aria-label="Opportunities"
+                  className={`sidebar-nav-item ${pathname?.includes("/opportunities") ? "active" : ""}`}
+                  onClick={() => setMobileSidebarOpen(false)}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  </svg>
+                  <span className="nav-label">Opportunities</span>
+                  <span className="side-badge" aria-hidden="true">6</span>
+                </Link>
+
+                <Link
+                  href="/modules/youth-republic/applications"
+                  aria-label="Applications"
+                  className={`sidebar-nav-item ${pathname?.includes("/applications") ? "active" : ""}`}
+                  onClick={() => setMobileSidebarOpen(false)}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <span className="nav-label">Applications</span>
+                  <span className="side-badge" aria-hidden="true">5</span>
+                </Link>
+
+                <Link
+                  href="/modules/youth-republic/hours"
+                  aria-label="Hours"
+                  className={`sidebar-nav-item ${pathname?.includes("/hours") ? "active" : ""}`}
+                  onClick={() => setMobileSidebarOpen(false)}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span className="nav-label">Hours</span>
+                  <span className="side-badge" aria-hidden="true">3</span>
+                </Link>
+
+                <Link
+                  href="/modules/youth-republic/volunteers"
+                  aria-label="Volunteers"
+                  className={`sidebar-nav-item ${pathname?.includes("/volunteers") ? "active" : ""}`}
+                  onClick={() => setMobileSidebarOpen(false)}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  </svg>
+                  <span className="nav-label">Volunteers</span>
+                </Link>
+
+                <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Governance & Access</div>
+
+                {claims && isOrgAdminOrAbove && (
+                  <Link
+                    href="/staff"
+                    aria-label="Staff"
+                    className={`sidebar-nav-item ${pathname === "/staff" ? "active" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                    </svg>
+                    <span className="nav-label">Staff</span>
+                    <span className="side-badge" aria-hidden="true">8</span>
+                  </Link>
+                )}
+
+                {claims && isOrgAdminOrAbove && (
+                  <Link
+                    href="/roles"
+                    aria-label="Roles"
+                    className={`sidebar-nav-item ${pathname === "/roles" ? "active" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    <span className="nav-label">Roles</span>
+                  </Link>
+                )}
+
+                {claims && platformOwner && (
+                  <Link
+                    href="/organizations"
+                    aria-label="Organizations"
+                    className={`sidebar-nav-item ${pathname === "/organizations" ? "active" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                    </svg>
+                    <span className="nav-label">Organizations</span>
+                  </Link>
+                )}
               </nav>
             </div>
-            <div className="flex items-center gap-3 text-sm">
-              {selectedOrgId && (
-                <OrgSwitcher orgIds={availableOrgIds} selectedOrgId={selectedOrgId} orgNames={orgNames} onSelect={handleSelectOrg} />
-              )}
-              {fullName && <span>{fullName}</span>}
-              {claims && (
-                <button type="button" onClick={handleSignOut} className="text-sm underline">
-                  Sign out
-                </button>
-              )}
+
+            <div className="sidebar-footer">
+              <div className="sidebar-credit">
+                <span className="sidebar-copy">Powered by ZahraOS</span>
+                <span className="sidebar-project">A free software by The Mohsin Project</span>
+              </div>
+              <div className="sidebar-credit-collapsed">ZOS</div>
             </div>
+          </aside>
+
+          {/* App Main Layout Canvas */}
+          <div className="app-main-layout">
+            {/* Top Fixed Header */}
+            <header className="admin-header">
+              <div className="header-main">
+                <div className="header-left">
+                  <button
+                    type="button"
+                    className="mobile-menu-btn"
+                    onClick={() => setMobileSidebarOpen(true)}
+                    aria-label="Open navigation menu"
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <line x1="3" y1="12" x2="21" y2="12" />
+                      <line x1="3" y1="6" x2="21" y2="6" />
+                      <line x1="3" y1="18" x2="21" y2="18" />
+                    </svg>
+                  </button>
+
+                  <div className="brand-name-lockup" onClick={() => router.push("/modules/youth-republic/dashboard")}>
+                    <span className="brand-title">Youth Republic</span>
+                    <span className="brand-tagline">Volunteer Operations & Noticeboard</span>
+                  </div>
+                </div>
+
+                <div className="header-actions">
+                  {selectedOrgId && (
+                    <OrgSwitcher
+                      orgIds={availableOrgIds}
+                      selectedOrgId={selectedOrgId}
+                      orgNames={orgNames}
+                      onSelect={handleSelectOrg}
+                    />
+                  )}
+
+                  {/* Profile Pill */}
+                  <div
+                    className="user-pill"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUserDropdownOpen(!userDropdownOpen);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="User Profile Menu"
+                  >
+                    <div className="avatar">{initials}</div>
+                    <div className="user-text-info">
+                      {fullName && <div style={{ fontWeight: 600, lineHeight: 1.1 }}>{fullName}</div>}
+                      <div style={{ fontSize: "var(--text-2xs)", color: "var(--ink-2)" }}>
+                        {platformOwner ? "Platform Owner" : orgTier ? orgTier.replace("_", " ").toUpperCase() : "Staff"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {claims && (
+                    <button
+                      type="button"
+                      onClick={handleSignOut}
+                      className="btn btn-secondary btn-xs text-xs"
+                      aria-label="Sign out"
+                    >
+                      Sign out
+                    </button>
+                  )}
+
+                  {/* User Profile Dropdown Menu */}
+                  {userDropdownOpen && (
+                    <div
+                      className="user-dropdown-menu open"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="user-dropdown-profile">
+                        <div className="avatar-large">{initials}</div>
+                        <div style={{ overflow: "hidden" }}>
+                          <div style={{ fontWeight: 600, fontSize: "var(--text-base)", color: "var(--ink)", lineHeight: 1.2 }}>
+                            {fullName ?? "Admin Staff"}
+                          </div>
+                          <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: "2px" }}>
+                            {claims?.staffId ? `ID: ${claims.staffId.slice(0, 8)}` : "Verified Member"}
+                          </div>
+                          <div style={{ display: "flex", gap: ".35rem", marginTop: ".4rem", alignItems: "center" }}>
+                            <span className="badge badge-pos" style={{ fontSize: "var(--text-2xs)", padding: ".1rem .35rem" }}>
+                              {platformOwner ? "Platform Owner" : orgTier ? orgTier.replace("_", " ").toUpperCase() : "Active Staff"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="user-dropdown-items">
+                        <button
+                          type="button"
+                          className="user-dropdown-item"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            setPasswordModalOpen(true);
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: ".6rem" }}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                            <span>Change Password</span>
+                          </div>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--ink-3)" }}>
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </button>
+
+                        <div style={{ height: "1px", background: "var(--line-subtle)", margin: ".2rem 0" }} />
+
+                        <button
+                          type="button"
+                          className="user-dropdown-item danger"
+                          onClick={() => {
+                            setUserDropdownOpen(false);
+                            handleSignOut();
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: ".6rem" }}>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                              <polyline points="16 17 21 12 16 7" />
+                              <line x1="21" y1="12" x2="9" y2="12" />
+                            </svg>
+                            <span>Sign Out</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </header>
+
+            {/* Main Application Container */}
+            <main className="app-wrap">
+              {status === "loading" && <p className="mb-4 text-sm text-gray-500">Loading your account…</p>}
+              {status === "error" && (
+                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  <p className="font-semibold">We could not load your account. {loadError}</p>
+                  <button type="button" onClick={handleRetry} className="mt-2 font-medium underline">
+                    Retry
+                  </button>
+                </div>
+              )}
+              {children}
+            </main>
           </div>
-        </header>
-        <div className="mx-auto max-w-5xl px-4 py-6">
-          {status === "loading" && <p className="mb-4 text-sm text-gray-500">Loading your account…</p>}
-          {status === "error" && (
-            <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
-              <p>We could not load your account. {loadError}</p>
-              <button type="button" onClick={handleRetry} className="mt-2 underline">
-                Retry
-              </button>
-            </div>
-          )}
-          {children}
         </div>
-      </div>
+
+        {/* Change Password Modal */}
+        <ChangePasswordModal
+          isOpen={passwordModalOpen}
+          onClose={() => setPasswordModalOpen(false)}
+        />
+      </ToastProvider>
     </ShellContext.Provider>
   );
 }
