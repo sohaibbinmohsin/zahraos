@@ -3,23 +3,47 @@
 import { useCallback, useEffect, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
-import { listApplications, decideApplication, exportYouthRepublicCsv, type ApplicationListRow, type DecideApplicationPayload } from "@/lib/youthRepublicFunctions";
+import {
+  listApplications,
+  decideApplication,
+  exportYouthRepublicCsv,
+  type ApplicationListRow,
+  type DecideApplicationPayload,
+} from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
+import { ApplicationReviewDrawer } from "@/components/youth-republic/ApplicationReviewDrawer";
+import { useToast } from "@/components/shell/ToastContext";
 
 export default function YouthRepublicApplicationsPage() {
   const organizationId = useSelectedOrg();
+  const { showToast } = useToast();
   const [applications, setApplications] = useState<ApplicationListRow[]>([]);
   const [staffToken, setStaffToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Drawer state
+  const [selectedApp, setSelectedApp] = useState<ApplicationListRow | null>(null);
+
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const load = useCallback(async () => {
     if (!organizationId) return;
-    const supabase = getBrowserSupabaseClient();
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) return;
-    const token = await fetchStaffToken(sessionData.session.access_token);
-    setStaffToken(token);
-    const result = await listApplications({ organizationId }, token);
-    setApplications(result.applications);
+    setLoading(true);
+    try {
+      const supabase = getBrowserSupabaseClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) return;
+      const token = await fetchStaffToken(sessionData.session.access_token);
+      setStaffToken(token);
+      const result = await listApplications({ organizationId }, token);
+      setApplications(result.applications);
+    } catch (err) {
+      console.error("Failed to load applications", err);
+    } finally {
+      setLoading(false);
+    }
   }, [organizationId]);
 
   useEffect(() => {
@@ -28,73 +52,226 @@ export default function YouthRepublicApplicationsPage() {
 
   async function handleDecide(applicationId: string, decision: DecideApplicationPayload["decision"]) {
     if (!staffToken) return;
-    // No organizationId here — decideApplication derives it from the
-    // application row itself server-side.
     await decideApplication({ applicationId, decision }, staffToken);
+    showToast(`Application marked as ${decision}.`);
     await load();
   }
 
   async function handleExport() {
     if (!organizationId || !staffToken) return;
-    const csv = await exportYouthRepublicCsv({ organizationId, entity: "applications" }, staffToken);
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "applications.csv";
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const csv = await exportYouthRepublicCsv({ organizationId, entity: "applications" }, staffToken);
+      const blob = new Blob([csv], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "applications.csv";
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast("Downloaded applications CSV.");
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  if (!organizationId) return <p>Select an organization to see its applications.</p>;
+  if (!organizationId) {
+    return (
+      <div className="panel p-8 text-center">
+        <p className="text-[var(--ink-2)] font-medium">Select an organization to see its applications.</p>
+      </div>
+    );
+  }
+
+  const filtered = applications.filter((a) => {
+    const candidateName = a.applicantName || a.volunteerName || "";
+    const oppName = a.opportunityName || "";
+    const matchesSearch =
+      !searchQuery ||
+      candidateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      oppName.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || a.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Applications</h1>
-        <button type="button" onClick={handleExport} className="rounded border px-3 py-1.5 text-sm">
-          Export CSV
-        </button>
+    <div className="space-y-6">
+      {/* Page Header */}
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Volunteer Applications</h1>
+          <div className="page-subtitle">
+            Candidate Triage Queue, dynamic questionnaire responses &amp; batch decisioning across drives.
+          </div>
+        </div>
+        <div className="page-toolbar">
+          <button type="button" onClick={handleExport} className="btn btn-secondary btn-sm">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            <span>Export CSV</span>
+          </button>
+        </div>
       </div>
 
-      <table className="w-full text-left text-sm">
-        <thead>
-          <tr className="border-b border-gray-200 text-gray-600">
-            <th className="py-2 pr-4">Volunteer</th>
-            <th className="py-2 pr-4">Opportunity</th>
-            <th className="py-2 pr-4">Status</th>
-            <th className="py-2 pr-4">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {applications.map((a) => (
-            <tr key={a.id} className="border-b border-gray-100">
-              <td className="py-2 pr-4">{a.volunteerName}</td>
-              <td className="py-2 pr-4">{a.opportunityName}</td>
-              <td className="py-2 pr-4">{a.status}</td>
-              <td className="py-2 pr-4 space-x-2">
-                {a.status === "waitlisted" ? (
-                  <button type="button" onClick={() => handleDecide(a.id, "selected")} className="rounded border px-2 py-1 text-xs">
-                    Promote to selected
-                  </button>
-                ) : (
-                  <>
-                    <button type="button" onClick={() => handleDecide(a.id, "selected")} className="rounded border px-2 py-1 text-xs">
-                      Select
-                    </button>
-                    <button type="button" onClick={() => handleDecide(a.id, "waitlisted")} className="rounded border px-2 py-1 text-xs">
-                      Waitlist
-                    </button>
-                    <button type="button" onClick={() => handleDecide(a.id, "rejected")} className="rounded border px-2 py-1 text-xs">
-                      Reject
-                    </button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Filter & Search Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-[var(--line)] rounded-xl">
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search candidate name or drive..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+
+          <select
+            className="filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Application Statuses</option>
+            <option value="submitted">Applied (Pending Review)</option>
+            <option value="selected">Selected</option>
+            <option value="waitlisted">Waitlisted</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+
+        <span className="text-xs font-semibold text-[var(--ink-2)]">
+          Showing {filtered.length} of {applications.length} candidates
+        </span>
+      </div>
+
+      {/* Data Table */}
+      <div className="table-card">
+        <div className="table-responsive-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Volunteer Candidate</th>
+                <th>Target Opportunity</th>
+                <th>Applied Timestamp</th>
+                <th>Status</th>
+                <th style={{ textAlign: "right" }}>Triage Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((a) => {
+                const displayName = a.applicantName || a.volunteerName;
+                const appliedDate = a.appliedAt
+                  ? new Date(a.appliedAt).toLocaleDateString("en-PK", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "—";
+
+                return (
+                  <tr key={a.id}>
+                    <td>
+                      <div>
+                        <button
+                          type="button"
+                          className="font-bold text-[var(--ink)] hover:underline text-left cursor-pointer"
+                          onClick={() => setSelectedApp(a)}
+                        >
+                          {displayName}
+                        </button>
+                        <div className="text-xs text-[var(--ink-2)] mt-0.5">
+                          {a.applicantEmail ?? "Verified Profile"}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="font-medium text-[var(--ink)]">{a.opportunityName}</span>
+                    </td>
+                    <td>
+                      <span className="font-mono text-xs text-[var(--ink-2)]">{appliedDate}</span>
+                    </td>
+                    <td>
+                      <span
+                        className={`badge ${
+                          a.status === "selected"
+                            ? "badge-pos"
+                            : a.status === "waitlisted"
+                            ? "badge-prog"
+                            : a.status === "rejected"
+                            ? "badge-neg"
+                            : "badge-pend"
+                        }`}
+                      >
+                        {a.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <div className="inline-flex items-center gap-1.5 justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedApp(a)}
+                          className="btn btn-secondary btn-xs"
+                          title="View submitted questionnaire answers"
+                        >
+                          Review Answers
+                        </button>
+
+                        {a.status === "waitlisted" ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDecide(a.id, "selected")}
+                            className="btn btn-primary btn-xs"
+                          >
+                            Promote to selected
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => handleDecide(a.id, "selected")}
+                              className="btn btn-primary btn-xs"
+                            >
+                              Select
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDecide(a.id, "waitlisted")}
+                              className="btn btn-secondary btn-xs"
+                            >
+                              Waitlist
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDecide(a.id, "rejected")}
+                              className="btn btn-danger btn-xs"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {filtered.length === 0 && !loading && (
+        <div className="panel p-8 text-center">
+          <p className="text-sm text-[var(--ink-2)]">No applications matching the selected criteria.</p>
+        </div>
+      )}
+
+      {/* Candidate Review Drawer */}
+      <ApplicationReviewDrawer
+        application={selectedApp}
+        isOpen={Boolean(selectedApp)}
+        onClose={() => setSelectedApp(null)}
+        onDecide={handleDecide}
+      />
     </div>
   );
 }

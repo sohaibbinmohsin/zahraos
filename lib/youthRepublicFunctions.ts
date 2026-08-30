@@ -1,3 +1,5 @@
+import type { FormDefinition } from "./forms";
+
 async function callYouthRepublicFunction<TResponse>(name: string, body: unknown, staffToken: string): Promise<TResponse> {
   const baseUrl = process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL;
   if (!baseUrl) {
@@ -72,11 +74,15 @@ export function listVolunteers(payload: ListVolunteersPayload, staffToken: strin
 }
 
 export interface VolunteerDetail extends VolunteerSummary {
-  applications: Array<{ id: string; status: string; opportunityName: string; appliedAt: string }>;
+  applications: Array<{
+    id: string; status: string; opportunityName: string; appliedAt: string;
+    answers: Record<string, unknown>; formSnapshot: unknown;
+  }>;
   participations: Array<{ id: string; status: string; opportunityName: string }>;
   activity: Array<{
     id: string; role: string | null; activityDate: string; hoursSubmitted: number;
-    hoursVerified: number | null; verificationStatus: string; adminNotes: string | null; opportunityName: string;
+    hoursVerified: number | null; verificationStatus: string; adminNotes: string | null;
+    note: string | null; adjusted: boolean; photoAttachmentIds: string[]; opportunityName: string;
   }>;
 }
 export function getVolunteerDetail(payload: { organizationId: string; volunteerId: string }, staffToken: string) {
@@ -124,6 +130,12 @@ export interface ApplicationListRow {
   opportunityName: string;
   status: string;
   appliedAt: string;
+  applicantName: string | null;
+  applicantEmail: string | null;
+  applicantPhone: string | null;
+  answers: Record<string, unknown>;
+  formSnapshot: unknown;
+  attachmentIdsByField: Record<string, string[]>;
 }
 export interface ListApplicationsPayload {
   organizationId: string;
@@ -195,7 +207,11 @@ export interface CreateOpportunityPayload {
   applicationDeadline?: string;
   activityStartAt?: string;
   activityEndAt?: string;
-  eligibilityCriteria?: string;
+  about?: string;
+  duties?: string[];
+  eligibility?: string[];
+  whatToBring?: string[];
+  applicationForm?: FormDefinition;
   capacity?: number;
 }
 export function createOpportunity(payload: CreateOpportunityPayload, staffToken: string) {
@@ -213,13 +229,73 @@ export interface UpdateOpportunityPayload {
   applicationDeadline?: string;
   activityStartAt?: string;
   activityEndAt?: string;
-  eligibilityCriteria?: string;
+  about?: string;
+  duties?: string[];
+  eligibility?: string[];
+  whatToBring?: string[];
+  applicationForm?: FormDefinition;
   capacity?: number;
   statusOverride?: string;
   deactivatedAt?: string | null;
 }
 export function updateOpportunity(payload: UpdateOpportunityPayload, staffToken: string) {
   return callYouthRepublicFunction<{ opportunityId: string }>("update-opportunity", payload, staffToken);
+}
+
+// Dedicated application-form editor. Separate from updateOpportunity because it
+// carries its own permission (opportunities:manage) and audit action.
+export interface UpdateOpportunityFormPayload {
+  opportunityId: string;
+  form: FormDefinition;
+}
+export function updateOpportunityForm(payload: UpdateOpportunityFormPayload, staffToken: string) {
+  return callYouthRepublicFunction<{ ok: true }>("update-opportunity-form", payload, staffToken);
+}
+
+// Central identity-review action — gated by the caller's can_verify_identity
+// claim, not a per-org permission. `reason` is required by the handler when
+// decision is "reject".
+export interface VerifyVolunteerPayload {
+  volunteerId: string;
+  decision: "verify" | "reject";
+  reason?: string;
+}
+export function verifyVolunteer(payload: VerifyVolunteerPayload, staffToken: string) {
+  return callYouthRepublicFunction<{ status: string }>("verify-volunteer", payload, staffToken);
+}
+
+export interface PendingVolunteer {
+  id: string;
+  volunteerCode: string;
+  fullName: string;
+  dob: string;
+  idDocType: string | null;
+  idDocNumber: string | null;
+  city: string;
+  institution: string;
+  submittedAt: string;
+  idDocAttachmentId: string | null;
+}
+export interface ListPendingVolunteersPayload {
+  limit?: number;
+  offset?: number;
+  search?: string;
+}
+export interface ListPendingVolunteersResponse {
+  volunteers: PendingVolunteer[];
+  total: number;
+}
+export function listPendingVolunteers(payload: ListPendingVolunteersPayload, staffToken: string) {
+  return callYouthRepublicFunction<ListPendingVolunteersResponse>("list-pending-volunteers", payload, staffToken);
+}
+
+// Returns a short-lived signed download URL for one attachment (identity docs,
+// application files, session photos).
+export interface GetAttachmentPayload {
+  attachmentId: string;
+}
+export function getAttachment(payload: GetAttachmentPayload, staffToken: string) {
+  return callYouthRepublicFunction<{ url: string }>("get-attachment", payload, staffToken);
 }
 
 // No organizationId here — decideApplication derives it from the

@@ -24,6 +24,12 @@ export async function mintStaffToken(
   staffId: string,
   platformOwner: boolean,
 ): Promise<string> {
+  const { data: staffRow } = await supabase
+    .from("staff")
+    .select("can_verify_identity, platform_owner")
+    .eq("id", staffId)
+    .single();
+
   const { data: orgRoleRows } = await supabase
     .from("staff_org_roles")
     .select("organization_id, org_tier")
@@ -93,6 +99,7 @@ export async function mintStaffToken(
       actor_type: "staff",
       staff_id: staffId,
       platform_owner: platformOwner,
+      can_verify_identity: Boolean(staffRow?.can_verify_identity || staffRow?.platform_owner),
       org_roles: Array.from(orgIds).map((organizationId) => ({ organization_id: organizationId })),
       module_access: Array.from(moduleAccessMap.values()),
     },

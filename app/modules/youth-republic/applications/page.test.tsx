@@ -26,6 +26,8 @@ describe("YouthRepublicApplicationsPage", () => {
       applications: [{
         id: "app-1", volunteerId: "vol-1", volunteerName: "Aisha Khan", opportunityId: "opp-1",
         opportunityName: "Beach Cleanup", status: "submitted", appliedAt: "2026-01-01T00:00:00Z",
+        applicantName: "Aisha Khan", applicantEmail: "aisha@example.com", applicantPhone: "0300-1234567",
+        answers: {}, formSnapshot: null, attachmentIdsByField: {},
       }],
       total: 1,
     });
@@ -54,6 +56,8 @@ describe("YouthRepublicApplicationsPage", () => {
       applications: [{
         id: "app-2", volunteerId: "vol-2", volunteerName: "Bilal Ahmed", opportunityId: "opp-1",
         opportunityName: "Beach Cleanup", status: "waitlisted", appliedAt: "2026-01-01T00:00:00Z",
+        applicantName: "Bilal Ahmed", applicantEmail: "bilal@example.com", applicantPhone: "0300-7654321",
+        answers: {}, formSnapshot: null, attachmentIdsByField: {},
       }],
       total: 1,
     });
