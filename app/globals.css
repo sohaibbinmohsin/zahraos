@@ -997,6 +997,26 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--ink);
 }
 
+input[type="password"] {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  letter-spacing: 0.18em;
+}
+
+input[type="password"]::placeholder {
+  font-family: var(--font-body), 'Jost', sans-serif !important;
+  letter-spacing: normal !important;
+  color: var(--ink-3);
+  font-size: var(--text-base);
+}
+
+input[type="password"].dots-placeholder::placeholder,
+.dots-placeholder::placeholder {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif !important;
+  letter-spacing: 0.18em !important;
+  font-size: var(--text-base) !important;
+  color: var(--ink-3) !important;
+}
+
 .form-input:focus, .form-textarea:focus, .form-select:focus {
   border-color: var(--ink);
   outline: none;
