@@ -89,26 +89,74 @@ export function getVolunteerDetail(payload: { organizationId: string; volunteerI
   return callYouthRepublicFunction<VolunteerDetail>("get-volunteer-detail", payload, staffToken);
 }
 
+// Mirrors OpportunityCard from youth-republic list-opportunities/handler.ts.
 export interface OpportunitySummary {
   id: string;
   name: string;
+  orgName: string;
+  orgLogoUrl: string | null;
   type: string;
+  city: string | null;
+  online: boolean;
   computedStatus: string;
+  description: string | null;
   capacity: number | null;
+  filledCount: number;
+  applicationDeadline: string | null;
+  activityStartAt: string | null;
+  activityEndAt: string | null;
+  deactivatedAt: string | null;
 }
 export interface ListOpportunitiesPayload {
   organizationId: string;
   type?: string;
   status?: string;
+  online?: boolean;
+  city?: string;
+  search?: string;
+  sort?: "newest" | "closing_soon" | "az";
   limit?: number;
   offset?: number;
 }
 export interface ListOpportunitiesResponse {
   opportunities: OpportunitySummary[];
   total: number;
+  facets: {
+    cities: string[];
+    orgs: { id: string; name: string }[];
+  };
 }
 export function listOpportunities(payload: ListOpportunitiesPayload, staffToken: string) {
   return callYouthRepublicFunction<ListOpportunitiesResponse>("list-opportunities", payload, staffToken);
+}
+
+// Full record for the edit form — one opportunity with all its content and the
+// application form. From youth-republic get-opportunity-detail.
+export interface OpportunityDetail {
+  id: string;
+  name: string;
+  description: string | null;
+  about: string | null;
+  duties: string[];
+  eligibility: string[];
+  whatToBring: string[];
+  type: string;
+  location: string | null;
+  isOnline: boolean;
+  applicationOpenAt: string | null;
+  applicationDeadline: string | null;
+  activityStartAt: string | null;
+  activityEndAt: string | null;
+  capacity: number | null;
+  computedStatus: string;
+  orgId: string;
+  orgName: string;
+  orgAbout: string | null;
+  orgLogoUrl: string | null;
+  applicationForm: FormDefinition;
+}
+export function getOpportunityDetail(payload: { opportunityId: string }, staffToken: string) {
+  return callYouthRepublicFunction<OpportunityDetail>("get-opportunity-detail", payload, staffToken);
 }
 
 export interface ParticipationForOpportunityResponse {

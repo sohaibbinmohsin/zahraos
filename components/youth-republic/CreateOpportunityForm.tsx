@@ -18,6 +18,8 @@ interface CreateOpportunityFormProps {
     location?: string;
     isOnline?: boolean;
     capacity?: number;
+    applicationOpenAt?: string;
+    applicationDeadline?: string;
     activityStartAt?: string;
     activityEndAt?: string;
     about?: string;
@@ -26,6 +28,13 @@ interface CreateOpportunityFormProps {
     whatToBring?: string[];
     applicationForm?: FormDefinition;
   };
+}
+
+// API returns ISO timestamps; <input type="date"> wants YYYY-MM-DD.
+function toDateInput(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
 }
 
 const DEFAULT_FORM_FIELDS: FieldDef[] = [
@@ -81,8 +90,11 @@ export function CreateOpportunityForm({
   const [location, setLocation] = useState(initialOpportunity?.location ?? "");
   const [isOnline, setIsOnline] = useState(initialOpportunity?.isOnline ?? false);
   const [capacity, setCapacity] = useState<number | undefined>(initialOpportunity?.capacity);
-  const [activityStartAt, setActivityStartAt] = useState(initialOpportunity?.activityStartAt ?? "");
-  const [activityEndAt, setActivityEndAt] = useState(initialOpportunity?.activityEndAt ?? "");
+  const [applicationOpenAt, setApplicationOpenAt] = useState(toDateInput(initialOpportunity?.applicationOpenAt));
+  const [applicationDeadline, setApplicationDeadline] = useState(toDateInput(initialOpportunity?.applicationDeadline));
+  const [activityStartAt, setActivityStartAt] = useState(toDateInput(initialOpportunity?.activityStartAt));
+  const [activityEndAt, setActivityEndAt] = useState(toDateInput(initialOpportunity?.activityEndAt));
+  const [description, setDescription] = useState(initialOpportunity?.description ?? "");
   const [about, setAbout] = useState(initialOpportunity?.about ?? "");
   const [dutiesStr, setDutiesStr] = useState(initialOpportunity?.duties?.join("\n") ?? "");
   const [eligibilityStr, setEligibilityStr] = useState(initialOpportunity?.eligibility?.join("\n") ?? "");
@@ -157,32 +169,36 @@ export function CreateOpportunityForm({
       const eligibility = eligibilityStr.split("\n").map((s) => s.trim()).filter(Boolean);
       const whatToBring = whatToBringStr.split("\n").map((s) => s.trim()).filter(Boolean);
 
-      const payload: CreateOpportunityPayload = {
-        organizationId,
-        name: name.trim(),
-        type,
+      const isoOrUndef = (d: string) => (d ? new Date(d).toISOString() : undefined);
+      const common = {
+        description: description.trim() || undefined,
+        location: location || undefined,
+        isOnline: isOnline || undefined,
+        capacity: capacity ? Number(capacity) : undefined,
+        applicationOpenAt: isoOrUndef(applicationOpenAt),
+        applicationDeadline: isoOrUndef(applicationDeadline),
+        activityStartAt: isoOrUndef(activityStartAt),
+        activityEndAt: isoOrUndef(activityEndAt),
+        about: about.trim() || undefined,
+        duties: duties.length > 0 ? duties : undefined,
+        eligibility: eligibility.length > 0 ? eligibility : undefined,
+        whatToBring: whatToBring.length > 0 ? whatToBring : undefined,
+        applicationForm: fields.length > 0 ? { version: 1 as const, fields } : undefined,
       };
 
-      if (location) payload.location = location;
-      if (isOnline) payload.isOnline = isOnline;
-      if (capacity) payload.capacity = Number(capacity);
-      if (activityStartAt) payload.activityStartAt = activityStartAt;
-      if (activityEndAt) payload.activityEndAt = activityEndAt;
-      if (about) payload.about = about;
-      if (duties.length > 0) payload.duties = duties;
-      if (eligibility.length > 0) payload.eligibility = eligibility;
-      if (whatToBring.length > 0) payload.whatToBring = whatToBring;
-      if (fields.length > 0) {
-        payload.applicationForm = {
-          version: 1,
-          fields,
-        };
-      }
-
       if (initialOpportunity?.id) {
-        await updateOpportunity({ ...payload, opportunityId: initialOpportunity.id }, staffToken);
+        await updateOpportunity(
+          { opportunityId: initialOpportunity.id, organizationId, name: name.trim(), ...common },
+          staffToken,
+        );
         showToast("Opportunity updated successfully.");
       } else {
+        const payload: CreateOpportunityPayload = {
+          organizationId,
+          name: name.trim(),
+          type,
+          ...common,
+        };
         await createOpportunity(payload, staffToken);
         showToast(isDraft ? "Opportunity draft saved." : "Opportunity published to Noticeboard.");
       }
@@ -331,7 +347,25 @@ export function CreateOpportunityForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="form-group">
+              <label className="form-label">Applications Open</label>
+              <input
+                type="date"
+                className="form-input font-mono"
+                value={applicationOpenAt}
+                onChange={(e) => setApplicationOpenAt(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Application Deadline</label>
+              <input
+                type="date"
+                className="form-input font-mono"
+                value={applicationDeadline}
+                onChange={(e) => setApplicationDeadline(e.target.value)}
+              />
+            </div>
             <div className="form-group">
               <label className="form-label">Drive Start Date</label>
               <input
@@ -341,7 +375,6 @@ export function CreateOpportunityForm({
                 onChange={(e) => setActivityStartAt(e.target.value)}
               />
             </div>
-
             <div className="form-group">
               <label className="form-label">Drive End Date</label>
               <input
@@ -354,13 +387,24 @@ export function CreateOpportunityForm({
           </div>
 
           <div className="form-group">
-            <label className="form-label">Opportunity Description / Summary</label>
+            <label className="form-label">Short Summary <span className="text-[var(--ink-3)] font-normal">— one line, shown on the volunteer noticeboard card</span></label>
             <textarea
-              rows={3}
+              rows={2}
+              className="form-textarea"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Pack and distribute ration hampers to families across Lahore throughout Ramadan."
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Full Details <span className="text-[var(--ink-3)] font-normal">— shown on the opportunity page below the summary</span></label>
+            <textarea
+              rows={4}
               className="form-textarea"
               value={about}
               onChange={(e) => setAbout(e.target.value)}
-              placeholder="Describe the opportunity purpose and community impact..."
+              placeholder="Shift times, meeting point, what the day looks like, who to contact..."
             />
           </div>
 
