@@ -7,6 +7,9 @@ import { fetchStaffToken } from "@/lib/staffToken";
 import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
 import * as shell from "@/components/shell/AppShell";
 
+vi.mock("next/navigation", () => ({
+  useSearchParams: () => new URLSearchParams(),
+}));
 vi.mock("@/lib/supabase/browserClient");
 vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");

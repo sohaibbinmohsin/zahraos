@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import {
@@ -16,6 +18,8 @@ import { useToast } from "@/components/shell/ToastContext";
 
 export default function YouthRepublicApplicationsPage() {
   const organizationId = useSelectedOrg();
+  const searchParams = useSearchParams();
+  const opportunityIdParam = searchParams.get("opportunityId");
   const { showToast } = useToast();
   const [applications, setApplications] = useState<ApplicationListRow[]>([]);
   const [staffToken, setStaffToken] = useState<string | null>(null);
@@ -37,14 +41,18 @@ export default function YouthRepublicApplicationsPage() {
       if (!sessionData.session) return;
       const token = await fetchStaffToken(sessionData.session.access_token);
       setStaffToken(token);
-      const result = await listApplications({ organizationId }, token);
+      const result = await listApplications(
+        { organizationId, ...(opportunityIdParam ? { opportunityId: opportunityIdParam } : {}) },
+        token,
+      );
       setApplications(result.applications);
     } catch (err) {
       console.error("Failed to load applications", err);
+      showToast(err instanceof Error ? `Could not load applications: ${err.message}` : "Could not load applications.");
     } finally {
       setLoading(false);
     }
-  }, [organizationId]);
+  }, [organizationId, opportunityIdParam, showToast]);
 
   useEffect(() => {
     load();
@@ -82,6 +90,10 @@ export default function YouthRepublicApplicationsPage() {
     );
   }
 
+  const filteredOppName = opportunityIdParam
+    ? applications.find((a) => a.opportunityId === opportunityIdParam)?.opportunityName ?? null
+    : null;
+
   const filtered = applications.filter((a) => {
     const candidateName = a.applicantName || a.volunteerName || "";
     const oppName = a.opportunityName || "";
@@ -114,6 +126,17 @@ export default function YouthRepublicApplicationsPage() {
           </button>
         </div>
       </div>
+
+      {opportunityIdParam && (
+        <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[var(--bg-page)] border border-[var(--line-subtle)] text-sm">
+          <span className="text-[var(--ink-2)]">
+            Showing applications for <strong className="text-[var(--ink)]">{filteredOppName ?? "this opportunity"}</strong>
+          </span>
+          <Link href="/modules/youth-republic/applications" className="btn btn-secondary btn-xs">
+            Clear filter
+          </Link>
+        </div>
+      )}
 
       {/* Filter & Search Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-[var(--line)] rounded-xl">
