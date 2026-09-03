@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createOpportunity, updateOpportunity, type CreateOpportunityPayload } from "@/lib/youthRepublicFunctions";
+import { VolunteerApplyPreview } from "@/components/youth-republic/VolunteerApplyPreview";
 import type { FormDefinition, FieldDef, FieldType } from "@/lib/forms";
 import { useToast } from "@/components/shell/ToastContext";
 
@@ -593,62 +594,28 @@ export function CreateOpportunityForm({
         </div>
       )}
 
-      {/* STEP 3: Live Application Form Preview */}
+      {/* STEP 3: Live Volunteer Experience Preview — the real volunteer apply UI */}
       {currentStep === 3 && (
-        <div className="builder-pane-card">
-          <div className="p-4 rounded-lg bg-[var(--bg-page)] border border-[var(--line)]">
-            <div className="flex items-center justify-between">
-              <span className="type-pill uppercase font-semibold text-xs">{type}</span>
-              <span className="badge badge-pos">Noticeboard Preview</span>
-            </div>
-            <h2 className="text-xl font-bold uppercase mt-2">{name || "Opportunity Title"}</h2>
-            <p className="text-sm text-[var(--ink-2)] mt-1">{about}</p>
-            <div className="flex items-center gap-4 mt-3 text-xs text-[var(--ink-3)]">
-              <span>📍 {location}</span>
-              <span>📅 {activityStartAt} to {activityEndAt}</span>
-              <span>👥 Max Capacity: {capacity}</span>
-            </div>
-          </div>
+        <div className="builder-pane-card space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-2)]">
+            Exactly how a volunteer sees this opportunity and its application form
+          </p>
 
-          <div className="space-y-4 pt-4 border-t border-[var(--line-subtle)]">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--ink-2)]">
-              Volunteer Application Simulator ({fields.length} Questions)
-            </h3>
-
-            {fields.map((field) => (
-              <div key={field.id} className="form-group p-3 rounded-lg border border-[var(--line-subtle)] bg-white">
-                <label className="form-label text-xs">
-                  {field.label} {field.required && <span className="text-red-500">*</span>}
-                </label>
-                {field.help && <p className="text-xs text-[var(--ink-3)] mb-1">{field.help}</p>}
-
-                {field.type === "short_text" && (
-                  <input className="form-input text-sm" placeholder="Applicant answer..." disabled />
-                )}
-                {field.type === "long_text" && (
-                  <textarea rows={2} className="form-textarea text-sm" placeholder="Applicant response..." disabled />
-                )}
-                {(field.type === "select" || field.type === "radio" || field.type === "multiselect") && (
-                  <div className="space-y-1">
-                    {field.options?.map((opt, idx) => (
-                      <label key={idx} className="flex items-center gap-2 text-sm text-[var(--ink-2)]">
-                        <input type={field.type === "multiselect" ? "checkbox" : "radio"} disabled />
-                        <span>{opt.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                {field.type === "date" && (
-                  <input type="date" className="form-input text-sm" disabled />
-                )}
-                {field.type === "file" && (
-                  <div className="p-3 border-2 border-dashed border-[var(--line)] rounded text-center text-xs text-[var(--ink-3)]">
-                    📎 Document / CNIC File Attachment Area
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <VolunteerApplyPreview
+            opportunity={{
+              name,
+              type,
+              city: location || undefined,
+              isOnline,
+              description: description || undefined,
+              about: about || undefined,
+              capacity: capacity ? Number(capacity) : undefined,
+              applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : undefined,
+              activityStartAt: activityStartAt ? new Date(activityStartAt).toISOString() : undefined,
+              activityEndAt: activityEndAt ? new Date(activityEndAt).toISOString() : undefined,
+            }}
+            form={{ version: 1, fields }}
+          />
 
           <div className="step-actions-row">
             <button
@@ -664,7 +631,7 @@ export function CreateOpportunityForm({
               onClick={() => handleSave(false)}
               disabled={submitting}
             >
-              {submitting ? "Publishing..." : "Create opportunity"}
+              {submitting ? "Publishing..." : initialOpportunity?.id ? "Save changes" : "Create opportunity"}
             </button>
           </div>
         </div>
