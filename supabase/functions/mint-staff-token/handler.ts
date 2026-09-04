@@ -5,6 +5,7 @@ interface ModuleAccessEntry {
   organization_id: string;
   module: string;
   permissions: string[];
+  chapters?: string[];
 }
 
 async function signingKey(): Promise<CryptoKey> {
@@ -39,17 +40,27 @@ export async function mintStaffToken(
     .filter((r) => r.org_tier === "super_admin")
     .map((r) => r.organization_id as string);
 
-  const { data: moduleRoleRows } = await supabase
-    .from("staff_module_roles")
-    .select("organization_id, module_id, role_id")
+  const { data: assignmentRows } = await supabase
+    .from("staff_role_assignments")
+    .select("organization_id, module_id, role_id, scope_kind, chapter_id")
     .eq("staff_id", staffId);
 
   const orgIds = new Set<string>([
     ...(orgRoleRows ?? []).map((r) => r.organization_id as string),
-    ...(moduleRoleRows ?? []).map((r) => r.organization_id as string),
+    ...(assignmentRows ?? []).map((r) => r.organization_id as string),
   ]);
 
   const moduleAccessMap = new Map<string, ModuleAccessEntry>();
+
+  // orgId:moduleKey -> { anyOrgWide: boolean, chapters: Set<string> }
+  const scopeMap = new Map<string, { anyOrgWide: boolean; chapters: Set<string> }>();
+  function noteScope(orgId: string, moduleKey: string, row: { scope_kind: string; chapter_id: string | null }) {
+    const key = `${orgId}:${moduleKey}`;
+    const cur = scopeMap.get(key) ?? { anyOrgWide: false, chapters: new Set<string>() };
+    if (row.scope_kind === "org_wide") cur.anyOrgWide = true;
+    else if (row.chapter_id) cur.chapters.add(row.chapter_id);
+    scopeMap.set(key, cur);
+  }
 
   async function moduleKeyFor(moduleId: string): Promise<string> {
     const { data } = await supabase.from("modules").select("key").eq("id", moduleId).single();
@@ -75,10 +86,11 @@ export async function mintStaffToken(
         .select("resource, action")
         .eq("module_id", row.module_id);
       addPermissions(orgId, moduleKey, (perms ?? []).map((p) => `${p.resource}:${p.action}`));
+      noteScope(orgId, moduleKey, { scope_kind: "org_wide", chapter_id: null });
     }
   }
 
-  for (const row of moduleRoleRows ?? []) {
+  for (const row of assignmentRows ?? []) {
     const moduleKey = await moduleKeyFor(row.module_id as string);
     const { data: rolePerms } = await supabase
       .from("role_permissions")
@@ -89,7 +101,16 @@ export async function mintStaffToken(
       return `${p.resource}:${p.action}`;
     });
     addPermissions(row.organization_id as string, moduleKey, permissions);
+    noteScope(row.organization_id as string, moduleKey, row as { scope_kind: string; chapter_id: string | null });
   }
+
+  const moduleAccess = Array.from(moduleAccessMap.values()).map((entry) => {
+    const scope = scopeMap.get(`${entry.organization_id}:${entry.module}`);
+    if (scope && !scope.anyOrgWide && scope.chapters.size > 0) {
+      return { ...entry, chapters: Array.from(scope.chapters) };
+    }
+    return entry;
+  });
 
   const key = await signingKey();
   return await create(
@@ -101,7 +122,7 @@ export async function mintStaffToken(
       platform_owner: platformOwner,
       can_verify_identity: Boolean(staffRow?.can_verify_identity || staffRow?.platform_owner),
       org_roles: Array.from(orgIds).map((organizationId) => ({ organization_id: organizationId })),
-      module_access: Array.from(moduleAccessMap.values()),
+      module_access: moduleAccess,
     },
     key,
   );
