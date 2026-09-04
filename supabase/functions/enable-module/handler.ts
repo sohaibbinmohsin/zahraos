@@ -24,7 +24,10 @@ export async function enableModule(
     .insert({ organization_id: input.organizationId, module_id: moduleRow.id });
   if (orgModuleError) throw orgModuleError;
 
-  const { error: seedError } = await supabase.rpc("seed_system_roles_for_module", {
+  const seedFn = input.moduleKey === "youth-republic"
+    ? "seed_youth_republic_system_roles"
+    : "seed_system_roles_for_module";
+  const { error: seedError } = await supabase.rpc(seedFn, {
     p_org_id: input.organizationId,
     p_module_id: moduleRow.id,
   });

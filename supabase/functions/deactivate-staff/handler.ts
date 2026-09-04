@@ -21,7 +21,7 @@ async function targetOrgAffiliations(
   }
 
   const { data: moduleRoles } = await supabase
-    .from("staff_module_roles")
+    .from("staff_role_assignments")
     .select("organization_id")
     .eq("staff_id", targetStaffId);
   for (const row of moduleRoles ?? []) {

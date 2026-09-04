@@ -78,7 +78,7 @@ export async function grantOrgTier(
 }
 
 // Enables the Youth Republic module for an org and seeds its system roles, returning
-// the module's id — the precondition assign-staff-module-role,
+// the module's id — the precondition update-staff-access,
 // create-custom-role, and deactivate-staff's affiliation check all need.
 export async function enableYouthRepublicModule(supabase: SupabaseClient, organizationId: string): Promise<string> {
   const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
