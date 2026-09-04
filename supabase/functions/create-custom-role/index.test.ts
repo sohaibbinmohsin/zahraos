@@ -23,11 +23,22 @@ Deno.test("create-custom-role index carries CORS headers on a successful respons
   const admin = await createStaffSession(supabase);
   await grantOrgTier(supabase, admin.staffId, orgId, "admin");
   const moduleId = await enableYouthRepublicModule(supabase, orgId);
-  const { data: perms } = await supabase.from("permissions").select("id").eq("module_id", moduleId).limit(1);
 
   const res = await handleRequest(
     jsonRequest(
-      { organizationId: orgId, moduleId, name: "CORS Custom Role", permissionIds: [perms![0].id] },
+      {
+        organizationId: orgId,
+        moduleId,
+        name: "CORS Custom Role",
+        description: "",
+        capabilities: {
+          drive: "restricted",
+          publish: "restricted",
+          triage: "restricted",
+          hours: "restricted",
+          team: "restricted",
+        },
+      },
       admin.accessToken,
     ),
   );
@@ -38,7 +49,19 @@ Deno.test("create-custom-role index carries CORS headers on a successful respons
 
 Deno.test("create-custom-role index carries CORS headers on an error response", async () => {
   const res = await handleRequest(
-    jsonRequest({ organizationId: "x", moduleId: "y", name: "z", permissionIds: [] }),
+    jsonRequest({
+      organizationId: "x",
+      moduleId: "y",
+      name: "z",
+      description: "",
+      capabilities: {
+        drive: "restricted",
+        publish: "restricted",
+        triage: "restricted",
+        hours: "restricted",
+        team: "restricted",
+      },
+    }),
   );
   assertEquals(res.status, 401);
   assertEquals(res.headers.get("Access-Control-Allow-Origin"), "*");
