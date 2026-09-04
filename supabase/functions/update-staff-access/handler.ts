@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { actorName, writeAuditLog } from "../_shared/auditLog.ts";
+import { callerMayDeactivate } from "../_shared/staffAuthz.ts";
 import type { RoleAssignmentInput } from "../invite-staff-member/handler.ts";
 
 export interface UpdateStaffAccessInput {
@@ -15,10 +16,10 @@ export async function updateStaffAccess(
   callerPlatformOwner: boolean,
   input: UpdateStaffAccessInput,
 ): Promise<{ staffId: string }> {
+  if (callerStaffId === input.staffId) throw new Error("forbidden");
   if (!callerPlatformOwner) {
-    const { data } = await supabase.from("staff_org_roles").select("org_tier")
-      .eq("staff_id", callerStaffId).eq("organization_id", input.organizationId).single();
-    if (!data || !["admin", "super_admin"].includes(data.org_tier)) throw new Error("forbidden");
+    const authorized = await callerMayDeactivate(supabase, callerStaffId, input.staffId);
+    if (!authorized) throw new Error("forbidden");
   }
   if (!input.roles?.length) throw new Error("no_roles");
 

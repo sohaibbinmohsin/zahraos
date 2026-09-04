@@ -71,3 +71,27 @@ Deno.test("updateStaffAccess rejects a non-admin caller", async () => {
     Error, "forbidden",
   );
 });
+
+Deno.test("updateStaffAccess rejects a caller changing their own access", async () => {
+  const { supabase, orgId, adminId, roleByName } = await setup();
+  await assertRejects(
+    async () => updateStaffAccess(supabase, adminId, false, {
+      staffId: adminId, organizationId: orgId, status: "active",
+      roles: [{ roleId: await roleByName("Auditor"), scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+    }),
+    Error, "forbidden",
+  );
+});
+
+Deno.test("updateStaffAccess rejects an admin of org A acting on a staff member only affiliated with org B", async () => {
+  const { adminId: adminIdA } = await setup();
+  const { supabase, orgId: orgIdB, memberId: memberIdB, roleByName: roleByNameB } = await setup();
+
+  await assertRejects(
+    async () => updateStaffAccess(supabase, adminIdA, false, {
+      staffId: memberIdB, organizationId: orgIdB, status: "active",
+      roles: [{ roleId: await roleByNameB("Auditor"), scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+    }),
+    Error, "forbidden",
+  );
+});

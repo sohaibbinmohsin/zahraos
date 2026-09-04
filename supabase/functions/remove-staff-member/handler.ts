@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { actorName, writeAuditLog } from "../_shared/auditLog.ts";
+import { callerMayDeactivate } from "../_shared/staffAuthz.ts";
 
 export interface RemoveStaffMemberInput {
   staffId: string;
@@ -14,9 +15,7 @@ export async function removeStaffMember(
 ): Promise<{ staffId: string }> {
   if (callerStaffId === input.staffId) throw new Error("forbidden");
   if (!callerPlatformOwner) {
-    const { data } = await supabase.from("staff_org_roles").select("org_tier")
-      .eq("staff_id", callerStaffId).eq("organization_id", input.organizationId).single();
-    if (!data || !["admin", "super_admin"].includes(data.org_tier)) throw new Error("forbidden");
+    if (!(await callerMayDeactivate(supabase, callerStaffId, input.staffId))) throw new Error("forbidden");
   }
 
   const { data: target } = await supabase.from("staff").select("full_name, platform_owner")

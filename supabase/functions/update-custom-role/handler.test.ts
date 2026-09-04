@@ -55,3 +55,46 @@ Deno.test("updateCustomRole rewrites permissions and rejects system roles", asyn
     Error, "system_role_immutable",
   );
 });
+
+Deno.test("updateCustomRole rejects renaming onto another role's name and leaves its permissions untouched", async () => {
+  const { supabase, orgId, moduleId, adminId } = await setup();
+  const { roleId: firstRoleId } = await createCustomRole(supabase, adminId, false, {
+    organizationId: orgId, moduleId, name: "First Role", description: "v1",
+    capabilities: { drive: "granted", publish: "restricted", triage: "restricted", hours: "restricted", team: "restricted" },
+  });
+  const { roleId: secondRoleId } = await createCustomRole(supabase, adminId, false, {
+    organizationId: orgId, moduleId, name: "Second Role", description: "v1",
+    capabilities: { drive: "restricted", publish: "restricted", triage: "granted", hours: "restricted", team: "restricted" },
+  });
+
+  const { data: beforePerms } = await supabase.from("role_permissions")
+    .select("permissions(resource, action)").eq("role_id", secondRoleId);
+  const beforeKeys = (beforePerms ?? []).map((p) => {
+    const perm = p.permissions as unknown as { resource: string; action: string };
+    return `${perm.resource}:${perm.action}`;
+  }).sort();
+
+  await assertRejects(
+    () => updateCustomRole(supabase, adminId, false, {
+      roleId: secondRoleId, name: "First Role", description: "renamed onto first",
+      capabilities: { drive: "granted", publish: "granted", triage: "granted", hours: "granted", team: "granted" },
+    }),
+    Error, "role_name_taken",
+  );
+
+  const { data: secondRoleAfter } = await supabase.from("roles").select("name, description").eq("id", secondRoleId).single();
+  assertEquals(secondRoleAfter!.name, "Second Role");
+  assertEquals(secondRoleAfter!.description, "v1");
+
+  const { data: afterPerms } = await supabase.from("role_permissions")
+    .select("permissions(resource, action)").eq("role_id", secondRoleId);
+  const afterKeys = (afterPerms ?? []).map((p) => {
+    const perm = p.permissions as unknown as { resource: string; action: string };
+    return `${perm.resource}:${perm.action}`;
+  }).sort();
+  assertEquals(afterKeys, beforeKeys);
+
+  // sanity: firstRoleId still holds the name it started with
+  const { data: firstRole } = await supabase.from("roles").select("name").eq("id", firstRoleId).single();
+  assertEquals(firstRole!.name, "First Role");
+});

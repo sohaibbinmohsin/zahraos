@@ -34,9 +34,13 @@ export async function updateCustomRole(
   const permissionIds = keys.map((k) => byKey.get(k));
   if (permissionIds.some((id) => !id)) throw new Error("permission_not_available");
 
-  await supabase.from("roles").update({
+  const { error: updateError } = await supabase.from("roles").update({
     name: input.name.trim(), description: input.description || null,
   }).eq("id", input.roleId);
+  if (updateError) {
+    if (updateError.code === "23505") throw new Error("role_name_taken");
+    throw updateError;
+  }
 
   await supabase.from("role_permissions").delete().eq("role_id", input.roleId);
   if (permissionIds.length > 0) {
