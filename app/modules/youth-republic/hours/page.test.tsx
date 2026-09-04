@@ -31,8 +31,9 @@ describe("YouthRepublicHoursPage", () => {
       total: 1,
     });
     vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
-      opportunities: [{ id: "opp-1", name: "Beach Cleanup", type: "environment", computedStatus: "open", capacity: 20 }],
+      opportunities: [{ id: "opp-1", name: "Beach Cleanup", orgName: "Green Org", orgLogoUrl: null, type: "environment", city: "Karachi", online: false, computedStatus: "open", description: "Clean the shore", capacity: 20, filledCount: 3, applicationDeadline: null, activityStartAt: null, activityEndAt: null, deactivatedAt: null }],
       total: 1,
+      facets: { cities: [], orgs: [] },
     });
     vi.mocked(youthRepublicFunctions.listParticipationForOpportunity).mockResolvedValue({
       applicants: [],

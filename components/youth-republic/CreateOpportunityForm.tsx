@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createOpportunity, updateOpportunity, type CreateOpportunityPayload } from "@/lib/youthRepublicFunctions";
+import { VolunteerApplyPreview } from "@/components/youth-republic/VolunteerApplyPreview";
 import type { FormDefinition, FieldDef, FieldType } from "@/lib/forms";
 import { useToast } from "@/components/shell/ToastContext";
 
@@ -18,6 +19,8 @@ interface CreateOpportunityFormProps {
     location?: string;
     isOnline?: boolean;
     capacity?: number;
+    applicationOpenAt?: string;
+    applicationDeadline?: string;
     activityStartAt?: string;
     activityEndAt?: string;
     about?: string;
@@ -26,6 +29,13 @@ interface CreateOpportunityFormProps {
     whatToBring?: string[];
     applicationForm?: FormDefinition;
   };
+}
+
+// API returns ISO timestamps; <input type="date"> wants YYYY-MM-DD.
+function toDateInput(iso?: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
 }
 
 const DEFAULT_FORM_FIELDS: FieldDef[] = [
@@ -81,8 +91,11 @@ export function CreateOpportunityForm({
   const [location, setLocation] = useState(initialOpportunity?.location ?? "");
   const [isOnline, setIsOnline] = useState(initialOpportunity?.isOnline ?? false);
   const [capacity, setCapacity] = useState<number | undefined>(initialOpportunity?.capacity);
-  const [activityStartAt, setActivityStartAt] = useState(initialOpportunity?.activityStartAt ?? "");
-  const [activityEndAt, setActivityEndAt] = useState(initialOpportunity?.activityEndAt ?? "");
+  const [applicationOpenAt, setApplicationOpenAt] = useState(toDateInput(initialOpportunity?.applicationOpenAt));
+  const [applicationDeadline, setApplicationDeadline] = useState(toDateInput(initialOpportunity?.applicationDeadline));
+  const [activityStartAt, setActivityStartAt] = useState(toDateInput(initialOpportunity?.activityStartAt));
+  const [activityEndAt, setActivityEndAt] = useState(toDateInput(initialOpportunity?.activityEndAt));
+  const [description, setDescription] = useState(initialOpportunity?.description ?? "");
   const [about, setAbout] = useState(initialOpportunity?.about ?? "");
   const [dutiesStr, setDutiesStr] = useState(initialOpportunity?.duties?.join("\n") ?? "");
   const [eligibilityStr, setEligibilityStr] = useState(initialOpportunity?.eligibility?.join("\n") ?? "");
@@ -157,32 +170,36 @@ export function CreateOpportunityForm({
       const eligibility = eligibilityStr.split("\n").map((s) => s.trim()).filter(Boolean);
       const whatToBring = whatToBringStr.split("\n").map((s) => s.trim()).filter(Boolean);
 
-      const payload: CreateOpportunityPayload = {
-        organizationId,
-        name: name.trim(),
-        type,
+      const isoOrUndef = (d: string) => (d ? new Date(d).toISOString() : undefined);
+      const common = {
+        description: description.trim() || undefined,
+        location: location || undefined,
+        isOnline: isOnline || undefined,
+        capacity: capacity ? Number(capacity) : undefined,
+        applicationOpenAt: isoOrUndef(applicationOpenAt),
+        applicationDeadline: isoOrUndef(applicationDeadline),
+        activityStartAt: isoOrUndef(activityStartAt),
+        activityEndAt: isoOrUndef(activityEndAt),
+        about: about.trim() || undefined,
+        duties: duties.length > 0 ? duties : undefined,
+        eligibility: eligibility.length > 0 ? eligibility : undefined,
+        whatToBring: whatToBring.length > 0 ? whatToBring : undefined,
+        applicationForm: fields.length > 0 ? { version: 1 as const, fields } : undefined,
       };
 
-      if (location) payload.location = location;
-      if (isOnline) payload.isOnline = isOnline;
-      if (capacity) payload.capacity = Number(capacity);
-      if (activityStartAt) payload.activityStartAt = activityStartAt;
-      if (activityEndAt) payload.activityEndAt = activityEndAt;
-      if (about) payload.about = about;
-      if (duties.length > 0) payload.duties = duties;
-      if (eligibility.length > 0) payload.eligibility = eligibility;
-      if (whatToBring.length > 0) payload.whatToBring = whatToBring;
-      if (fields.length > 0) {
-        payload.applicationForm = {
-          version: 1,
-          fields,
-        };
-      }
-
       if (initialOpportunity?.id) {
-        await updateOpportunity({ ...payload, opportunityId: initialOpportunity.id }, staffToken);
+        await updateOpportunity(
+          { opportunityId: initialOpportunity.id, organizationId, name: name.trim(), ...common },
+          staffToken,
+        );
         showToast("Opportunity updated successfully.");
       } else {
+        const payload: CreateOpportunityPayload = {
+          organizationId,
+          name: name.trim(),
+          type,
+          ...common,
+        };
         await createOpportunity(payload, staffToken);
         showToast(isDraft ? "Opportunity draft saved." : "Opportunity published to Noticeboard.");
       }
@@ -331,7 +348,25 @@ export function CreateOpportunityForm({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="form-group">
+              <label className="form-label">Applications Open</label>
+              <input
+                type="date"
+                className="form-input font-mono"
+                value={applicationOpenAt}
+                onChange={(e) => setApplicationOpenAt(e.target.value)}
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Application Deadline</label>
+              <input
+                type="date"
+                className="form-input font-mono"
+                value={applicationDeadline}
+                onChange={(e) => setApplicationDeadline(e.target.value)}
+              />
+            </div>
             <div className="form-group">
               <label className="form-label">Drive Start Date</label>
               <input
@@ -341,7 +376,6 @@ export function CreateOpportunityForm({
                 onChange={(e) => setActivityStartAt(e.target.value)}
               />
             </div>
-
             <div className="form-group">
               <label className="form-label">Drive End Date</label>
               <input
@@ -354,13 +388,24 @@ export function CreateOpportunityForm({
           </div>
 
           <div className="form-group">
-            <label className="form-label">Opportunity Description / Summary</label>
+            <label className="form-label">Short Summary <span className="text-[var(--ink-3)] font-normal">— one line, shown on the volunteer noticeboard card</span></label>
             <textarea
-              rows={3}
+              rows={2}
+              className="form-textarea"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="e.g. Pack and distribute ration hampers to families across Lahore throughout Ramadan."
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Full Details <span className="text-[var(--ink-3)] font-normal">— shown on the opportunity page below the summary</span></label>
+            <textarea
+              rows={4}
               className="form-textarea"
               value={about}
               onChange={(e) => setAbout(e.target.value)}
-              placeholder="Describe the opportunity purpose and community impact..."
+              placeholder="Shift times, meeting point, what the day looks like, who to contact..."
             />
           </div>
 
@@ -549,62 +594,28 @@ export function CreateOpportunityForm({
         </div>
       )}
 
-      {/* STEP 3: Live Application Form Preview */}
+      {/* STEP 3: Live Volunteer Experience Preview — the real volunteer apply UI */}
       {currentStep === 3 && (
-        <div className="builder-pane-card">
-          <div className="p-4 rounded-lg bg-[var(--bg-page)] border border-[var(--line)]">
-            <div className="flex items-center justify-between">
-              <span className="type-pill uppercase font-semibold text-xs">{type}</span>
-              <span className="badge badge-pos">Noticeboard Preview</span>
-            </div>
-            <h2 className="text-xl font-bold uppercase mt-2">{name || "Opportunity Title"}</h2>
-            <p className="text-sm text-[var(--ink-2)] mt-1">{about}</p>
-            <div className="flex items-center gap-4 mt-3 text-xs text-[var(--ink-3)]">
-              <span>📍 {location}</span>
-              <span>📅 {activityStartAt} to {activityEndAt}</span>
-              <span>👥 Max Capacity: {capacity}</span>
-            </div>
-          </div>
+        <div className="builder-pane-card space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-2)]">
+            Exactly how a volunteer sees this opportunity and its application form
+          </p>
 
-          <div className="space-y-4 pt-4 border-t border-[var(--line-subtle)]">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--ink-2)]">
-              Volunteer Application Simulator ({fields.length} Questions)
-            </h3>
-
-            {fields.map((field) => (
-              <div key={field.id} className="form-group p-3 rounded-lg border border-[var(--line-subtle)] bg-white">
-                <label className="form-label text-xs">
-                  {field.label} {field.required && <span className="text-red-500">*</span>}
-                </label>
-                {field.help && <p className="text-xs text-[var(--ink-3)] mb-1">{field.help}</p>}
-
-                {field.type === "short_text" && (
-                  <input className="form-input text-sm" placeholder="Applicant answer..." disabled />
-                )}
-                {field.type === "long_text" && (
-                  <textarea rows={2} className="form-textarea text-sm" placeholder="Applicant response..." disabled />
-                )}
-                {(field.type === "select" || field.type === "radio" || field.type === "multiselect") && (
-                  <div className="space-y-1">
-                    {field.options?.map((opt, idx) => (
-                      <label key={idx} className="flex items-center gap-2 text-sm text-[var(--ink-2)]">
-                        <input type={field.type === "multiselect" ? "checkbox" : "radio"} disabled />
-                        <span>{opt.label}</span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-                {field.type === "date" && (
-                  <input type="date" className="form-input text-sm" disabled />
-                )}
-                {field.type === "file" && (
-                  <div className="p-3 border-2 border-dashed border-[var(--line)] rounded text-center text-xs text-[var(--ink-3)]">
-                    📎 Document / CNIC File Attachment Area
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <VolunteerApplyPreview
+            opportunity={{
+              name,
+              type,
+              city: location || undefined,
+              isOnline,
+              description: description || undefined,
+              about: about || undefined,
+              capacity: capacity ? Number(capacity) : undefined,
+              applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : undefined,
+              activityStartAt: activityStartAt ? new Date(activityStartAt).toISOString() : undefined,
+              activityEndAt: activityEndAt ? new Date(activityEndAt).toISOString() : undefined,
+            }}
+            form={{ version: 1, fields }}
+          />
 
           <div className="step-actions-row">
             <button
@@ -620,7 +631,7 @@ export function CreateOpportunityForm({
               onClick={() => handleSave(false)}
               disabled={submitting}
             >
-              {submitting ? "Publishing..." : "Create opportunity"}
+              {submitting ? "Publishing..." : initialOpportunity?.id ? "Save changes" : "Create opportunity"}
             </button>
           </div>
         </div>

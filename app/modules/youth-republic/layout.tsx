@@ -1,9 +1,16 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
+import { fetchStaffToken } from "@/lib/staffToken";
+import { listOpportunities, listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
+import { useSelectedOrg } from "@/components/shell/AppShell";
 
-const TABS = [
+type Badges = { opportunities: number; applications: number; hours: number };
+
+const TAB_META = [
   {
     href: "/modules/youth-republic/dashboard",
     label: "Dashboard",
@@ -15,7 +22,7 @@ const TABS = [
         <rect x="3" y="14" width="7" height="7" />
       </svg>
     ),
-    badge: null,
+    key: null,
   },
   {
     href: "/modules/youth-republic/opportunities",
@@ -26,7 +33,7 @@ const TABS = [
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </svg>
     ),
-    badge: "6",
+    key: "opportunities" as const,
   },
   {
     href: "/modules/youth-republic/applications",
@@ -37,7 +44,7 @@ const TABS = [
         <polyline points="14 2 14 8 20 8" />
       </svg>
     ),
-    badge: "5 Pending",
+    key: "applications" as const,
   },
   {
     href: "/modules/youth-republic/hours",
@@ -48,7 +55,7 @@ const TABS = [
         <polyline points="12 6 12 12 16 14" />
       </svg>
     ),
-    badge: "3 Pending",
+    key: "hours" as const,
   },
   {
     href: "/modules/youth-republic/volunteers",
@@ -61,20 +68,63 @@ const TABS = [
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
-    badge: null,
+    key: null,
   },
 ];
 
 export default function YouthRepublicModuleLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const organizationId = useSelectedOrg();
+  const [badges, setBadges] = useState<Badges | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!organizationId) {
+      setBadges(null);
+      return;
+    }
+    (async () => {
+      try {
+        const supabase = getBrowserSupabaseClient();
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData.session) return;
+        const token = await fetchStaffToken(sessionData.session.access_token);
+        const [opps, apps, hours] = await Promise.all([
+          listOpportunities({ organizationId, limit: 100 }, token),
+          listApplications({ organizationId, limit: 100 }, token),
+          listActivityHours({ organizationId, limit: 100 }, token),
+        ]);
+        if (cancelled) return;
+        setBadges({
+          opportunities: opps.opportunities.filter((o) => !o.deactivatedAt).length,
+          applications: apps.applications.filter((a) => a.status === "submitted" || a.status === "under_review").length,
+          hours: hours.activity.filter((h) => h.verificationStatus === "pending").length,
+        });
+      } catch {
+        if (!cancelled) setBadges(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
+
+  function badgeFor(key: string | null): string | null {
+    if (!key || !badges) return null;
+    if (key === "opportunities") return badges.opportunities > 0 ? String(badges.opportunities) : null;
+    if (key === "applications") return badges.applications > 0 ? `${badges.applications} pending` : null;
+    if (key === "hours") return badges.hours > 0 ? `${badges.hours} pending` : null;
+    return null;
+  }
 
   return (
     <div>
       {/* Contextual Sub-Nav Bar (Changes per Active Module — not sticky) */}
       <nav className="module-nav-bar mb-6 -mx-8 -mt-7 border-b border-[var(--line)] bg-white">
         <div className="module-nav-wrap">
-          {TABS.map((tab) => {
+          {TAB_META.map((tab) => {
             const isActive = pathname?.startsWith(tab.href);
+            const badge = badgeFor(tab.key);
             return (
               <Link
                 key={tab.href}
@@ -84,7 +134,7 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
               >
                 <span className="icon-svg" aria-hidden="true">{tab.icon}</span>
                 <span>{tab.label}</span>
-                {tab.badge && <span className="count-badge" aria-hidden="true">{tab.badge}</span>}
+                {badge && <span className="count-badge" aria-hidden="true">{badge}</span>}
               </Link>
             );
           })}
