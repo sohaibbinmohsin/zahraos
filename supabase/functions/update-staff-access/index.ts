@@ -1,7 +1,7 @@
 import { getAdminClient } from "../_shared/supabaseAdmin.ts";
 import { verifyPlatformStaffSession } from "../_shared/verifyPlatformStaffSession.ts";
 import { corsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-import { assignStaffModuleRole } from "./handler.ts";
+import { updateStaffAccess } from "./handler.ts";
 
 export async function handleRequest(req: Request): Promise<Response> {
   const preflight = corsPreflightResponse(req);
@@ -11,7 +11,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     const supabase = getAdminClient();
     const { staffId, platformOwner } = await verifyPlatformStaffSession(supabase, req.headers.get("Authorization"));
     const input = await req.json();
-    const result = await assignStaffModuleRole(supabase, staffId, platformOwner, input);
+    const result = await updateStaffAccess(supabase, staffId, platformOwner, input);
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
