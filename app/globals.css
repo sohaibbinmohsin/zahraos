@@ -527,9 +527,9 @@ h1, h2, h3, h4, h5, h6 {
 
 .user-text-info { display: block; }
 
-/* Module Nav Tabs (Non-sticky) */
+/* Module Nav Tabs (Shown ONLY when sidebar is closed/collapsed) */
 .module-nav-bar {
-  display: block;
+  display: none;
   background: #FFF;
   border-bottom: 1px solid var(--line);
   animation: fadeInNav .15s ease-out;
@@ -538,6 +538,18 @@ h1, h2, h3, h4, h5, h6 {
 @keyframes fadeInNav {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* When sidebar is collapsed on desktop, show the sub-nav bar below header */
+.app-sidebar.collapsed ~ .app-main-layout .module-nav-bar {
+  display: block;
+}
+
+/* On mobile/tablet when sidebar is hidden offscreen, show the sub-nav bar */
+@media (max-width: 992px) {
+  .module-nav-bar {
+    display: block;
+  }
 }
 
 .module-nav-wrap {
