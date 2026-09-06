@@ -130,6 +130,7 @@ h1, h2, h3, h4, h5, h6 {
 .app-sidebar .sidebar-title,
 .app-sidebar .nav-label,
 .app-sidebar .side-badge,
+.app-sidebar .coming-soon-badge,
 .app-sidebar .nav-group-label,
 .app-sidebar .sidebar-credit,
 .app-sidebar .sidebar-toggle-btn {
@@ -147,6 +148,7 @@ h1, h2, h3, h4, h5, h6 {
 .app-sidebar.collapsed .sidebar-title,
 .app-sidebar.collapsed .nav-label,
 .app-sidebar.collapsed .side-badge,
+.app-sidebar.collapsed .coming-soon-badge,
 .app-sidebar.collapsed .nav-group-label,
 .app-sidebar.collapsed .sidebar-credit,
 .app-sidebar.collapsed .sidebar-toggle-btn {
@@ -218,10 +220,33 @@ h1, h2, h3, h4, h5, h6 {
   display: block !important;
 }
 
+.app-sidebar.collapsed .sidebar-nav {
+  padding-left: 0;
+  padding-right: 0;
+  align-items: center;
+}
+
 .app-sidebar.collapsed .sidebar-nav-item {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  margin: 0 auto;
+  padding: 0;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  padding: .6rem 0;
   gap: 0;
+  border-radius: 8px;
+}
+
+.app-sidebar.collapsed .sidebar-nav-item .icon-svg {
+  margin: 0;
+  transform: none;
+}
+
+.app-sidebar.collapsed .sidebar-nav-item:hover .icon-svg {
+  transform: none;
 }
 
 .app-sidebar.collapsed .sidebar-footer {
@@ -447,12 +472,47 @@ h1, h2, h3, h4, h5, h6 {
   border-color: #14171F;
 }
 
-.app-sidebar.collapsed .side-badge {
-  transform: scale(0.6);
-  padding-left: 0;
-  padding-right: 0;
-  margin-left: 0;
-  border-color: transparent;
+.sidebar-module-divider {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0.65rem 0 0.35rem;
+  border: none;
+  transition: width .36s cubic-bezier(.4, 0, .2, 1), margin .36s cubic-bezier(.4, 0, .2, 1);
+}
+
+.app-sidebar.collapsed .sidebar-module-divider {
+  display: block;
+  width: 32px;
+  margin: 0.65rem auto;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.coming-soon-badge {
+  margin-left: auto;
+  background: #232733;
+  color: #94A3B8;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  border: 1px solid #2D323E;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+.app-sidebar.collapsed .side-badge,
+.app-sidebar.collapsed .coming-soon-badge {
+  display: none !important;
+  min-width: 0 !important;
+  width: 0 !important;
+  max-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .sidebar-footer {

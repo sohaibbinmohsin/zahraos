@@ -555,7 +555,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="nav-label">Volunteers</span>
                 </Link>
 
-                <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Access</div>
+                <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
+                <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
 
                 {claims && isOrgAdminOrAbove && (
                   <>
@@ -587,22 +588,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       </svg>
                       <span className="nav-label">Audit Log</span>
                     </Link>
+                    <div
+                      className="sidebar-nav-item coming-soon-nav-item cursor-not-allowed opacity-65"
+                      title="Data Controls (Coming Soon)"
+                      aria-label="Data Controls"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <ellipse cx="12" cy="5" rx="9" ry="3" />
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                      </svg>
+                      <span className="nav-label">Data Controls</span>
+                      <span className="coming-soon-badge">Coming Soon</span>
+                    </div>
                   </>
                 )}
 
                 {claims && platformOwner && (
-                  <Link
-                    href="/organizations"
-                    aria-label="Organizations"
-                    className={`sidebar-nav-item ${pathname === "/organizations" ? "active" : ""}`}
-                    onClick={() => setMobileSidebarOpen(false)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                    </svg>
-                    <span className="nav-label">Organizations</span>
-                  </Link>
+                  <>
+                    <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
+                    <Link
+                      href="/organizations"
+                      aria-label="Organizations"
+                      className={`sidebar-nav-item ${pathname === "/organizations" ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                      </svg>
+                      <span className="nav-label">Organizations</span>
+                    </Link>
+                  </>
                 )}
               </nav>
             </div>
@@ -644,9 +661,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </svg>
                   </button>
 
-                  <div className="brand-name-lockup" onClick={() => router.push("/modules/youth-republic/dashboard")}>
-                    <span className="brand-title">Youth Republic</span>
-                    <span className="brand-tagline">Volunteer Operations & Noticeboard</span>
+                  <div
+                    className="brand-name-lockup"
+                    onClick={() => router.push(pathname?.startsWith("/team") ? "/team/members" : "/modules/youth-republic/dashboard")}
+                  >
+                    <span className="brand-title">
+                      {pathname?.startsWith("/team") ? "Team & Governance" : "Youth Republic"}
+                    </span>
+                    <span className="brand-tagline">
+                      {pathname?.startsWith("/team")
+                        ? "Administrative Roles & Permissions Management"
+                        : "Volunteer Operations & Noticeboard"}
+                    </span>
                   </div>
                 </div>
 
