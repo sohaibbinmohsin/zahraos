@@ -307,7 +307,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           />
 
           {/* Left Collapsible Sidebar */}
-          <aside className={`app-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileSidebarOpen ? "open" : ""}`}>
+          <aside
+            className={`app-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileSidebarOpen ? "open" : ""}`}
+            onClick={(e) => {
+              if (sidebarCollapsed) {
+                const target = e.target as HTMLElement;
+                const clickedInteractive = target.closest("a, button, input, [role='button'], .sidebar-nav-item, .sidebar-toggle-btn, .sidebar-logo-btn");
+                if (!clickedInteractive) {
+                  setSidebarCollapsed(false);
+                }
+              }
+            }}
+          >
             <div>
               <div className="sidebar-header">
                 <div
@@ -321,12 +332,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     }
                   }}
                 >
-                  <button type="button" className="sidebar-logo-btn" title="Rizq">
+                  <button
+                    type="button"
+                    className="sidebar-logo-btn"
+                    title={sidebarCollapsed ? "Expand Sidebar" : "Rizq"}
+                    aria-label={sidebarCollapsed ? "Expand Sidebar" : "Rizq"}
+                    onClick={(e) => {
+                      if (sidebarCollapsed) {
+                        e.stopPropagation();
+                        setSidebarCollapsed(false);
+                      }
+                    }}
+                  >
                     <img
                       src="/assets/rizq-symbol.png"
                       alt="Rizq Logo"
                       className="sidebar-logo-img"
                     />
+                    <span className="collapsed-hover-icon" title="Expand Sidebar">
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect width="18" height="18" x="3" y="3" rx="3" />
+                        <path d="M9 3v18" />
+                      </svg>
+                    </span>
                   </button>
                   <span className="sidebar-title">RIZQ</span>
                 </div>
@@ -343,13 +381,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2.2"
+                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className={`transition-transform duration-200 ${sidebarCollapsed ? "rotate-180" : ""}`}
+                    aria-hidden="true"
                   >
-                    <polyline points="11 17 6 12 11 7" />
-                    <polyline points="18 17 13 12 18 7" />
+                    <rect width="18" height="18" x="3" y="3" rx="3" />
+                    <path d="M9 3v18" />
                   </svg>
                 </button>
               </div>

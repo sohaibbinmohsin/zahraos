@@ -341,6 +341,50 @@ describe("AppShell", () => {
     expect(birdImg).toHaveAttribute("src", "/assets/mohsin-project-white-bird.png");
   });
 
+  it("toggles sidebar collapsed state via toggle button, logo button, and empty sidebar click", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Admin Staff", platform_owner: true },
+        orgTierRows: [],
+        organizations: [],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({ actor_type: "staff", staff_id: "s1", platform_owner: true, org_roles: [], module_access: [] }),
+    );
+
+    const user = userEvent.setup();
+    const { container } = render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Admin Staff")).toBeInTheDocument());
+
+    const aside = container.querySelector("aside.app-sidebar");
+    expect(aside).not.toBeNull();
+    expect(aside).not.toHaveClass("collapsed");
+
+    // 1. Collapse via sidebar-toggle-btn
+    const toggleBtn = screen.getByRole("button", { name: "Toggle Sidebar" });
+    await user.click(toggleBtn);
+    expect(aside).toHaveClass("collapsed");
+
+    // 2. Expand via collapsed logo button
+    const logoBtn = screen.getByRole("button", { name: "Expand Sidebar" });
+    await user.click(logoBtn);
+    expect(aside).not.toHaveClass("collapsed");
+
+    // Re-collapse
+    await user.click(screen.getByRole("button", { name: "Toggle Sidebar" }));
+    expect(aside).toHaveClass("collapsed");
+
+    // 3. Expand via clicking empty space on the collapsed aside
+    await user.click(aside!);
+    expect(aside).not.toHaveClass("collapsed");
+  });
+
   it("shows a loading indicator until claims load, then hides it on the success path", async () => {
     vi.mocked(getBrowserSupabaseClient).mockReturnValue(
       mockSupabase({

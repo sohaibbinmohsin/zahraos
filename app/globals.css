@@ -124,6 +124,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .app-sidebar.collapsed {
   width: var(--sidebar-collapsed-w);
+  cursor: pointer;
 }
 
 .app-sidebar.collapsed .sidebar-brand-text,
@@ -153,6 +154,10 @@ h1, h2, h3, h4, h5, h6 {
   gap: 0;
 }
 
+.collapsed-hover-icon {
+  display: none;
+}
+
 .app-sidebar.collapsed .sidebar-logo-btn {
   width: 40px;
   height: 40px;
@@ -161,6 +166,29 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   margin: 0 auto;
+  cursor: pointer;
+}
+
+.app-sidebar.collapsed .collapsed-hover-icon {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--brand);
+  opacity: 0;
+  transform: scale(.85);
+  transition: opacity .15s ease, transform .15s ease;
+}
+
+.app-sidebar.collapsed .sidebar-logo-btn:hover .sidebar-logo-img {
+  opacity: 0;
+  transform: scale(.85);
+}
+
+.app-sidebar.collapsed .sidebar-logo-btn:hover .collapsed-hover-icon {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .app-sidebar.collapsed .sidebar-credit-collapsed {
