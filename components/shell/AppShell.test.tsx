@@ -169,7 +169,8 @@ describe("AppShell", () => {
     await waitFor(() => expect(screen.getByRole("link", { name: "Team Members" })).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Roles & Permissions" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Audit Log" })).toBeInTheDocument();
-    const switcher = screen.getByLabelText("Organization");
+    expect(screen.getByRole("link", { name: "Organization" })).toBeInTheDocument();
+    const switcher = screen.getByRole("combobox", { name: "Organization" });
     expect(screen.getByText("Rizq Test Org")).toBeInTheDocument();
     expect(screen.getByText("Some Other Org")).toBeInTheDocument();
     expect(switcher).toHaveValue("org-1");
@@ -202,6 +203,7 @@ describe("AppShell", () => {
     await waitFor(() => expect(screen.getByRole("link", { name: "Team Members" })).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Roles & Permissions" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Audit Log" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Organization" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
   });
 
@@ -233,6 +235,7 @@ describe("AppShell", () => {
     expect(screen.queryByRole("link", { name: "Team Members" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Roles & Permissions" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Audit Log" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Organization" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
   });
 
@@ -263,6 +266,7 @@ describe("AppShell", () => {
     // Mounted before the session was hydrated: no staff name or nav yet.
     expect(screen.queryByText("Late Login Person")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Team Members" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Organization" })).not.toBeInTheDocument();
 
     // Simulate the login completing after mount via Supabase's auth state change event.
     await act(async () => {
@@ -273,6 +277,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Team Members" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Roles & Permissions" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Audit Log" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Organization" })).toBeInTheDocument();
   });
 
   it("signs the staff out, clears the shell's claims, and redirects to login", async () => {
