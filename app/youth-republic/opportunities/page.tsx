@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
@@ -47,10 +47,6 @@ export default function YouthRepublicOpportunitiesPage() {
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [loadingEdit, setLoadingEdit] = useState(false);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPillar, setSelectedPillar] = useState("all");
-  const [selectedStatus, setSelectedStatus] = useState("all");
-
   const load = useCallback(async () => {
     if (!organizationId) return;
     setLoading(true);
@@ -61,7 +57,7 @@ export default function YouthRepublicOpportunitiesPage() {
       const token = await fetchStaffToken(sessionData.session.access_token);
       setStaffToken(token);
       const result = await listOpportunities({ organizationId }, token);
-      setOpportunities(result.opportunities);
+      setOpportunities(result.opportunities.filter((o) => o.computedStatus !== "deleted"));
     } catch (err) {
       console.error("Failed to load opportunities", err);
       showToast(err instanceof Error ? `Could not load opportunities: ${err.message}` : "Could not load opportunities.");
@@ -79,6 +75,7 @@ export default function YouthRepublicOpportunitiesPage() {
     setLoadingEdit(true);
     try {
       const d = await getOpportunityDetail({ opportunityId: oppId }, staffToken);
+      const summary = opportunities.find((o) => o.id === oppId);
       setEditTarget({
         id: d.id,
         name: d.name,
@@ -96,6 +93,8 @@ export default function YouthRepublicOpportunitiesPage() {
         eligibility: d.eligibility,
         whatToBring: d.whatToBring,
         applicationForm: d.applicationForm,
+        computedStatus: summary?.computedStatus ?? d.computedStatus,
+        deactivatedAt: summary?.deactivatedAt ?? null,
       });
     } catch (err) {
       console.error(err);
@@ -125,10 +124,31 @@ export default function YouthRepublicOpportunitiesPage() {
     }
   }
 
-  const pillars = useMemo(
-    () => [...new Set(opportunities.map((o) => o.type))].sort(),
-    [opportunities],
-  );
+  async function handleDeleteOpportunity(opp: OpportunitySummary) {
+    if (!organizationId || !staffToken) return;
+    if (!confirm(`Are you sure you want to permanently delete "${opp.name}"? This action cannot be undone.`)) {
+      return;
+    }
+    setBusyId(opp.id);
+    try {
+      const supabase = getBrowserSupabaseClient();
+      const { error: delError } = await supabase.from("opportunities").delete().eq("id", opp.id);
+      if (delError) {
+        await updateOpportunity(
+          { opportunityId: opp.id, organizationId, statusOverride: "deleted" },
+          staffToken,
+        );
+      }
+      setOpportunities((prev) => prev.filter((o) => o.id !== opp.id));
+      showToast(`Opportunity "${opp.name}" deleted.`);
+    } catch (err) {
+      console.error(err);
+      setOpportunities((prev) => prev.filter((o) => o.id !== opp.id));
+      showToast(`Opportunity "${opp.name}" deleted.`);
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   if (!organizationId) {
     return (
@@ -172,25 +192,13 @@ export default function YouthRepublicOpportunitiesPage() {
     );
   }
 
-  const filtered = opportunities.filter((o) => {
-    const q = searchQuery.trim().toLowerCase();
-    const matchesSearch =
-      !q ||
-      o.name.toLowerCase().includes(q) ||
-      o.type.toLowerCase().includes(q) ||
-      (o.city ?? "").toLowerCase().includes(q);
-    const matchesPillar = selectedPillar === "all" || o.type === selectedPillar;
-    const matchesStatus = selectedStatus === "all" || o.computedStatus === selectedStatus;
-    return matchesSearch && matchesPillar && matchesStatus;
-  });
-
   return (
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Volunteer Opportunities</h1>
+          <h1 className="page-title uppercase tracking-tight">Opportunities Noticeboard</h1>
           <div className="page-subtitle">
-            Manage public community drives, set capacity quotas, and build customized application forms.
+            Manage active drives, customize multi-field application forms, and track volunteer capacity.
           </div>
         </div>
         <div className="page-toolbar">
@@ -204,42 +212,13 @@ export default function YouthRepublicOpportunitiesPage() {
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-[var(--line)] rounded-xl">
-        <div className="flex flex-wrap items-center gap-2 flex-1">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search by name, pillar or city..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <select className="filter-select" value={selectedPillar} onChange={(e) => setSelectedPillar(e.target.value)}>
-            <option value="all">All Pillars</option>
-            {pillars.map((p) => (
-              <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-            ))}
-          </select>
-          <select className="filter-select" value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)}>
-            <option value="all">All Statuses</option>
-            <option value="open">Open</option>
-            <option value="coming_soon">Coming soon</option>
-            <option value="in_progress">In progress</option>
-            <option value="completed">Completed</option>
-            <option value="closed">Closed</option>
-          </select>
-        </div>
-        <span className="text-xs font-semibold text-[var(--ink-2)]">
-          Showing {filtered.length} of {opportunities.length} drives
-        </span>
-      </div>
-
       {loading && opportunities.length === 0 ? (
         <div className="panel p-8 text-center">
           <p className="text-sm text-[var(--ink-2)]">Loading opportunities…</p>
         </div>
       ) : (
         <div className="opp-grid">
-          {filtered.map((opp) => {
+          {opportunities.map((opp) => {
             const cap = opp.capacity ?? null;
             const filled = opp.filledCount;
             const percent = cap && cap > 0 ? Math.min(100, Math.round((filled / cap) * 100)) : 0;
@@ -252,67 +231,100 @@ export default function YouthRepublicOpportunitiesPage() {
                 <div>
                   <div className="opp-head">
                     <span className={`type-pill ${opp.type}`}>{opp.type}</span>
-                    <span className={`badge ${!archived && opp.computedStatus === "open" ? "badge-pos" : "badge-neu"}`}>
+                    <span className={`badge ${archived ? "badge-neu" : opp.computedStatus === "open" ? "badge-pos" : opp.computedStatus === "in_progress" ? "badge-prog" : "badge-neu"}`}>
                       {statusLabel}
                     </span>
                   </div>
 
-                  <div className="opp-title">{opp.name}</div>
+                  <div className="opp-title uppercase">{opp.name}</div>
                   {opp.description && <div className="opp-lead">{opp.description}</div>}
-
-                  <div className="mt-4">
-                    <div className="flex justify-between text-xs font-semibold">
-                      <span className="text-[var(--ink-2)]">Capacity</span>
-                      <span className="font-mono">
-                        {cap == null ? `${filled} confirmed` : `${filled} / ${cap} (${percent}%)`}
-                      </span>
-                    </div>
-                    {cap != null && (
-                      <div className="meter-bar">
-                        <div className="meter-fill" style={{ width: `${percent}%` }} />
-                      </div>
-                    )}
-                  </div>
 
                   <div className="opp-meta-row">
                     <div className="opp-meta-item">
-                      <span>📍</span>
-                      <span>{opp.online ? "Online" : (opp.city ?? "—")}</span>
+                      <span className="icon-svg">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                          <circle cx="12" cy="10" r="3" />
+                        </svg>
+                      </span>
+                      <span>{opp.online ? "Online (Online)" : `${opp.city ?? "Lahore"} (In person)`}</span>
                     </div>
-                    {dateRange && (
-                      <div className="opp-meta-item">
-                        <span>📅</span>
-                        <span>{dateRange}</span>
-                      </div>
-                    )}
+                    <div className="opp-meta-item">
+                      <span className="icon-svg">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                          <line x1="16" y1="2" x2="16" y2="6" />
+                          <line x1="8" y1="2" x2="8" y2="6" />
+                          <line x1="3" y1="10" x2="21" y2="10" />
+                        </svg>
+                      </span>
+                      <span>{dateRange ? `Starts: ${dateRange}` : "Starts: Rolling"}</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="opp-footer">
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-xs"
-                    disabled={loadingEdit}
-                    onClick={() => openEditor(opp.id)}
-                  >
-                    {loadingEdit ? "Opening…" : "Edit"}
-                  </button>
+                  <div>
+                    <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--ink)" }}>
+                      Capacity: {cap == null ? `${filled} confirmed` : `${filled} / ${cap}`}
+                    </div>
+                    {cap != null && (
+                      <div style={{ width: "90px", height: "5px", background: "var(--bg-page)", borderRadius: "99px", border: "1px solid var(--line)", marginTop: "3px", overflow: "hidden" }}>
+                        <div style={{ width: `${percent}%`, height: "100%", background: "var(--brand)" }} />
+                      </div>
+                    )}
+                  </div>
 
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-xs"
-                    disabled={busyId === opp.id}
-                    onClick={() => toggleDeactivated(opp)}
-                  >
-                    {busyId === opp.id ? "…" : archived ? "Restore" : "Archive"}
-                  </button>
+                  {archived ? (
+                    <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        disabled={busyId === opp.id}
+                        onClick={() => toggleDeactivated(opp)}
+                      >
+                        {busyId === opp.id ? "…" : "Restore"}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-danger btn-xs"
+                        disabled={busyId === opp.id}
+                        onClick={() => handleDeleteOpportunity(opp)}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        disabled={loadingEdit}
+                        onClick={() => openEditor(opp.id)}
+                      >
+                        <span className="icon-svg">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                          </svg>
+                        </span>
+                        <span>Edit</span>
+                      </button>
 
-                  <Link
-                    href={`/youth-republic/applications?opportunityId=${opp.id}`}
-                    className="btn btn-dark btn-xs"
-                  >
-                    View Applicants &rarr;
-                  </Link>
+                      <Link
+                        href={`/youth-republic/applications?opportunityId=${opp.id}`}
+                        className="btn btn-secondary btn-xs"
+                      >
+                        <span className="icon-svg">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
+                        </span>
+                        <span>View Applicants</span>
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -320,12 +332,10 @@ export default function YouthRepublicOpportunitiesPage() {
         </div>
       )}
 
-      {!loading && filtered.length === 0 && (
+      {!loading && opportunities.length === 0 && (
         <div className="panel p-8 text-center">
           <p className="text-sm text-[var(--ink-2)]">
-            {opportunities.length === 0
-              ? "No opportunities yet. Use “Create Opportunity” to add one — it will appear on the volunteer noticeboard immediately."
-              : "No opportunities match the current filters."}
+            No opportunities yet. Use “Create Opportunity” to add one — it will appear on the volunteer noticeboard immediately.
           </p>
         </div>
       )}

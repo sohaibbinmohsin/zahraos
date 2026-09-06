@@ -40,4 +40,53 @@ describe("YouthRepublicOpportunitiesPage", () => {
     await screen.findByText("Beach Cleanup");
     expect(youthRepublicFunctions.listOpportunities).toHaveBeenCalledTimes(1);
   });
+
+  it("does not render search or status filters", async () => {
+    render(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Beach Cleanup");
+    expect(screen.queryByPlaceholderText(/Search by name/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("All Statuses")).not.toBeInTheDocument();
+  });
+
+  it("shows capacity, edit and view applicants in footer, without archive button for active cards", async () => {
+    render(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Beach Cleanup");
+    expect(screen.getByText("Capacity: 3 / 20")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Edit/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /View Applicants/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Archive" })).not.toBeInTheDocument();
+  });
+
+  it("shows only restore and delete buttons when an opportunity is archived", async () => {
+    vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+      opportunities: [
+        {
+          id: "opp-archived",
+          name: "Archived Project",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "community",
+          city: "Lahore",
+          online: false,
+          computedStatus: "closed",
+          description: "An archived drive",
+          capacity: 10,
+          filledCount: 5,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: "2026-01-01T00:00:00Z",
+        },
+      ],
+      total: 1,
+      facets: { cities: [], orgs: [] },
+    });
+
+    render(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Archived Project");
+    expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Edit/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /View Applicants/i })).not.toBeInTheDocument();
+  });
 });
