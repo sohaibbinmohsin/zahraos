@@ -26,8 +26,8 @@ function encodeFakeToken(payload: Record<string, unknown>) {
 }
 
 function mockSupabase(options: {
-  initialSession?: { access_token: string } | null;
-  staffRow: { full_name: string; platform_owner: boolean };
+  initialSession?: { access_token: string; user?: { id?: string; email?: string } } | null;
+  staffRow: { full_name: string; platform_owner: boolean; email?: string };
   orgTierRows: Array<{ organization_id: string; org_tier: string }>;
   organizations: Array<{ id: string; name: string }>;
 }) {
@@ -272,13 +272,73 @@ describe("AppShell", () => {
     await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Organizations" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    // The separate header button is removed; signing out happens via the user profile dropdown
+    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+    await user.click(screen.getByLabelText("User Profile Menu"));
+    await user.click(screen.getByRole("button", { name: "Sign Out" }));
 
     expect(supabaseClient.auth.signOut).toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByText("Owner Person")).not.toBeInTheDocument());
     expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
     expect(routerPush).toHaveBeenCalledWith("/login");
+  });
+
+  it("displays the user's email instead of staff ID in the profile dropdown menu", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Sohaib Mohsin", platform_owner: true, email: "sohaib@youthrepublic.org" },
+        orgTierRows: [],
+        organizations: [],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({ actor_type: "staff", staff_id: "s1-abc-123456", platform_owner: true, org_roles: [], module_access: [] }),
+    );
+
+    const user = userEvent.setup();
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Sohaib Mohsin")).toBeInTheDocument());
+    await user.click(screen.getByLabelText("User Profile Menu"));
+
+    expect(screen.getByText("sohaib@youthrepublic.org")).toBeInTheDocument();
+    expect(screen.queryByText(/ID: s1-abc/i)).not.toBeInTheDocument();
+  });
+
+  it("renders Rizq brand logo and title in sidebar, and ZahraOS 2026 with Mohsin bird logo in footer", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Admin Staff", platform_owner: true },
+        orgTierRows: [],
+        organizations: [],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({ actor_type: "staff", staff_id: "s1", platform_owner: true, org_roles: [], module_access: [] }),
+    );
+
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Admin Staff")).toBeInTheDocument());
+
+    // Sidebar brand header: RIZQ title and Rizq logo image
+    expect(screen.getByText("RIZQ")).toBeInTheDocument();
+    const rizqLogoImg = screen.getByRole("img", { name: "Rizq Logo" });
+    expect(rizqLogoImg).toHaveAttribute("src", "/assets/rizq-symbol.png");
+
+    // Sidebar footer: ZahraOS © 2026 and Mohsin Project white bird
+    expect(screen.getByText(/ZahraOS © 2026/i)).toBeInTheDocument();
+    expect(screen.getByText("A free software by The Mohsin Project")).toBeInTheDocument();
+    const birdImg = screen.getByRole("img", { name: "The Mohsin Project" });
+    expect(birdImg).toHaveAttribute("src", "/assets/mohsin-project-white-bird.png");
   });
 
   it("shows a loading indicator until claims load, then hides it on the success path", async () => {

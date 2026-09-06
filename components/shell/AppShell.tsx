@@ -61,6 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const [fullName, setFullName] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [platformOwner, setPlatformOwner] = useState(false);
   const [claims, setClaims] = useState<StaffTokenClaims | null>(null);
   const [orgNames, setOrgNames] = useState<Record<string, string>>({});
@@ -80,6 +81,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   function resetShellState() {
     setFullName(null);
+    setEmail(null);
     setPlatformOwner(false);
     setClaims(null);
     setOrgNames({});
@@ -99,7 +101,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       resetShellState();
     }
 
-    async function loadFromSession(session: { access_token: string; user?: { id?: string } } | null) {
+    async function loadFromSession(session: { access_token: string; user?: { id?: string; email?: string } } | null) {
       if (!session) {
         clearClaims();
         if (!cancelled) setStatus("ready");
@@ -108,6 +110,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       try {
         const authUserId = session.user?.id;
+        const userEmail = session.user?.email ?? null;
 
         const staffToken = await fetchStaffToken(session.access_token);
         const decoded = decodeStaffTokenClaims(staffToken);
@@ -117,12 +120,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         const { data: staffRow, error: staffError } = await supabase
           .from("staff")
-          .select("full_name, platform_owner")
+          .select("full_name, platform_owner, email")
           .eq("auth_user_id", authUserId)
           .single();
         if (staffError) throw staffError;
         if (cancelled) return;
-        if (staffRow) setFullName(staffRow.full_name);
+        if (staffRow) {
+          setFullName(staffRow.full_name);
+          setEmail(staffRow.email ?? userEmail);
+        } else {
+          setEmail(userEmail);
+        }
 
         const { data: orgTierRows, error: orgTierError } = await supabase
           .from("staff_org_roles")
@@ -305,16 +313,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div
                   className="sidebar-brand-left"
                   onClick={() => {
-                    router.push("/modules/youth-republic/dashboard");
-                    setMobileSidebarOpen(false);
+                    if (sidebarCollapsed) {
+                      setSidebarCollapsed(false);
+                    } else {
+                      router.push("/modules/youth-republic/dashboard");
+                      setMobileSidebarOpen(false);
+                    }
                   }}
                 >
-                  <div className="sidebar-logo-btn">
-                    <span className="w-6 h-6 rounded bg-[var(--brand)] text-[var(--on-brand)] font-bold text-xs flex items-center justify-center tracking-tighter">
-                      YR
-                    </span>
-                  </div>
-                  <span className="sidebar-title">Youth Republic</span>
+                  <button type="button" className="sidebar-logo-btn" title="Rizq">
+                    <img
+                      src="/assets/rizq-symbol.png"
+                      alt="Rizq Logo"
+                      className="sidebar-logo-img"
+                    />
+                  </button>
+                  <span className="sidebar-title">RIZQ</span>
                 </div>
                 <button
                   type="button"
@@ -324,21 +338,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   aria-label="Toggle Sidebar"
                 >
                   <svg
-                    width="16"
-                    height="16"
+                    width="18"
+                    height="18"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
-                    strokeWidth="2"
+                    strokeWidth="2.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
                     className={`transition-transform duration-200 ${sidebarCollapsed ? "rotate-180" : ""}`}
                   >
-                    <polyline points="15 18 9 12 15 6" />
+                    <polyline points="11 17 6 12 11 7" />
+                    <polyline points="18 17 13 12 18 7" />
                   </svg>
                 </button>
               </div>
 
               <nav className="sidebar-nav">
-                <div className="nav-group-label">Core Operations</div>
+                <div className="nav-group-label">Youth Republic</div>
 
                 <Link
                   href="/modules/youth-republic/dashboard"
@@ -461,10 +478,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             <div className="sidebar-footer">
               <div className="sidebar-credit">
-                <span className="sidebar-copy">Powered by ZahraOS</span>
-                <span className="sidebar-project">A free software by The Mohsin Project</span>
+                <div className="sidebar-copy">ZahraOS &copy; 2026</div>
+                <div className="sidebar-project">
+                  <span>A free software by The Mohsin Project</span>
+                  <img
+                    src="/assets/mohsin-project-white-bird.png"
+                    alt="The Mohsin Project"
+                    className="mohsin-white-bird-img"
+                  />
+                </div>
               </div>
-              <div className="sidebar-credit-collapsed">ZOS</div>
+              <div className="sidebar-credit-collapsed" title="Copyright ZahraOS · The Mohsin Project">
+                ZOS &copy;
+              </div>
             </div>
           </aside>
 
@@ -523,17 +549,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </div>
                   </div>
 
-                  {claims && (
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="btn btn-secondary btn-xs text-xs"
-                      aria-label="Sign out"
-                    >
-                      Sign out
-                    </button>
-                  )}
-
                   {/* User Profile Dropdown Menu */}
                   {userDropdownOpen && (
                     <div
@@ -546,9 +561,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <div style={{ fontWeight: 600, fontSize: "var(--text-base)", color: "var(--ink)", lineHeight: 1.2 }}>
                             {fullName ?? "Admin Staff"}
                           </div>
-                          <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: "2px" }}>
-                            {claims?.staffId ? `ID: ${claims.staffId.slice(0, 8)}` : "Verified Member"}
-                          </div>
+                          {email && (
+                            <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {email}
+                            </div>
+                          )}
                           <div style={{ display: "flex", gap: ".35rem", marginTop: ".4rem", alignItems: "center" }}>
                             <span className="badge badge-pos" style={{ fontSize: "var(--text-2xs)", padding: ".1rem .35rem" }}>
                               {platformOwner ? "Platform Owner" : orgTier ? orgTier.replace("_", " ").toUpperCase() : "Active Staff"}
