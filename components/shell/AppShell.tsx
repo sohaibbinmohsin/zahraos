@@ -366,7 +366,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       </svg>
                     </span>
                   </button>
-                  <span className="sidebar-title">RIZQ</span>
+                  <span className="sidebar-title">Rizq</span>
                 </div>
                 <button
                   type="button"

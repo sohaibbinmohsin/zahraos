@@ -329,8 +329,8 @@ describe("AppShell", () => {
 
     await waitFor(() => expect(screen.getByText("Admin Staff")).toBeInTheDocument());
 
-    // Sidebar brand header: RIZQ title and Rizq logo image
-    expect(screen.getByText("RIZQ")).toBeInTheDocument();
+    // Sidebar brand header: Rizq title and Rizq logo image
+    expect(screen.getByText("Rizq")).toBeInTheDocument();
     const rizqLogoImg = screen.getByRole("img", { name: "Rizq Logo" });
     expect(rizqLogoImg).toHaveAttribute("src", "/assets/rizq-symbol.png");
 
