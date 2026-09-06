@@ -78,12 +78,12 @@ export async function grantOrgTier(
 }
 
 // Enables the Youth Republic module for an org and seeds its system roles, returning
-// the module's id — the precondition assign-staff-module-role,
+// the module's id — the precondition update-staff-access,
 // create-custom-role, and deactivate-staff's affiliation check all need.
 export async function enableYouthRepublicModule(supabase: SupabaseClient, organizationId: string): Promise<string> {
   const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
   await supabase.from("org_modules").upsert({ organization_id: organizationId, module_id: youthRepublicModule!.id });
-  await supabase.rpc("seed_system_roles_for_module", { p_org_id: organizationId, p_module_id: youthRepublicModule!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: organizationId, p_module_id: youthRepublicModule!.id });
   return youthRepublicModule!.id as string;
 }
 
@@ -93,15 +93,15 @@ export async function grantModuleAffiliation(
   organizationId: string,
 ): Promise<void> {
   const moduleId = await enableYouthRepublicModule(supabase, organizationId);
-  const { data: viewerRole } = await supabase.from("roles").select("id").eq("organization_id", organizationId).eq(
-    "name",
-    "Viewer",
-  ).single();
-  await supabase.from("staff_module_roles").insert({
+  const { data: role } = await supabase.from("roles").select("id")
+    .eq("organization_id", organizationId).eq("name", "Auditor").single();
+  await supabase.from("staff_role_assignments").insert({
     staff_id: staffId,
     organization_id: organizationId,
     module_id: moduleId,
-    role_id: viewerRole!.id,
+    role_id: role!.id,
+    scope_kind: "org_wide",
+    scope_label: "National / All Chapters",
   });
 }
 

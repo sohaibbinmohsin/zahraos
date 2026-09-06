@@ -114,7 +114,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Organizations" })).toBeInTheDocument();
   });
 
-  it("shows Staff and Roles links for a platform_owner even with no staff_org_roles row, and lets them pick any organization", async () => {
+  it("shows Team & Access links for a platform_owner even with no staff_org_roles row, and lets them pick any organization", async () => {
     vi.mocked(getBrowserSupabaseClient).mockReturnValue(
       mockSupabase({
         staffRow: { full_name: "Owner Person", platform_owner: true },
@@ -142,15 +142,16 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByRole("link", { name: "Staff" })).toBeInTheDocument());
-    expect(screen.getByRole("link", { name: "Roles" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("link", { name: "Team Members" })).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Roles & Permissions" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Audit Log" })).toBeInTheDocument();
     const switcher = screen.getByLabelText("Organization");
     expect(screen.getByText("Rizq Test Org")).toBeInTheDocument();
     expect(screen.getByText("Some Other Org")).toBeInTheDocument();
     expect(switcher).toHaveValue("org-1");
   });
 
-  it("shows Staff and Roles links only when the staff is admin/super_admin for the selected org", async () => {
+  it("shows Team & Access links only when the staff is admin/super_admin for the selected org", async () => {
     vi.mocked(getBrowserSupabaseClient).mockReturnValue(
       mockSupabase({
         staffRow: { full_name: "Org Admin", platform_owner: false },
@@ -174,12 +175,13 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByRole("link", { name: "Staff" })).toBeInTheDocument());
-    expect(screen.getByRole("link", { name: "Roles" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("link", { name: "Team Members" })).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Roles & Permissions" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Audit Log" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
   });
 
-  it("shows neither Staff/Roles nor Organizations for a regular staff member with no org_tier", async () => {
+  it("shows neither Team & Access nor Organizations for a regular staff member with no org_tier", async () => {
     vi.mocked(getBrowserSupabaseClient).mockReturnValue(
       mockSupabase({
         staffRow: { full_name: "Regular Staff", platform_owner: false },
@@ -204,7 +206,9 @@ describe("AppShell", () => {
     );
 
     await waitFor(() => expect(screen.getByText("Regular Staff")).toBeInTheDocument());
-    expect(screen.queryByRole("link", { name: "Staff" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Team Members" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Roles & Permissions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Audit Log" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
   });
 
@@ -234,7 +238,7 @@ describe("AppShell", () => {
 
     // Mounted before the session was hydrated: no staff name or nav yet.
     expect(screen.queryByText("Late Login Person")).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Staff" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Team Members" })).not.toBeInTheDocument();
 
     // Simulate the login completing after mount via Supabase's auth state change event.
     await act(async () => {
@@ -242,8 +246,9 @@ describe("AppShell", () => {
     });
 
     await waitFor(() => expect(screen.getByText("Late Login Person")).toBeInTheDocument());
-    expect(screen.getByRole("link", { name: "Staff" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Roles" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Team Members" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Roles & Permissions" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Audit Log" })).toBeInTheDocument();
   });
 
   it("signs the staff out, clears the shell's claims, and redirects to login", async () => {

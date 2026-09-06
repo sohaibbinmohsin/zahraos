@@ -21,7 +21,10 @@ Deno.test("enableModule enables the module and seeds system roles", async () => 
   assertEquals(result.moduleKey, "youth-republic");
 
   const { data: roles } = await supabase.from("roles").select("name").eq("organization_id", org!.id);
-  assertEquals((roles ?? []).map((r) => r.name).sort(), ["Editor", "Viewer"]);
+  assertEquals(
+    new Set((roles ?? []).map((r) => r.name)),
+    new Set(["Super Admin", "Operations Lead", "Drive Coordinator", "Application Reviewer", "Auditor"]),
+  );
 });
 
 Deno.test("enableModule rejects a non-platform_owner caller", async () => {

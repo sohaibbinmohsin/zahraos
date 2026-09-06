@@ -1,3 +1,5 @@
+import type { CapabilityGrid } from "./capabilityMap";
+
 async function callFunction<TResponse>(
   name: string,
   body: unknown,
@@ -22,19 +24,6 @@ async function callFunction<TResponse>(
     throw new Error(data.error ?? "request_failed");
   }
   return data as TResponse;
-}
-
-export interface CreateStaffPayload {
-  fullName: string;
-  email: string;
-  organizationId: string;
-}
-export interface CreateStaffResponse {
-  staffId: string;
-  temporaryPassword: string;
-}
-export function createStaff(payload: CreateStaffPayload, accessToken: string) {
-  return callFunction<CreateStaffResponse>("create-staff", payload, accessToken);
 }
 
 export interface SetPasswordPayload {
@@ -80,19 +69,6 @@ export function enableModule(payload: EnableModulePayload, accessToken: string) 
   return callFunction<EnableModuleResponse>("enable-module", payload, accessToken);
 }
 
-export interface AssignStaffModuleRolePayload {
-  staffId: string;
-  organizationId: string;
-  moduleId: string;
-  roleId: string;
-}
-export interface AssignStaffModuleRoleResponse {
-  staffId: string;
-}
-export function assignStaffModuleRole(payload: AssignStaffModuleRolePayload, accessToken: string) {
-  return callFunction<AssignStaffModuleRoleResponse>("assign-staff-module-role", payload, accessToken);
-}
-
 export interface AssignStaffOrgRolePayload {
   staffId: string;
   organizationId: string;
@@ -105,17 +81,71 @@ export function assignStaffOrgRole(payload: AssignStaffOrgRolePayload, accessTok
   return callFunction<AssignStaffOrgRoleResponse>("assign-staff-org-role", payload, accessToken);
 }
 
+export interface RoleAssignmentPayload {
+  roleId: string;
+  scopeKind: "org_wide" | "chapter";
+  chapterId?: string | null;
+  scopeLabel: string;
+}
+
+export interface InviteStaffMemberPayload {
+  organizationId: string;
+  fullName: string;
+  email: string;
+  phone?: string;
+  roles: RoleAssignmentPayload[];
+  sendActivationEmail: boolean;
+  enforce2fa: boolean;
+}
+export interface InviteStaffMemberResponse { staffId: string; invitationId: string }
+export function inviteStaffMember(payload: InviteStaffMemberPayload, accessToken: string) {
+  return callFunction<InviteStaffMemberResponse>("invite-staff-member", payload, accessToken);
+}
+
+export interface UpdateStaffAccessPayload {
+  staffId: string;
+  organizationId: string;
+  roles: RoleAssignmentPayload[];
+  status: "active" | "invited" | "deactivated";
+}
+export interface UpdateStaffAccessResponse { staffId: string }
+export function updateStaffAccess(payload: UpdateStaffAccessPayload, accessToken: string) {
+  return callFunction<UpdateStaffAccessResponse>("update-staff-access", payload, accessToken);
+}
+
+export interface RemoveStaffMemberPayload { staffId: string; organizationId: string }
+export interface RemoveStaffMemberResponse { staffId: string }
+export function removeStaffMember(payload: RemoveStaffMemberPayload, accessToken: string) {
+  return callFunction<RemoveStaffMemberResponse>("remove-staff-member", payload, accessToken);
+}
+
 export interface CreateCustomRolePayload {
   organizationId: string;
   moduleId: string;
   name: string;
-  permissionIds: string[];
+  description: string;
+  capabilities: CapabilityGrid;
 }
-export interface CreateCustomRoleResponse {
-  roleId: string;
-}
+export interface CreateCustomRoleResponse { roleId: string }
 export function createCustomRole(payload: CreateCustomRolePayload, accessToken: string) {
   return callFunction<CreateCustomRoleResponse>("create-custom-role", payload, accessToken);
+}
+
+export interface UpdateCustomRolePayload {
+  roleId: string;
+  name: string;
+  description: string;
+  capabilities: CapabilityGrid;
+}
+export interface UpdateCustomRoleResponse { roleId: string }
+export function updateCustomRole(payload: UpdateCustomRolePayload, accessToken: string) {
+  return callFunction<UpdateCustomRoleResponse>("update-custom-role", payload, accessToken);
+}
+
+export interface DeleteCustomRolePayload { roleId: string }
+export interface DeleteCustomRoleResponse { roleId: string }
+export function deleteCustomRole(payload: DeleteCustomRolePayload, accessToken: string) {
+  return callFunction<DeleteCustomRoleResponse>("delete-custom-role", payload, accessToken);
 }
 
 export interface DeactivateStaffPayload {

@@ -8,7 +8,7 @@
 -- themselves are cleared here.
 
 delete from staff_org_roles;
-delete from staff_module_roles;
+delete from staff_role_assignments;
 truncate table organizations restart identity cascade;
 
 -- After this runs, `seed.ts` re-inserts the four seed organizations with fixed
@@ -17,8 +17,9 @@ truncate table organizations restart identity cascade;
 -- `super_admin` on all four orgs, and the admin staff gets `admin` on Rizq.
 --
 -- NOTE: `truncate organizations ... cascade` also cascades into `org_modules`,
--- `roles`, `role_permissions` and `staff_module_roles` (all FK
+-- `roles`, `role_permissions` and `staff_role_assignments` (all FK
 -- `organization_id -> organizations(id) on delete cascade`). `seed.ts` does not
 -- rebuild module enablement or system roles, so if the current org rows do not
 -- already carry the fixed seed UUIDs, module/role wiring must be re-run
--- afterwards (enable-module + seed_system_roles_for_module per org).
+-- afterwards (enable-module + seed_youth_republic_system_roles for
+-- youth-republic orgs).

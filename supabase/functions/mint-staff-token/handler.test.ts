@@ -137,13 +137,15 @@ Deno.test("mintStaffToken resolves only the granted role's permissions for a reg
 
   const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
   await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: youthRepublicModule!.id });
-  await supabase.rpc("seed_system_roles_for_module", { p_org_id: org!.id, p_module_id: youthRepublicModule!.id });
-  const { data: viewerRole } = await supabase.from("roles").select("id").eq("organization_id", org!.id).eq("name", "Viewer").single();
-  await supabase.from("staff_module_roles").insert({
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: org!.id, p_module_id: youthRepublicModule!.id });
+  const { data: opsLeadRole } = await supabase.from("roles").select("id").eq("organization_id", org!.id).eq("name", "Operations Lead").single();
+  await supabase.from("staff_role_assignments").insert({
     staff_id: staff!.id,
     organization_id: org!.id,
     module_id: youthRepublicModule!.id,
-    role_id: viewerRole!.id,
+    role_id: opsLeadRole!.id,
+    scope_kind: "org_wide",
+    scope_label: "National / All Chapters",
   });
 
   const token = await mintStaffToken(supabase, staff!.id, false);
@@ -155,4 +157,49 @@ Deno.test("mintStaffToken resolves only the granted role's permissions for a reg
   assertEquals(payload.staff_id, staff!.id);
   assertEquals(youthRepublicAccess!.permissions.includes("applications:read"), true);
   assertEquals(youthRepublicAccess!.permissions.includes("applications:write"), false);
+});
+
+Deno.test("mintStaffToken omits chapters for an org-wide assignment and unions chapter ids otherwise", async () => {
+  Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
+  const supabase = testClient();
+  const { data: org } = await supabase.from("organizations").insert({
+    name: "Scope Token Org", slug: `scope-token-${crypto.randomUUID()}`,
+  }).select("id").single();
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: org!.id, p_module_id: mod!.id });
+  const { data: opsLead } = await supabase.from("roles").select("id")
+    .eq("organization_id", org!.id).eq("name", "Operations Lead").single();
+  const { data: reviewer } = await supabase.from("roles").select("id")
+    .eq("organization_id", org!.id).eq("name", "Application Reviewer").single();
+
+  const email = `scope-tok-${crypto.randomUUID()}@example.com`;
+  const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser!.user!.id, full_name: "Scoped", email,
+  }).select("id").single();
+
+  const chapterA = crypto.randomUUID();
+  const chapterB = crypto.randomUUID();
+  await supabase.from("staff_role_assignments").insert([
+    { staff_id: staff!.id, organization_id: org!.id, module_id: mod!.id, role_id: reviewer!.id,
+      scope_kind: "chapter", chapter_id: chapterA, scope_label: "Lahore Chapter" },
+    { staff_id: staff!.id, organization_id: org!.id, module_id: mod!.id, role_id: opsLead!.id,
+      scope_kind: "chapter", chapter_id: chapterB, scope_label: "Karachi Chapter" },
+  ]);
+
+  const token = await mintStaffToken(supabase, staff!.id, false);
+  const payload = JSON.parse(atob(token.split(".")[1]));
+  const entry = payload.module_access.find((m: { module: string }) => m.module === "youth-republic");
+  assertEquals([...entry.chapters].sort(), [chapterA, chapterB].sort());
+
+  // Adding an org-wide assignment drops chapters entirely.
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: staff!.id, organization_id: org!.id, module_id: mod!.id, role_id: opsLead!.id,
+    scope_kind: "org_wide", scope_label: "National / All Chapters",
+  });
+  const token2 = await mintStaffToken(supabase, staff!.id, false);
+  const entry2 = JSON.parse(atob(token2.split(".")[1])).module_access
+    .find((m: { module: string }) => m.module === "youth-republic");
+  assertEquals(entry2.chapters, undefined);
 });

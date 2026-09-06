@@ -50,9 +50,16 @@ async function grantOrgTier(supabase: ReturnType<typeof testClient>, staffId: st
 async function grantModuleAffiliation(supabase: ReturnType<typeof testClient>, staffId: string, orgId: string) {
   const { data: youthRepublicModule } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
   await supabase.from("org_modules").upsert({ organization_id: orgId, module_id: youthRepublicModule!.id });
-  await supabase.rpc("seed_system_roles_for_module", { p_org_id: orgId, p_module_id: youthRepublicModule!.id });
-  const { data: viewerRole } = await supabase.from("roles").select("id").eq("organization_id", orgId).eq("name", "Viewer").single();
-  await supabase.from("staff_module_roles").insert({ staff_id: staffId, organization_id: orgId, module_id: youthRepublicModule!.id, role_id: viewerRole!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: orgId, p_module_id: youthRepublicModule!.id });
+  const { data: auditorRole } = await supabase.from("roles").select("id").eq("organization_id", orgId).eq("name", "Auditor").single();
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: staffId,
+    organization_id: orgId,
+    module_id: youthRepublicModule!.id,
+    role_id: auditorRole!.id,
+    scope_kind: "org_wide",
+    scope_label: "National / All Chapters",
+  });
 }
 
 Deno.test("deactivateStaff lets an admin deactivate a regular staff member in the same org", async () => {

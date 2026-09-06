@@ -1,0 +1,76 @@
+import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { createClient } from "@supabase/supabase-js";
+import { inviteStaffMember } from "./handler.ts";
+
+function testClient() {
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+}
+
+async function setup() {
+  const supabase = testClient();
+  const { data: org } = await supabase.from("organizations").insert({
+    name: "Invite Test Org", slug: `invite-${crypto.randomUUID()}`,
+  }).select("id").single();
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: org!.id, p_module_id: mod!.id });
+  const { data: role } = await supabase.from("roles").select("id")
+    .eq("organization_id", org!.id).eq("name", "Operations Lead").single();
+
+  const adminEmail = `invite-admin-${crypto.randomUUID()}@example.com`;
+  const { data: adminAuth } = await supabase.auth.admin.createUser({ email: adminEmail, email_confirm: true });
+  const { data: admin } = await supabase.from("staff").insert({
+    auth_user_id: adminAuth!.user!.id, full_name: "Inviter Admin", email: adminEmail,
+  }).select("id").single();
+  await supabase.from("staff_org_roles").insert({ staff_id: admin!.id, organization_id: org!.id, org_tier: "admin" });
+
+  return { supabase, orgId: org!.id as string, moduleId: mod!.id as string, roleId: role!.id as string, adminId: admin!.id as string };
+}
+
+Deno.test("inviteStaffMember creates an invited staff row, assignments, and an audit entry", async () => {
+  const { supabase, orgId, roleId, adminId } = await setup();
+  const email = `invitee-${crypto.randomUUID()}@example.com`;
+
+  const result = await inviteStaffMember(supabase, adminId, false, {
+    organizationId: orgId, fullName: "Newly Invited", email, phone: "0300-1234567",
+    roles: [
+      { roleId, scopeKind: "org_wide", scopeLabel: "National / All Chapters" },
+      { roleId, scopeKind: "chapter", chapterId: crypto.randomUUID(), scopeLabel: "Lahore Chapter" },
+    ],
+    sendActivationEmail: true, enforce2fa: true,
+  });
+
+  const { data: staff } = await supabase.from("staff").select("status, full_name").eq("id", result.staffId).single();
+  assertEquals(staff!.status, "invited");
+
+  const { data: assigns } = await supabase.from("staff_role_assignments").select("scope_kind")
+    .eq("staff_id", result.staffId);
+  assertEquals(assigns!.length, 2);
+
+  const { data: invite } = await supabase.from("staff_invitations").select("status, enforce_2fa")
+    .eq("id", result.invitationId).single();
+  assertEquals(invite!.status, "pending");
+  assertEquals(invite!.enforce_2fa, true);
+
+  const { data: audit } = await supabase.from("admin_audit_log").select("action, summary")
+    .eq("organization_id", orgId).eq("entity_id", result.staffId).single();
+  assertEquals(audit!.action, "Member Invited");
+});
+
+Deno.test("inviteStaffMember rejects a non-admin caller", async () => {
+  const { supabase, orgId, roleId } = await setup();
+  const outsiderEmail = `outsider-${crypto.randomUUID()}@example.com`;
+  const { data: outAuth } = await supabase.auth.admin.createUser({ email: outsiderEmail, email_confirm: true });
+  const { data: outsider } = await supabase.from("staff").insert({
+    auth_user_id: outAuth!.user!.id, full_name: "Outsider", email: outsiderEmail,
+  }).select("id").single();
+
+  await assertRejects(
+    () => inviteStaffMember(supabase, outsider!.id, false, {
+      organizationId: orgId, fullName: "X", email: `x-${crypto.randomUUID()}@example.com`,
+      roles: [{ roleId, scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+      sendActivationEmail: false, enforce2fa: true,
+    }),
+    Error, "forbidden",
+  );
+});
