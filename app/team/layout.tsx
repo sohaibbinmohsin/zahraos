@@ -5,12 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useIsOrgAdminOrAbove } from "@/components/shell/AppShell";
 import { TeamAccessProvider } from "@/components/team/TeamAccessProvider";
+import { TeamDrawersProvider } from "@/components/team/TeamDrawers";
 import { TeamHeaderContext, type TeamHeaderAction } from "@/components/team/teamHeader";
-
-// TODO(task-5): replace with the real TeamDrawersProvider from "@/components/team/TeamDrawers"
-function TeamDrawersProvider({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
-}
 
 const TABS = [
   { href: "/team/members", label: "Team Members" },
