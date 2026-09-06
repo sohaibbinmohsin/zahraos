@@ -475,10 +475,10 @@ h1, h2, h3, h4, h5, h6 {
 .sidebar-module-divider {
   width: 100%;
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: transparent;
   margin: 0.65rem 0 0.35rem;
   border: none;
-  transition: width .36s cubic-bezier(.4, 0, .2, 1), margin .36s cubic-bezier(.4, 0, .2, 1);
+  transition: width .36s cubic-bezier(.4, 0, .2, 1), margin .36s cubic-bezier(.4, 0, .2, 1), background .36s cubic-bezier(.4, 0, .2, 1);
 }
 
 .app-sidebar.collapsed .sidebar-module-divider {
@@ -1640,11 +1640,6 @@ input[type="password"].dots-placeholder::placeholder,
 }
 
 /* ---- Team & Access (ported from prototype #screen-team) ---- */
-.stat-card.accent-gold { border-left: 3px solid var(--brand); }
-.stat-card.accent-green { border-left: 3px solid var(--st-pos-fg, #1a7f4b); }
-.stat-card.accent-dark { border-left: 3px solid var(--ink); }
-.stat-card.accent-red { border-left: 3px solid var(--st-neg-fg, #b42318); }
-
 .role-chip .scope-pill,
 .scope-pill {
   color: var(--ink-2);
