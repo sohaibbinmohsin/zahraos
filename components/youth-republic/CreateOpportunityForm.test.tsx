@@ -55,7 +55,7 @@ describe("CreateOpportunityForm", () => {
     });
   });
 
-  it("renders Archive button to the left of Update Draft when opportunity is already live", async () => {
+  it("renders Archive button and does not render Update Draft or Create Opportunity buttons when editing", async () => {
     window.confirm = vi.fn().mockReturnValue(true);
     vi.mocked(youthRepublicFunctions.updateOpportunity).mockResolvedValue({ opportunityId: "opp-live" });
     const onCreated = vi.fn();
@@ -76,9 +76,11 @@ describe("CreateOpportunityForm", () => {
     );
 
     const archiveBtn = screen.getByRole("button", { name: "Archive" });
-    const updateDraftBtn = screen.getByRole("button", { name: "Update Draft" });
     expect(archiveBtn).toBeInTheDocument();
-    expect(updateDraftBtn).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Update Draft" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Save Draft" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create opportunity" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Proceed to Application Form Builder/i })).toBeInTheDocument();
 
     await user.click(archiveBtn);
     await waitFor(() => {

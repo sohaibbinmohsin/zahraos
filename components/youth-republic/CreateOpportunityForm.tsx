@@ -273,14 +273,16 @@ export function CreateOpportunityForm({
               {initialOpportunity.deactivatedAt ? "Restore" : "Archive"}
             </button>
           )}
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => handleSave(true)}
-            disabled={submitting}
-          >
-            {submitting ? "Saving..." : isLive ? "Update Draft" : "Save Draft"}
-          </button>
+          {!initialOpportunity?.id && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => handleSave(true)}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : "Save Draft"}
+            </button>
+          )}
           {onCancel && (
             <button
               type="button"
@@ -329,7 +331,8 @@ export function CreateOpportunityForm({
 
       {/* STEP 1: Specifications & Overview */}
       {currentStep === 1 && (
-        <div className="builder-pane-card">
+        <div className="space-y-4">
+          <div className="builder-pane-card">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-group">
               <label htmlFor="oppName" className="form-label">
@@ -491,26 +494,29 @@ export function CreateOpportunityForm({
               />
             </div>
           </div>
+        </div>
 
-          <div className="step-actions-row">
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                className="btn btn-primary"
-                onClick={() => handleSave(false)}
-                disabled={submitting}
-              >
-                {submitting ? "Saving..." : "Create opportunity"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setCurrentStep(2)}
-              >
-                Proceed to Application Form Builder &rarr;
-              </button>
-            </div>
-          </div>
+        <div className="step-actions-row">
+          {!initialOpportunity?.id ? (
+            <button
+              type="submit"
+              className="btn btn-primary"
+              onClick={() => handleSave(false)}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : "Create opportunity"}
+            </button>
+          ) : (
+            <div />
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setCurrentStep(2)}
+          >
+            Proceed to Application Form Builder &rarr;
+          </button>
+        </div>
         </div>
       )}
 
@@ -647,26 +653,28 @@ export function CreateOpportunityForm({
 
       {/* STEP 3: Live Volunteer Experience Preview — the real volunteer apply UI */}
       {currentStep === 3 && (
-        <div className="builder-pane-card space-y-4">
-          <p className="text-xs font-semibold text-[var(--ink-2)]">
-            Exactly how a volunteer sees this opportunity and its application form
-          </p>
+        <div className="space-y-4">
+          <div className="builder-pane-card space-y-4">
+            <p className="text-xs font-semibold text-[var(--ink-2)]">
+              Exactly how a volunteer sees this opportunity and its application form
+            </p>
 
-          <VolunteerApplyPreview
-            opportunity={{
-              name,
-              type,
-              city: location || undefined,
-              isOnline,
-              description: description || undefined,
-              about: about || undefined,
-              capacity: capacity ? Number(capacity) : undefined,
-              applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : undefined,
-              activityStartAt: activityStartAt ? new Date(activityStartAt).toISOString() : undefined,
-              activityEndAt: activityEndAt ? new Date(activityEndAt).toISOString() : undefined,
-            }}
-            form={{ version: 1, fields }}
-          />
+            <VolunteerApplyPreview
+              opportunity={{
+                name,
+                type,
+                city: location || undefined,
+                isOnline,
+                description: description || undefined,
+                about: about || undefined,
+                capacity: capacity ? Number(capacity) : undefined,
+                applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : undefined,
+                activityStartAt: activityStartAt ? new Date(activityStartAt).toISOString() : undefined,
+                activityEndAt: activityEndAt ? new Date(activityEndAt).toISOString() : undefined,
+              }}
+              form={{ version: 1, fields }}
+            />
+          </div>
 
           <div className="step-actions-row">
             <button
