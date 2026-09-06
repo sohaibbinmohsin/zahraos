@@ -3,7 +3,7 @@ export interface StaffTokenClaims {
   staffId: string;
   platformOwner: boolean;
   orgRoles: { organizationId: string }[];
-  moduleAccess: { organizationId: string; module: string; permissions: string[] }[];
+  moduleAccess: { organizationId: string; module: string; permissions: string[]; chapters?: string[] }[];
 }
 
 export async function fetchStaffToken(platformAccessToken: string): Promise<string> {
@@ -46,6 +46,7 @@ export function decodeStaffTokenClaims(token: string): StaffTokenClaims {
         organizationId: String(m.organization_id),
         module: String(m.module),
         permissions: Array.isArray(m.permissions) ? (m.permissions as unknown[]).map(String) : [],
+        chapters: Array.isArray(m.chapters) ? (m.chapters as unknown[]).map(String) : undefined,
       }))
       : [],
   };

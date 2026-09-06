@@ -1,15 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  createStaff,
   setPassword,
   createOrganization,
   updateOrganization,
   enableModule,
-  assignStaffModuleRole,
   assignStaffOrgRole,
   createCustomRole,
   deactivateStaff,
 } from "./platformFunctions";
+import { RESTRICTED_GRID } from "./capabilityMap";
 
 const FUNCTIONS_URL = "http://localhost:54321/functions/v1";
 
@@ -21,22 +20,6 @@ beforeEach(() => {
 function mockOk(body: unknown) {
   (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(new Response(JSON.stringify(body), { status: 200 }));
 }
-
-describe("createStaff", () => {
-  it("posts to create-staff and returns the temporary password", async () => {
-    mockOk({ staffId: "s1", temporaryPassword: "temp-pass-123" });
-
-    const result = await createStaff(
-      { fullName: "New Staff", email: "new@example.com", organizationId: "org-1" },
-      "session-token",
-    );
-
-    expect(result.temporaryPassword).toBe("temp-pass-123");
-    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(url).toBe(`${FUNCTIONS_URL}/create-staff`);
-    expect(init.headers.Authorization).toBe("Bearer session-token");
-  });
-});
 
 describe("setPassword", () => {
   it("posts to set-password", async () => {
@@ -70,17 +53,6 @@ describe("enableModule", () => {
   });
 });
 
-describe("assignStaffModuleRole", () => {
-  it("posts to assign-staff-module-role", async () => {
-    mockOk({ staffId: "s2" });
-    const result = await assignStaffModuleRole(
-      { staffId: "s2", organizationId: "org-1", moduleId: "mod-1", roleId: "role-1" },
-      "session-token",
-    );
-    expect(result.staffId).toBe("s2");
-  });
-});
-
 describe("assignStaffOrgRole", () => {
   it("posts to assign-staff-org-role", async () => {
     mockOk({ staffId: "s3" });
@@ -93,13 +65,21 @@ describe("assignStaffOrgRole", () => {
 });
 
 describe("createCustomRole", () => {
-  it("posts to create-custom-role", async () => {
+  it("posts to create-custom-role with the capability grid", async () => {
     mockOk({ roleId: "role-2" });
     const result = await createCustomRole(
-      { organizationId: "org-1", moduleId: "mod-1", name: "Hours Verifier", permissionIds: ["perm-1"] },
+      {
+        organizationId: "org-1",
+        moduleId: "mod-1",
+        name: "Hours Verifier",
+        description: "Verifies hours",
+        capabilities: { ...RESTRICTED_GRID, hours: "granted" },
+      },
       "session-token",
     );
     expect(result.roleId).toBe("role-2");
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe(`${FUNCTIONS_URL}/create-custom-role`);
   });
 });
 

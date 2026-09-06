@@ -391,3 +391,27 @@ export function bulkAssignHours(payload: BulkAssignHoursPayload, staffToken: str
 export function exportYouthRepublicCsv(payload: { organizationId: string; entity: "volunteers" | "applications" | "opportunities" | "activity_hours" }, staffToken: string) {
   return callYouthRepublicFunctionForCsv("export-csv", payload, staffToken);
 }
+
+export interface Chapter {
+  id: string;
+  name: string;
+  institution: string | null;
+  city: string | null;
+  province: string | null;
+  status: string;
+}
+export function listChapters(payload: { organizationId: string }, staffToken: string) {
+  return callYouthRepublicFunction<{ chapters: Chapter[] }>("list-chapters", payload, staffToken);
+}
+export function createChapter(
+  payload: { organizationId: string; name: string; institution?: string; city?: string; province?: string },
+  staffToken: string,
+) {
+  return callYouthRepublicFunction<{ chapterId: string }>("create-chapter", payload, staffToken);
+}
+export function updateChapter(
+  payload: { chapterId: string; organizationId: string; name?: string; city?: string; province?: string; institution?: string; status?: "active" | "inactive" },
+  staffToken: string,
+) {
+  return callYouthRepublicFunction<{ chapterId: string }>("update-chapter", payload, staffToken);
+}
