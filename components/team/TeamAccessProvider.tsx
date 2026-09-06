@@ -147,9 +147,9 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
         assignments: assignmentsByStaff.get(s.id as string) ?? [],
       })));
 
-      if (st) {
+      if (accessToken) {
         try {
-          const res = await listChapters({ organizationId }, st);
+          const res = await listChapters({ organizationId }, accessToken);
           setChapters(res.chapters.map((c: ChapterRow) => ({ id: c.id, name: c.name, city: c.city, status: c.status })));
         } catch {
           setChapters([]);
@@ -160,7 +160,7 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
     } finally {
       setLoading(false);
     }
-  }, [organizationId]);
+  }, [organizationId, accessToken]);
 
   useEffect(() => { refresh(); }, [refresh]);
 

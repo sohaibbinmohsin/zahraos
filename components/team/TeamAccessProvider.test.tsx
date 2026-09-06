@@ -69,5 +69,6 @@ describe("TeamAccessProvider", () => {
     expect(screen.getByTestId("members")).toHaveTextContent("Amina Malik:1");
     expect(screen.getByTestId("roles")).toHaveTextContent("Operations Lead:true");
     expect(screen.getByTestId("chapters")).toHaveTextContent("Lahore Chapter");
+    expect(chaptersMock).toHaveBeenCalledWith({ organizationId: "org-1" }, "access-token");
   });
 });
