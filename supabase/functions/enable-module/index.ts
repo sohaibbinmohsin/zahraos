@@ -15,16 +15,19 @@ export async function handleRequest(req: Request): Promise<Response> {
     const input = await req.json();
     const result = await enableModule(supabase, platformOwner, input);
 
-    const { data: org } = await supabase.from("organizations").select("id, name, slug, deactivated_at").eq(
-      "id",
-      input.organizationId,
-    ).single();
+    const { data: org } = await supabase.from("organizations")
+      .select("id, name, slug, deactivated_at, brand_color, logo_url, favicon_url, about")
+      .eq("id", input.organizationId).single();
     const syncToken = await mintStaffToken(supabase, staffId, true);
     await pushOrganizationSync(result.moduleKey, syncToken, {
       id: org!.id,
       name: org!.name,
       slug: org!.slug,
       deactivatedAt: org!.deactivated_at,
+      brandColor: org!.brand_color,
+      logoUrl: org!.logo_url,
+      faviconUrl: org!.favicon_url,
+      about: org!.about,
     });
 
     return new Response(JSON.stringify(result), {
