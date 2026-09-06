@@ -14,12 +14,13 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
   const [phone, setPhone] = useState("");
   const [sendEmail, setSendEmail] = useState(true);
   const [enforce2fa, setEnforce2fa] = useState(true);
+  const [expiresAt, setExpiresAt] = useState("");
   const [rows, setRows] = useState<RoleScopeRow[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setName(""); setEmail(""); setPhone(""); setSendEmail(true); setEnforce2fa(true);
+      setName(""); setEmail(""); setPhone(""); setSendEmail(true); setEnforce2fa(true); setExpiresAt("");
       setRows([makeRoleScopeRow(roles[0]?.id ?? "")]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -41,6 +42,7 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
         roles: rowsToAssignmentPayload(rows),
         sendActivationEmail: sendEmail,
         enforce2fa,
+        expiresAt: expiresAt || null,
       }, accessToken);
       await refresh();
       showToast(`Invitation sent to ${name.trim()} with ${rows.length} role assignment(s).`);
@@ -79,6 +81,14 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
             <div className="form-group">
               <label className="form-label" htmlFor="invite-phone">Phone Number</label>
               <input id="invite-phone" className="form-input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. 0300-1234567" />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="invite-expires">Access expires</label>
+            <input id="invite-expires" type="date" className="form-input" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+            <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: ".35rem" }}>
+              Leave blank for permanent access.
             </div>
           </div>
 

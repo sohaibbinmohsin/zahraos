@@ -42,6 +42,7 @@ describe("TeamMembersPage and TeamLayout", () => {
           status: "active",
           lastActiveLabel: "Just now",
           enforce2fa: true,
+          expiresAt: null,
           assignments: [
             {
               id: "a-1",

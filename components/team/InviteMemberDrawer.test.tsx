@@ -40,12 +40,25 @@ describe("InviteMemberDrawer", () => {
     expect(token).toBe("access-token");
     expect(payload).toMatchObject({
       organizationId: "org-1", fullName: "Tariq Mehmood", email: "tariq@x.org",
-      sendActivationEmail: true, enforce2fa: true,
+      sendActivationEmail: true, enforce2fa: true, expiresAt: null,
     });
     expect(payload.roles).toHaveLength(1);
     expect(payload.roles[0]).toMatchObject({ roleId: "r1", scopeKind: "org_wide" });
     expect(refresh).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("sends the chosen Access-expires date in the payload", async () => {
+    const user = userEvent.setup();
+    render(<InviteMemberDrawer open onClose={vi.fn()} />);
+
+    await user.type(screen.getByLabelText(/Full Name/i), "Tariq Mehmood");
+    await user.type(screen.getByLabelText(/Work Email/i), "tariq@x.org");
+    await user.type(screen.getByLabelText("Access expires"), "2026-12-31");
+    await user.click(screen.getByRole("button", { name: /Send Official Invitation/i }));
+
+    await waitFor(() => expect(invite).toHaveBeenCalledTimes(1));
+    expect(invite.mock.calls[0][0].expiresAt).toBe("2026-12-31");
   });
 
   it("blocks submit with no name/email", async () => {

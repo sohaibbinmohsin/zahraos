@@ -22,7 +22,7 @@ export default function TeamMembersPage() {
   }, [setAction, openInvite]);
 
   const stats = useMemo(() => {
-    const active = members.filter((m) => m.status === "active");
+    const active = members.filter((m) => m.status === "active" && !(m.expiresAt && new Date(m.expiresAt).getTime() < Date.now()));
     const invited = members.filter((m) => m.status === "invited");
     const multi = members.filter((m) => m.assignments.length > 1);
     const bucket = (names: string[]) =>

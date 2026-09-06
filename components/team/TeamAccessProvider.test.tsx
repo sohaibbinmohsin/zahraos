@@ -56,7 +56,7 @@ describe("TeamAccessProvider", () => {
         { id: "a1", staff_id: "s1", role_id: "r1", scope_kind: "org_wide", chapter_id: null, scope_label: "National / All Chapters" },
       ]);
       if (table === "staff") return tableStub([
-        { id: "s1", full_name: "Amina Malik", email: "amina@x.org", status: "active", deactivated_at: null },
+        { id: "s1", full_name: "Amina Malik", email: "amina@x.org", status: "active", deactivated_at: null, expires_at: null },
       ]);
       if (table === "staff_invitations") return tableStub([]);
       return tableStub([]);
