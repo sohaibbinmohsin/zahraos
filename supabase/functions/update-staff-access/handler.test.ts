@@ -42,11 +42,14 @@ Deno.test("updateStaffAccess replaces the assignment set and updates status", as
   const { supabase, orgId, adminId, memberId, roleByName } = await setup();
   const reviewer = await roleByName("Application Reviewer");
   const auditor = await roleByName("Auditor");
+  const { data: chapter } = await supabase.from("chapters").insert({
+    organization_id: orgId, name: `LUMS-${crypto.randomUUID()}`,
+  }).select("id").single();
 
   await updateStaffAccess(supabase, adminId, false, {
     staffId: memberId, organizationId: orgId, status: "active",
     roles: [
-      { roleId: reviewer, scopeKind: "chapter", chapterId: crypto.randomUUID(), scopeLabel: "Karachi Chapter" },
+      { roleId: reviewer, scopeKind: "chapter", chapterId: chapter!.id, scopeLabel: "Karachi Chapter" },
       { roleId: auditor, scopeKind: "org_wide", scopeLabel: "National / All Chapters" },
     ],
   });
@@ -59,6 +62,24 @@ Deno.test("updateStaffAccess replaces the assignment set and updates status", as
   const { data: audit } = await supabase.from("admin_audit_log").select("action")
     .eq("organization_id", orgId).eq("entity_id", memberId).eq("action", "Access Changed").single();
   assertEquals(audit!.action, "Access Changed");
+});
+
+Deno.test("updateStaffAccess persists expiresAt (and clears it with null)", async () => {
+  const { supabase, orgId, adminId, memberId, roleByName } = await setup();
+  const when = new Date(Date.now() + 7 * 24 * 3600_000).toISOString();
+  await updateStaffAccess(supabase, adminId, false, {
+    staffId: memberId, organizationId: orgId, status: "active", expiresAt: when,
+    roles: [{ roleId: await roleByName("Auditor"), scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+  });
+  let { data } = await supabase.from("staff").select("expires_at").eq("id", memberId).single();
+  assertEquals(new Date(data!.expires_at as string).getTime(), new Date(when).getTime());
+
+  await updateStaffAccess(supabase, adminId, false, {
+    staffId: memberId, organizationId: orgId, status: "active", expiresAt: null,
+    roles: [{ roleId: await roleByName("Auditor"), scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+  });
+  ({ data } = await supabase.from("staff").select("expires_at").eq("id", memberId).single());
+  assertEquals(data!.expires_at, null);
 });
 
 Deno.test("updateStaffAccess rejects a non-admin caller", async () => {

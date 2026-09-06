@@ -30,12 +30,15 @@ async function setup() {
 Deno.test("inviteStaffMember creates an invited staff row, assignments, and an audit entry", async () => {
   const { supabase, orgId, roleId, adminId } = await setup();
   const email = `invitee-${crypto.randomUUID()}@example.com`;
+  const { data: chapter } = await supabase.from("chapters").insert({
+    organization_id: orgId, name: `LUMS-${crypto.randomUUID()}`,
+  }).select("id").single();
 
   const result = await inviteStaffMember(supabase, adminId, false, {
     organizationId: orgId, fullName: "Newly Invited", email, phone: "0300-1234567",
     roles: [
       { roleId, scopeKind: "org_wide", scopeLabel: "National / All Chapters" },
-      { roleId, scopeKind: "chapter", chapterId: crypto.randomUUID(), scopeLabel: "Lahore Chapter" },
+      { roleId, scopeKind: "chapter", chapterId: chapter!.id, scopeLabel: "Lahore Chapter" },
     ],
     sendActivationEmail: true, enforce2fa: true,
   });
@@ -55,6 +58,18 @@ Deno.test("inviteStaffMember creates an invited staff row, assignments, and an a
   const { data: audit } = await supabase.from("admin_audit_log").select("action, summary")
     .eq("organization_id", orgId).eq("entity_id", result.staffId).single();
   assertEquals(audit!.action, "Member Invited");
+});
+
+Deno.test("inviteStaffMember persists expiresAt to staff.expires_at", async () => {
+  const { supabase, orgId, roleId, adminId } = await setup();
+  const when = new Date(Date.now() + 30 * 24 * 3600_000).toISOString();
+  const result = await inviteStaffMember(supabase, adminId, false, {
+    organizationId: orgId, fullName: "Timed", email: `timed-${crypto.randomUUID()}@example.com`,
+    roles: [{ roleId, scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+    sendActivationEmail: false, enforce2fa: true, expiresAt: when,
+  });
+  const { data: staff } = await supabase.from("staff").select("expires_at").eq("id", result.staffId).single();
+  assertEquals(new Date(staff!.expires_at as string).getTime(), new Date(when).getTime());
 });
 
 Deno.test("inviteStaffMember rejects a non-admin caller", async () => {
