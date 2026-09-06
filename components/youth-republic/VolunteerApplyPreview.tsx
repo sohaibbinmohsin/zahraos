@@ -254,14 +254,14 @@ const SCOPED_CSS = `
 .yr-vpreview .vp-detail { order: 2; }
 @media (min-width: 820px) { .yr-vpreview .vp-detail { order: 2; } }
 .yr-vpreview .vp-formwrap { order: 1; }
-.yr-vpreview .vp-org { font-size: .8rem; color: var(--ink-2); margin: 0 0 .5rem; text-transform: uppercase; letter-spacing: .08em; }
+.yr-vpreview .vp-org { font-size: .8rem; color: var(--ink-2); margin: 0 0 .5rem; letter-spacing: .08em; }
 .yr-vpreview .badges { margin-bottom: .6rem; }
 .yr-vpreview .tag { font: 600 .68rem/1 "Oswald", "Jost", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #fff; background: var(--type-color, var(--ink)); padding: .4rem .65rem; border-radius: 999px; display: inline-block; }
 .yr-vpreview .type-environment { --type-color: var(--t-environment); }
 .yr-vpreview .type-health { --type-color: var(--t-health); }
 .yr-vpreview .type-education { --type-color: var(--t-education); }
 .yr-vpreview .type-community { --type-color: var(--t-community); }
-.yr-vpreview .vp-title { font: 700 1.6rem/1.15 "Oswald", "Jost", sans-serif; text-transform: uppercase; margin: .2rem 0 .5rem; }
+.yr-vpreview .vp-title { font: 700 1.6rem/1.15 "Oswald", "Jost", sans-serif; margin: .2rem 0 .5rem; }
 .yr-vpreview .vp-lead { font-size: 1rem; color: var(--ink); margin: 0 0 .75rem; }
 .yr-vpreview .vp-body { font-size: .9rem; color: var(--ink-2); margin: 0 0 1rem; white-space: pre-wrap; }
 .yr-vpreview .facts { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1rem; font-size: .88rem; margin: 0; }

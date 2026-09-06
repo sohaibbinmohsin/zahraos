@@ -1,12 +1,13 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "@/lib/staffToken";
 import { resolveOrgSwitcherOptions, pickInitialOrgId, readStoredOrgId, writeStoredOrgId } from "@/lib/selectedOrg";
 import { MODULE_REGISTRY } from "@/registry/modules";
+import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
 import { ChangePasswordModal } from "./ChangePasswordModal";
@@ -21,6 +22,7 @@ interface ShellContextValue {
   orgTier: string | null;
   isOrgAdminOrAbove: boolean;
   accessToken: string | null;
+  loading: boolean;
 }
 
 const ShellContext = createContext<ShellContextValue>({
@@ -29,6 +31,7 @@ const ShellContext = createContext<ShellContextValue>({
   orgTier: null,
   isOrgAdminOrAbove: false,
   accessToken: null,
+  loading: true,
 });
 
 export function useSelectedOrg() {
@@ -51,6 +54,31 @@ export function useShellAccessToken() {
   return useContext(ShellContext).accessToken;
 }
 
+export function useShellLoading() {
+  return useContext(ShellContext).loading;
+}
+
+export function getRoleRank(roleName: string): number {
+  const norm = roleName.trim().toLowerCase().replace(/[-_]/g, " ");
+  if (norm === "platform owner") return 100;
+  if (norm === "super admin") return 90;
+  if (norm === "admin" || norm === "org admin" || norm === "organization admin") return 80;
+  if (norm === "operations lead") return 70;
+  if (norm === "drive coordinator") return 60;
+  if (norm === "application reviewer") return 40;
+  if (norm === "auditor") return 30;
+  if (norm === "viewer") return 20;
+  return 50;
+}
+
+export function formatRoleTitle(roleName: string): string {
+  const norm = roleName.trim().replace(/[-_]/g, " ");
+  return norm
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   let pathname = "";
@@ -61,10 +89,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const [fullName, setFullName] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
   const [platformOwner, setPlatformOwner] = useState(false);
   const [claims, setClaims] = useState<StaffTokenClaims | null>(null);
   const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [orgTiers, setOrgTiers] = useState<Record<string, string>>({});
+  const [assignedRolesByOrg, setAssignedRolesByOrg] = useState<Record<string, string[]>>({});
   const [availableOrgIds, setAvailableOrgIds] = useState<string[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [status, setStatus] = useState<ShellLoadStatus>("loading");
@@ -78,8 +108,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
+  // Badge counts
+  const [pendingApplicationsCount, setPendingApplicationsCount] = useState<number | null>(null);
+  const [pendingHoursCount, setPendingHoursCount] = useState<number | null>(null);
+  const [activeTeamCount, setActiveTeamCount] = useState<number | null>(null);
+
   function resetShellState() {
     setFullName(null);
+    setEmail(null);
     setPlatformOwner(false);
     setClaims(null);
     setOrgNames({});
@@ -88,6 +124,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSelectedOrgId(null);
     setAccessToken(null);
     setUserDropdownOpen(false);
+    setPendingApplicationsCount(null);
+    setPendingHoursCount(null);
+    setActiveTeamCount(null);
   }
 
   useEffect(() => {
@@ -99,7 +138,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       resetShellState();
     }
 
-    async function loadFromSession(session: { access_token: string; user?: { id?: string } } | null) {
+    async function loadFromSession(session: { access_token: string; user?: { id?: string; email?: string } } | null) {
       if (!session) {
         clearClaims();
         if (!cancelled) setStatus("ready");
@@ -108,6 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       try {
         const authUserId = session.user?.id;
+        const userEmail = session.user?.email ?? null;
 
         const staffToken = await fetchStaffToken(session.access_token);
         const decoded = decodeStaffTokenClaims(staffToken);
@@ -117,12 +157,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         const { data: staffRow, error: staffError } = await supabase
           .from("staff")
-          .select("full_name, platform_owner")
+          .select("full_name, platform_owner, email")
           .eq("auth_user_id", authUserId)
           .single();
         if (staffError) throw staffError;
         if (cancelled) return;
-        if (staffRow) setFullName(staffRow.full_name);
+        if (staffRow) {
+          setFullName(staffRow.full_name);
+          setEmail(staffRow.email ?? userEmail);
+        } else {
+          setEmail(userEmail);
+        }
 
         const { data: orgTierRows, error: orgTierError } = await supabase
           .from("staff_org_roles")
@@ -135,6 +180,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           tiersByOrg[row.organization_id] = row.org_tier;
         }
         setOrgTiers(tiersByOrg);
+
+        try {
+          const { data: userAssignments } = await supabase
+            .from("staff_role_assignments")
+            .select("organization_id, roles(name)")
+            .eq("staff_id", decoded.staffId);
+          if (userAssignments && !cancelled) {
+            const map: Record<string, string[]> = {};
+            for (const a of userAssignments as any[]) {
+              const rName = Array.isArray(a.roles) ? a.roles[0]?.name : a.roles?.name;
+              if (rName && a.organization_id) {
+                const list = map[a.organization_id] ?? [];
+                if (!list.includes(rName)) list.push(rName);
+                map[a.organization_id] = list;
+              }
+            }
+            setAssignedRolesByOrg(map);
+          }
+        } catch {
+          // Gracefully continue if role assignments join is not mock-configured
+        }
 
         let orgIds: string[];
         if (decoded.platformOwner) {
@@ -236,6 +302,99 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [accessToken]);
 
   useEffect(() => {
+    let cancelled = false;
+    if (!selectedOrgId || !accessToken) {
+      setPendingApplicationsCount(null);
+      setPendingHoursCount(null);
+      setActiveTeamCount(null);
+      return;
+    }
+
+    async function loadBadges() {
+      try {
+        const staffToken = await fetchStaffToken(accessToken!);
+        if (cancelled) return;
+
+        const [appsRes, hoursRes] = await Promise.allSettled([
+          listApplications({ organizationId: selectedOrgId!, limit: 100 }, staffToken),
+          listActivityHours({ organizationId: selectedOrgId!, limit: 100 }, staffToken),
+        ]);
+
+        if (!cancelled) {
+          if (appsRes.status === "fulfilled") {
+            const count = appsRes.value.applications.filter(
+              (a) => a.status === "submitted" || a.status === "under_review"
+            ).length;
+            setPendingApplicationsCount(count);
+          }
+          if (hoursRes.status === "fulfilled") {
+            const count = hoursRes.value.activity.filter(
+              (h) => h.verificationStatus === "pending"
+            ).length;
+            setPendingHoursCount(count);
+          }
+        }
+
+        const supabase = getBrowserSupabaseClient();
+        const { data: assignmentRows } = await supabase
+          .from("staff_role_assignments")
+          .select("staff_id")
+          .eq("organization_id", selectedOrgId);
+
+        if (cancelled) return;
+        const staffIds = Array.from(
+          new Set((assignmentRows ?? []).map((a: { staff_id: string }) => a.staff_id))
+        );
+        if (staffIds.length > 0) {
+          const { data: staffRows } = await supabase
+            .from("staff")
+            .select("id")
+            .in("id", staffIds)
+            .eq("status", "active");
+          if (!cancelled) {
+            setActiveTeamCount((staffRows ?? []).length);
+          }
+        } else {
+          if (!cancelled) {
+            setActiveTeamCount(0);
+          }
+        }
+
+        if (selectedOrgId && claims?.staffId) {
+          try {
+            const { data: userAssignments } = await supabase
+              .from("staff_role_assignments")
+              .select("organization_id, roles(name)")
+              .eq("staff_id", claims.staffId);
+            if (userAssignments && !cancelled) {
+              const map: Record<string, string[]> = {};
+              for (const a of userAssignments as any[]) {
+                const rName = Array.isArray(a.roles) ? a.roles[0]?.name : a.roles?.name;
+                if (rName && a.organization_id) {
+                  const list = map[a.organization_id] ?? [];
+                  if (!list.includes(rName)) list.push(rName);
+                  map[a.organization_id] = list;
+                }
+              }
+              setAssignedRolesByOrg((prev) => ({ ...prev, ...map }));
+            }
+          } catch {
+            // Silently catch
+          }
+        }
+      } catch {
+        // Silently catch so shell loading is unaffected
+      }
+    }
+
+    loadBadges();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedOrgId, accessToken, pathname]);
+
+  useEffect(() => {
     function handleClickOutside() {
       setUserDropdownOpen(false);
     }
@@ -265,7 +424,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
-  const isOrgAdminOrAbove = orgTier === "admin" || orgTier === "super_admin" || platformOwner;
+
+  const userRoles = useMemo(() => {
+    const rawRoles: string[] = [];
+
+    if (platformOwner) {
+      rawRoles.push("Platform Owner");
+    }
+
+    if (orgTier === "super_admin") {
+      rawRoles.push("Super Admin");
+    } else if (orgTier === "admin") {
+      rawRoles.push("Admin");
+    }
+
+    const assigned = (selectedOrgId ? assignedRolesByOrg[selectedOrgId] : []) ?? [];
+    for (const r of assigned) {
+      rawRoles.push(formatRoleTitle(r));
+    }
+
+    // If Super Admin is present, filter out generic "Admin"
+    const hasSuperAdmin = rawRoles.some((r) => r.toLowerCase() === "super admin");
+    const filtered = hasSuperAdmin ? rawRoles.filter((r) => r.toLowerCase() !== "admin") : rawRoles;
+
+    const seen = new Set<string>();
+    const uniqueRoles: string[] = [];
+    for (const r of filtered) {
+      const key = r.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueRoles.push(formatRoleTitle(r));
+      }
+    }
+
+    uniqueRoles.sort((a, b) => getRoleRank(b) - getRoleRank(a));
+
+    if (uniqueRoles.length === 0) {
+      return ["Staff"];
+    }
+    return uniqueRoles;
+  }, [platformOwner, orgTier, selectedOrgId, assignedRolesByOrg]);
+
+  const primaryRole = userRoles[0];
+  const isOrgAdminOrAbove =
+    orgTier === "admin" ||
+    orgTier === "super_admin" ||
+    platformOwner ||
+    userRoles.some((r) => ["super admin", "admin"].includes(r.toLowerCase()));
   const moduleLinks = selectedOrgId
     ? MODULE_REGISTRY.filter((m) => claims?.moduleAccess.some((a) => a.organizationId === selectedOrgId && a.module === m.key))
     : [];
@@ -283,14 +488,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isAuthPage) {
     return (
-      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken }}>
+      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, loading: status === "loading" }}>
         <ToastProvider>{children}</ToastProvider>
       </ShellContext.Provider>
     );
   }
 
   return (
-    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken }}>
+    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, loading: status === "loading" }}>
       <ToastProvider>
         <div className="app-shell">
           <div
@@ -299,22 +504,66 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           />
 
           {/* Left Collapsible Sidebar */}
-          <aside className={`app-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileSidebarOpen ? "open" : ""}`}>
+          <aside
+            className={`app-sidebar ${sidebarCollapsed ? "collapsed" : ""} ${mobileSidebarOpen ? "open" : ""}`}
+            onClick={(e) => {
+              if (sidebarCollapsed) {
+                const target = e.target as HTMLElement;
+                const clickedInteractive = target.closest("a, button, input, [role='button'], .sidebar-nav-item, .sidebar-toggle-btn, .sidebar-logo-btn");
+                if (!clickedInteractive) {
+                  setSidebarCollapsed(false);
+                }
+              }
+            }}
+          >
             <div>
               <div className="sidebar-header">
                 <div
                   className="sidebar-brand-left"
                   onClick={() => {
-                    router.push("/modules/youth-republic/dashboard");
-                    setMobileSidebarOpen(false);
+                    if (sidebarCollapsed) {
+                      setSidebarCollapsed(false);
+                    } else {
+                      router.push("/modules/youth-republic/dashboard");
+                      setMobileSidebarOpen(false);
+                    }
                   }}
                 >
-                  <div className="sidebar-logo-btn">
-                    <span className="w-6 h-6 rounded bg-[var(--brand)] text-[var(--on-brand)] font-bold text-xs flex items-center justify-center tracking-tighter">
-                      YR
+                  <button
+                    type="button"
+                    className="sidebar-logo-btn"
+                    title={sidebarCollapsed ? "Expand Sidebar" : "Rizq"}
+                    aria-label={sidebarCollapsed ? "Expand Sidebar" : "Rizq"}
+                    onClick={(e) => {
+                      if (sidebarCollapsed) {
+                        e.stopPropagation();
+                        setSidebarCollapsed(false);
+                      }
+                    }}
+                  >
+                    <img
+                      src="/assets/rizq-symbol.png"
+                      alt="Rizq Logo"
+                      className="sidebar-logo-img"
+                    />
+                    <span className="collapsed-hover-icon" title="Expand Sidebar">
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <rect width="18" height="18" x="3" y="3" rx="3" />
+                        <path d="M9 3v18" />
+                      </svg>
                     </span>
-                  </div>
-                  <span className="sidebar-title">Youth Republic</span>
+                  </button>
+                  <span className="sidebar-title">Rizq</span>
                 </div>
                 <button
                   type="button"
@@ -324,21 +573,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   aria-label="Toggle Sidebar"
                 >
                   <svg
-                    width="16"
-                    height="16"
+                    width="18"
+                    height="18"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="2"
-                    className={`transition-transform duration-200 ${sidebarCollapsed ? "rotate-180" : ""}`}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
                   >
-                    <polyline points="15 18 9 12 15 6" />
+                    <rect width="18" height="18" x="3" y="3" rx="3" />
+                    <path d="M9 3v18" />
                   </svg>
                 </button>
               </div>
 
               <nav className="sidebar-nav">
-                <div className="nav-group-label">Core Operations</div>
+                <div className="nav-group-label">Youth Republic</div>
 
                 <Link
                   href="/modules/youth-republic/dashboard"
@@ -379,6 +631,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
                   <span className="nav-label">Applications</span>
+                  {pendingApplicationsCount !== null && pendingApplicationsCount > 0 && (
+                    <span className="side-badge" id="side-badge-apps">{pendingApplicationsCount}</span>
+                  )}
                 </Link>
 
                 <Link
@@ -391,7 +646,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
-                  <span className="nav-label">Hours</span>
+                  <span className="nav-label">Hours Verification</span>
+                  {pendingHoursCount !== null && pendingHoursCount > 0 && (
+                    <span className="side-badge" id="side-badge-hours">{pendingHoursCount}</span>
+                  )}
                 </Link>
 
                 <Link
@@ -409,7 +667,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="nav-label">Volunteers</span>
                 </Link>
 
-                <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Access</div>
+                <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
+                <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
 
                 {claims && isOrgAdminOrAbove && (
                   <>
@@ -421,7 +680,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
                       </svg>
                       <span className="nav-label">Team Members</span>
-                      <span className="side-badge" aria-hidden="true" id="side-badge-team" />
+                      {activeTeamCount !== null && activeTeamCount > 0 && (
+                        <span className="side-badge" id="side-badge-team">{activeTeamCount}</span>
+                      )}
                     </Link>
                     <Link href="/team/roles" aria-label="Roles & Permissions"
                       className={`sidebar-nav-item ${pathname === "/team/roles" ? "active" : ""}`}
@@ -439,32 +700,57 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       </svg>
                       <span className="nav-label">Audit Log</span>
                     </Link>
+                    <div
+                      className="sidebar-nav-item coming-soon-nav-item cursor-not-allowed opacity-65"
+                      title="Data Controls (Coming Soon)"
+                      aria-label="Data Controls"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <ellipse cx="12" cy="5" rx="9" ry="3" />
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                      </svg>
+                      <span className="nav-label">Data Controls</span>
+                      <span className="coming-soon-badge">Coming Soon</span>
+                    </div>
                   </>
                 )}
 
                 {claims && platformOwner && (
-                  <Link
-                    href="/organizations"
-                    aria-label="Organizations"
-                    className={`sidebar-nav-item ${pathname === "/organizations" ? "active" : ""}`}
-                    onClick={() => setMobileSidebarOpen(false)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-                      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-                    </svg>
-                    <span className="nav-label">Organizations</span>
-                  </Link>
+                  <>
+                    <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
+                    <Link
+                      href="/organizations"
+                      aria-label="Organizations"
+                      className={`sidebar-nav-item ${pathname === "/organizations" ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                      </svg>
+                      <span className="nav-label">Organizations</span>
+                    </Link>
+                  </>
                 )}
               </nav>
             </div>
 
             <div className="sidebar-footer">
               <div className="sidebar-credit">
-                <span className="sidebar-copy">Powered by ZahraOS</span>
-                <span className="sidebar-project">A free software by The Mohsin Project</span>
+                <div className="sidebar-copy">ZahraOS &copy; 2026</div>
+                <div className="sidebar-project">
+                  <span>A free software by The Mohsin Project</span>
+                  <img
+                    src="/assets/mohsin-project-white-bird.png"
+                    alt="The Mohsin Project"
+                    className="mohsin-white-bird-img"
+                  />
+                </div>
               </div>
-              <div className="sidebar-credit-collapsed">ZOS</div>
+              <div className="sidebar-credit-collapsed" title="Copyright ZahraOS · The Mohsin Project">
+                ZOS &copy;
+              </div>
             </div>
           </aside>
 
@@ -487,9 +773,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     </svg>
                   </button>
 
-                  <div className="brand-name-lockup" onClick={() => router.push("/modules/youth-republic/dashboard")}>
-                    <span className="brand-title">Youth Republic</span>
-                    <span className="brand-tagline">Volunteer Operations & Noticeboard</span>
+                  <div
+                    className="brand-name-lockup"
+                    onClick={() => router.push(pathname?.startsWith("/team") ? "/team/members" : "/modules/youth-republic/dashboard")}
+                  >
+                    <span className="brand-title">
+                      {pathname?.startsWith("/team") ? "Team & Governance" : "Youth Republic"}
+                    </span>
+                    <span className="brand-tagline">
+                      {pathname?.startsWith("/team")
+                        ? "Administrative Roles & Permissions Management"
+                        : "Volunteer Operations & Noticeboard"}
+                    </span>
                   </div>
                 </div>
 
@@ -517,22 +812,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <div className="avatar">{initials}</div>
                     <div className="user-text-info">
                       {fullName && <div style={{ fontWeight: 600, lineHeight: 1.1 }}>{fullName}</div>}
-                      <div style={{ fontSize: "var(--text-2xs)", color: "var(--ink-2)" }}>
-                        {platformOwner ? "Platform Owner" : orgTier ? orgTier.replace("_", " ").toUpperCase() : "Staff"}
+                      <div style={{ fontSize: "var(--text-2xs)", color: "var(--ink-2)", fontWeight: 500 }}>
+                        {primaryRole}
                       </div>
                     </div>
                   </div>
-
-                  {claims && (
-                    <button
-                      type="button"
-                      onClick={handleSignOut}
-                      className="btn btn-secondary btn-xs text-xs"
-                      aria-label="Sign out"
-                    >
-                      Sign out
-                    </button>
-                  )}
 
                   {/* User Profile Dropdown Menu */}
                   {userDropdownOpen && (
@@ -546,13 +830,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           <div style={{ fontWeight: 600, fontSize: "var(--text-base)", color: "var(--ink)", lineHeight: 1.2 }}>
                             {fullName ?? "Admin Staff"}
                           </div>
-                          <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: "2px" }}>
-                            {claims?.staffId ? `ID: ${claims.staffId.slice(0, 8)}` : "Verified Member"}
-                          </div>
-                          <div style={{ display: "flex", gap: ".35rem", marginTop: ".4rem", alignItems: "center" }}>
-                            <span className="badge badge-pos" style={{ fontSize: "var(--text-2xs)", padding: ".1rem .35rem" }}>
-                              {platformOwner ? "Platform Owner" : orgTier ? orgTier.replace("_", " ").toUpperCase() : "Active Staff"}
-                            </span>
+                          {email && (
+                            <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {email}
+                            </div>
+                          )}
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: ".35rem", marginTop: ".45rem", alignItems: "center" }}>
+                            {userRoles.map((role) => (
+                              <span
+                                key={role}
+                                className="badge badge-pos"
+                                style={{
+                                  fontSize: "var(--text-2xs)",
+                                  padding: ".15rem .45rem",
+                                  fontWeight: 500,
+                                  textTransform: "none",
+                                  letterSpacing: "normal",
+                                }}
+                              >
+                                {role}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       </div>

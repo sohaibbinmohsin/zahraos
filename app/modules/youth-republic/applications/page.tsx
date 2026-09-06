@@ -8,7 +8,6 @@ import { fetchStaffToken } from "@/lib/staffToken";
 import {
   listApplications,
   decideApplication,
-  exportYouthRepublicCsv,
   type ApplicationListRow,
   type DecideApplicationPayload,
 } from "@/lib/youthRepublicFunctions";
@@ -65,23 +64,6 @@ function ApplicationsContent() {
     await load();
   }
 
-  async function handleExport() {
-    if (!organizationId || !staffToken) return;
-    try {
-      const csv = await exportYouthRepublicCsv({ organizationId, entity: "applications" }, staffToken);
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "applications.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast("Downloaded applications CSV.");
-    } catch (err) {
-      console.error(err);
-    }
-  }
-
   if (!organizationId) {
     return (
       <div className="panel p-8 text-center">
@@ -116,14 +98,6 @@ function ApplicationsContent() {
           </div>
         </div>
         <div className="page-toolbar">
-          <button type="button" onClick={handleExport} className="btn btn-secondary btn-sm">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            <span>Export CSV</span>
-          </button>
         </div>
       </div>
 

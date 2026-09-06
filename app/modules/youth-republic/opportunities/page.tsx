@@ -8,7 +8,6 @@ import {
   listOpportunities,
   getOpportunityDetail,
   updateOpportunity,
-  exportYouthRepublicCsv,
   type OpportunitySummary,
 } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
@@ -126,24 +125,6 @@ export default function YouthRepublicOpportunitiesPage() {
     }
   }
 
-  async function handleExport() {
-    if (!organizationId || !staffToken) return;
-    try {
-      const csv = await exportYouthRepublicCsv({ organizationId, entity: "opportunities" }, staffToken);
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "opportunities.csv";
-      a.click();
-      URL.revokeObjectURL(url);
-      showToast("Downloaded opportunities CSV.");
-    } catch (err) {
-      console.error(err);
-      showToast("CSV export failed.");
-    }
-  }
-
   const pillars = useMemo(
     () => [...new Set(opportunities.map((o) => o.type))].sort(),
     [opportunities],
@@ -213,14 +194,6 @@ export default function YouthRepublicOpportunitiesPage() {
           </div>
         </div>
         <div className="page-toolbar">
-          <button type="button" onClick={handleExport} className="btn btn-secondary btn-sm">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            <span>Export CSV</span>
-          </button>
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setIsCreating(true)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19" />

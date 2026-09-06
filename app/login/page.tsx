@@ -39,7 +39,7 @@ export default function LoginPage() {
           {/* Auth Card */}
           <div className="bg-white border border-[#E2E4E8] rounded-xl p-6 sm:p-8 shadow-xs">
             <div className="mb-6 pb-4 border-b border-[#ECEEF2]">
-              <h1 className="font-['Oswald'] text-xl font-bold uppercase tracking-tight text-[#14161B]">
+              <h1 className="font-['Oswald'] text-xl font-bold tracking-tight text-[#14161B]">
                 Partner Sign In
               </h1>
               <p className="mt-1 text-sm text-[#4A4D57] font-['Jost'] leading-relaxed">

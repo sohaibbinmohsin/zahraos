@@ -69,7 +69,7 @@ export function ApplicationReviewDrawer({
           <div className="p-4 rounded-xl bg-white border border-[var(--line)] shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <span className="text-[var(--text-2xs)] font-bold uppercase tracking-wider text-[var(--ink-3)]">
+                <span className="text-[var(--text-2xs)] font-bold text-[var(--ink-3)]">
                   Applicant Profile
                 </span>
                 <div className="text-lg font-bold text-[var(--ink)] mt-0.5">
@@ -97,7 +97,7 @@ export function ApplicationReviewDrawer({
 
             <div className="mt-3 pt-3 border-t border-[var(--line-subtle)] flex flex-wrap gap-4 text-xs text-[var(--ink-2)]">
               <div>
-                <span className="text-[var(--ink-3)] block text-[10px] uppercase font-semibold">Applied Timestamp</span>
+                <span className="text-[var(--ink-3)] block text-[10px] font-semibold">Applied Timestamp</span>
                 <span className="font-mono">
                   {new Date(application.appliedAt).toLocaleDateString("en-PK", {
                     day: "2-digit",
@@ -109,7 +109,7 @@ export function ApplicationReviewDrawer({
                 </span>
               </div>
               <div>
-                <span className="text-[var(--ink-3)] block text-[10px] uppercase font-semibold">Security Clearance</span>
+                <span className="text-[var(--ink-3)] block text-[10px] font-semibold">Security Clearance</span>
                 <span className="font-semibold text-emerald-700">CNIC Verified</span>
               </div>
             </div>
@@ -117,7 +117,7 @@ export function ApplicationReviewDrawer({
 
           {/* Submitted Q&A Responses */}
           <div className="space-y-3">
-            <div className="text-xs font-bold uppercase tracking-wider text-[var(--ink-2)]">
+            <div className="text-xs font-bold text-[var(--ink-2)]">
               Candidate Submitted Responses
             </div>
 
@@ -133,7 +133,7 @@ export function ApplicationReviewDrawer({
 
                 return (
                   <div key={idx} className="p-3.5 rounded-lg bg-white border border-[var(--line)] shadow-sm space-y-1">
-                    <div className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide">
+                    <div className="text-xs font-semibold text-[var(--ink-3)]">
                       Q{idx + 1}: {formattedKey}
                     </div>
                     <div className="text-sm font-medium text-[var(--ink)] bg-[var(--bg-page)] p-2.5 rounded border border-[var(--line-subtle)]">
@@ -151,7 +151,7 @@ export function ApplicationReviewDrawer({
             {/* Document Attachments */}
             {application.attachmentIdsByField && Object.keys(application.attachmentIdsByField).length > 0 && (
               <div className="p-3.5 rounded-lg bg-white border border-[var(--line)] shadow-sm space-y-2">
-                <div className="text-xs font-semibold text-[var(--ink-3)] uppercase tracking-wide">
+                <div className="text-xs font-semibold text-[var(--ink-3)]">
                   Verified Attachments ({Object.keys(application.attachmentIdsByField).length})
                 </div>
                 <div className="space-y-1.5">
