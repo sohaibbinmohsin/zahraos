@@ -30,18 +30,31 @@ function renderPanel(onChanged = vi.fn()) {
 describe("ChaptersPanel", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("keeps the add form hidden until the Add Chapter button is clicked", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    expect(screen.queryByLabelText(/Chapter name/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Add Chapter/i }));
+    expect(screen.getByLabelText(/Chapter name/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByLabelText(/Chapter name/i)).not.toBeInTheDocument();
+  });
+
   it("lists chapters and creates a new one", async () => {
     createCh.mockResolvedValue({ chapterId: "c9" });
     const user = userEvent.setup();
     const onChanged = renderPanel();
     expect(screen.getByText("Lahore Chapter")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Add Chapter/i }));
     await user.type(screen.getByLabelText(/Chapter name/i), "Multan Chapter");
     await user.type(screen.getByLabelText(/City/i), "Multan");
-    await user.click(screen.getByRole("button", { name: /Add Chapter/i }));
+    await user.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(createCh).toHaveBeenCalledWith(
       { organizationId: "org-1", name: "Multan Chapter", city: "Multan" }, "access-token",
     ));
     expect(onChanged).toHaveBeenCalled();
+    // form closes after a successful add
+    await waitFor(() => expect(screen.queryByLabelText(/Chapter name/i)).not.toBeInTheDocument());
   });
 
   it("deactivates an active chapter", async () => {
@@ -59,8 +72,9 @@ describe("ChaptersPanel", () => {
     createCh.mockRejectedValue(new Error("chapter_name_taken"));
     const user = userEvent.setup();
     renderPanel();
-    await user.type(screen.getByLabelText(/Chapter name/i), "Lahore Chapter");
     await user.click(screen.getByRole("button", { name: /Add Chapter/i }));
+    await user.type(screen.getByLabelText(/Chapter name/i), "Lahore Chapter");
+    await user.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(showToast).toHaveBeenCalledWith(
       "A chapter with that name already exists.",
     ));

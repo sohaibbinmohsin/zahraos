@@ -87,6 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   } catch {
     // In unit test environment where usePathname is not provided
   }
+  const isGovernanceArea = pathname.startsWith("/team") || pathname.startsWith("/organization");
 
   const [fullName, setFullName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
@@ -787,13 +788,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                   <div
                     className="brand-name-lockup"
-                    onClick={() => router.push(pathname?.startsWith("/team") ? "/team/members" : "/youth-republic/dashboard")}
+                    onClick={() => router.push(isGovernanceArea ? "/team/members" : "/youth-republic/dashboard")}
                   >
                     <span className="brand-title">
-                      {pathname?.startsWith("/team") ? "Team & Governance" : "Youth Republic"}
+                      {isGovernanceArea ? "Team & Governance" : "Youth Republic"}
                     </span>
                     <span className="brand-tagline">
-                      {pathname?.startsWith("/team")
+                      {isGovernanceArea
                         ? "Administrative Roles & Permissions Management"
                         : "Volunteer Operations & Noticeboard"}
                     </span>
