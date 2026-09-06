@@ -99,14 +99,14 @@ export function AdjustHoursDrawer({
           <div className="p-4 rounded-xl bg-white border border-[var(--line)] shadow-sm">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
-                <span className="text-[var(--text-2xs)] font-bold uppercase tracking-wider text-[var(--ink-3)]">
+                <span className="text-[var(--text-2xs)] font-bold text-[var(--ink-3)]">
                   Volunteer Information
                 </span>
                 <div className="text-lg font-bold text-[var(--ink)] mt-0.5">{activityRow.volunteerName}</div>
                 <div className="text-xs font-mono text-[var(--ink-2)] mt-0.5">Role: {activityRow.role ?? "Drive Volunteer"}</div>
               </div>
               <div className="text-right">
-                <span className="text-[var(--text-2xs)] font-bold uppercase tracking-wider text-[var(--ink-3)]">
+                <span className="text-[var(--text-2xs)] font-bold text-[var(--ink-3)]">
                   Claimed Hours
                 </span>
                 <div className="font-mono text-xl font-bold text-[var(--ink)]">{originalHours.toFixed(1)} hrs</div>
@@ -115,11 +115,11 @@ export function AdjustHoursDrawer({
 
             <div className="mt-3 pt-3 border-t border-[var(--line-subtle)] grid grid-cols-2 gap-3 text-xs">
               <div>
-                <span className="text-[var(--ink-3)] block text-[10px] uppercase font-semibold">Opportunity / Drive</span>
+                <span className="text-[var(--ink-3)] block text-[10px] font-semibold">Opportunity / Drive</span>
                 <span className="font-semibold text-[var(--ink)]">{activityRow.opportunityName}</span>
               </div>
               <div>
-                <span className="text-[var(--ink-3)] block text-[10px] uppercase font-semibold">Shift Date</span>
+                <span className="text-[var(--ink-3)] block text-[10px] font-semibold">Shift Date</span>
                 <span className="font-mono text-[var(--ink-2)]">{activityRow.activityDate}</span>
               </div>
             </div>
@@ -135,7 +135,7 @@ export function AdjustHoursDrawer({
                 <span className="w-3 h-3 rounded-full border border-emerald-600 bg-emerald-100 flex items-center justify-center">
                   {decision === "verified" && <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />}
                 </span>
-                <span className="font-bold text-xs uppercase text-emerald-900">Approve / Accredit</span>
+                <span className="font-bold text-xs text-emerald-900">Approve / Accredit</span>
               </div>
               <div className="text-[11px] text-[var(--ink-2)] mt-1">Issue official student service credit</div>
             </div>
@@ -148,7 +148,7 @@ export function AdjustHoursDrawer({
                 <span className="w-3 h-3 rounded-full border border-red-600 bg-red-100 flex items-center justify-center">
                   {decision === "rejected" && <span className="w-1.5 h-1.5 rounded-full bg-red-600" />}
                 </span>
-                <span className="font-bold text-xs uppercase text-red-900">Reject Shift</span>
+                <span className="font-bold text-xs text-red-900">Reject Shift</span>
               </div>
               <div className="text-[11px] text-[var(--ink-2)] mt-1">Decline unverified attendance</div>
             </div>
@@ -157,7 +157,7 @@ export function AdjustHoursDrawer({
           {decision === "verified" && (
             <div className="p-4 rounded-xl bg-white border border-[var(--line)] shadow-sm space-y-3">
               <label className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-[var(--ink)]">
+                <span className="text-xs font-bold text-[var(--ink)]">
                   Admin Assigned Accredited Hours
                 </span>
                 <span className="text-xs text-[var(--ink-2)]">
@@ -237,7 +237,7 @@ export function AdjustHoursDrawer({
 
           {/* Admin Note & Preset Chips */}
           <div className="p-4 rounded-xl bg-white border border-[var(--line)] shadow-sm space-y-3">
-            <div className="text-xs font-bold uppercase tracking-wider text-[var(--ink)]">
+            <div className="text-xs font-bold text-[var(--ink)]">
               Admin Verification Justification &amp; Notes
             </div>
 

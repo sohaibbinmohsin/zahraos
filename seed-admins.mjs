@@ -100,21 +100,21 @@ async function main() {
   const readFoundationOrgId = "10000000-0000-4000-8000-000000000004";
 
   await seedAdmin("super-admin@example.com", "SuperAdmin123!", "Super Admin", true, [
-    { orgId: rizqOrgId, tier: "admin" },
-    { orgId: greenCrescentOrgId, tier: "admin" },
-    { orgId: sehatFirstOrgId, tier: "admin" },
-    { orgId: readFoundationOrgId, tier: "admin" },
+    { orgId: rizqOrgId, tier: "super_admin" },
+    { orgId: greenCrescentOrgId, tier: "super_admin" },
+    { orgId: sehatFirstOrgId, tier: "super_admin" },
+    { orgId: readFoundationOrgId, tier: "super_admin" },
   ]);
 
   await seedAdmin("admin@rizq.example.com", "RizqAdmin123!", "Rizq Admin", false, [
-    { orgId: rizqOrgId, tier: "admin" },
+    { orgId: rizqOrgId, tier: "super_admin" },
   ]);
 
   await seedAdmin("sohaibbinmohsin@gmail.com", "SuperAdmin123!", "Sohaib Bin Mohsin", true, [
-    { orgId: rizqOrgId, tier: "admin" },
-    { orgId: greenCrescentOrgId, tier: "admin" },
-    { orgId: sehatFirstOrgId, tier: "admin" },
-    { orgId: readFoundationOrgId, tier: "admin" },
+    { orgId: rizqOrgId, tier: "super_admin" },
+    { orgId: greenCrescentOrgId, tier: "super_admin" },
+    { orgId: sehatFirstOrgId, tier: "super_admin" },
+    { orgId: readFoundationOrgId, tier: "super_admin" },
   ]);
 }
 

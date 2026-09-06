@@ -58,7 +58,7 @@ export function SetPasswordForm() {
       )}
 
       <div>
-        <label htmlFor="newPassword" className="block text-xs font-semibold text-[#4A4D57] uppercase tracking-wider mb-1.5 font-['Oswald']">
+        <label htmlFor="newPassword" className="block text-xs font-semibold text-[#4A4D57] mb-1.5 font-['Jost']">
           New password
         </label>
         <div className="relative flex items-center">
@@ -115,7 +115,7 @@ export function SetPasswordForm() {
       </ul>
 
       <div>
-        <label htmlFor="confirmPassword" className="block text-xs font-semibold text-[#4A4D57] uppercase tracking-wider mb-1.5 font-['Oswald']">
+        <label htmlFor="confirmPassword" className="block text-xs font-semibold text-[#4A4D57] mb-1.5 font-['Jost']">
           Confirm password
         </label>
         <div className="relative flex items-center">

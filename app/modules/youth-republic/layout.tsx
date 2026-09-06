@@ -5,10 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
-import { listOpportunities, listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
+import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
 
-type Badges = { opportunities: number; applications: number; hours: number };
+type Badges = { applications: number; hours: number };
 
 const TAB_META = [
   {
@@ -33,7 +33,7 @@ const TAB_META = [
         <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </svg>
     ),
-    key: "opportunities" as const,
+    key: null,
   },
   {
     href: "/modules/youth-republic/applications",
@@ -89,14 +89,12 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
         const { data: sessionData } = await supabase.auth.getSession();
         if (!sessionData.session) return;
         const token = await fetchStaffToken(sessionData.session.access_token);
-        const [opps, apps, hours] = await Promise.all([
-          listOpportunities({ organizationId, limit: 100 }, token),
+        const [apps, hours] = await Promise.all([
           listApplications({ organizationId, limit: 100 }, token),
           listActivityHours({ organizationId, limit: 100 }, token),
         ]);
         if (cancelled) return;
         setBadges({
-          opportunities: opps.opportunities.filter((o) => !o.deactivatedAt).length,
           applications: apps.applications.filter((a) => a.status === "submitted" || a.status === "under_review").length,
           hours: hours.activity.filter((h) => h.verificationStatus === "pending").length,
         });
@@ -111,7 +109,6 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
 
   function badgeFor(key: string | null): string | null {
     if (!key || !badges) return null;
-    if (key === "opportunities") return badges.opportunities > 0 ? String(badges.opportunities) : null;
     if (key === "applications") return badges.applications > 0 ? `${badges.applications} pending` : null;
     if (key === "hours") return badges.hours > 0 ? `${badges.hours} pending` : null;
     return null;

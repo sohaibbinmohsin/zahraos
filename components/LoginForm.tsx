@@ -44,7 +44,7 @@ export function LoginForm() {
       )}
 
       <div>
-        <label htmlFor="email" className="block text-xs font-semibold text-[#4A4D57] uppercase tracking-wider mb-1.5 font-['Oswald']">
+        <label htmlFor="email" className="block text-xs font-semibold text-[#4A4D57] mb-1.5 font-['Jost']">
           Email
         </label>
         <input
@@ -61,7 +61,7 @@ export function LoginForm() {
 
       <div>
         <div className="flex justify-between items-center mb-1.5">
-          <label htmlFor="password" className="block text-xs font-semibold text-[#4A4D57] uppercase tracking-wider font-['Oswald']">
+          <label htmlFor="password" className="block text-xs font-semibold text-[#4A4D57] font-['Jost']">
             Password
           </label>
         </div>
