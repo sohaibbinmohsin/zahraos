@@ -19,9 +19,17 @@ interface ShellContextValue {
   selectedOrgId: string | null;
   staffClaims: StaffTokenClaims | null;
   orgTier: string | null;
+  isOrgAdminOrAbove: boolean;
+  accessToken: string | null;
 }
 
-const ShellContext = createContext<ShellContextValue>({ selectedOrgId: null, staffClaims: null, orgTier: null });
+const ShellContext = createContext<ShellContextValue>({
+  selectedOrgId: null,
+  staffClaims: null,
+  orgTier: null,
+  isOrgAdminOrAbove: false,
+  accessToken: null,
+});
 
 export function useSelectedOrg() {
   return useContext(ShellContext).selectedOrgId;
@@ -33,6 +41,14 @@ export function useStaffClaims() {
 
 export function useOrgTier() {
   return useContext(ShellContext).orgTier;
+}
+
+export function useIsOrgAdminOrAbove() {
+  return useContext(ShellContext).isOrgAdminOrAbove;
+}
+
+export function useShellAccessToken() {
+  return useContext(ShellContext).accessToken;
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -267,14 +283,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isAuthPage) {
     return (
-      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier }}>
+      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken }}>
         <ToastProvider>{children}</ToastProvider>
       </ShellContext.Provider>
     );
   }
 
   return (
-    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier }}>
+    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken }}>
       <ToastProvider>
         <div className="app-shell">
           <div
@@ -393,38 +409,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="nav-label">Volunteers</span>
                 </Link>
 
-                <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Governance & Access</div>
+                <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Access</div>
 
                 {claims && isOrgAdminOrAbove && (
-                  <Link
-                    href="/staff"
-                    aria-label="Staff"
-                    className={`sidebar-nav-item ${pathname === "/staff" ? "active" : ""}`}
-                    onClick={() => setMobileSidebarOpen(false)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                      <circle cx="9" cy="7" r="4" />
-                      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </svg>
-                    <span className="nav-label">Staff</span>
-                  </Link>
-                )}
-
-                {claims && isOrgAdminOrAbove && (
-                  <Link
-                    href="/roles"
-                    aria-label="Roles"
-                    className={`sidebar-nav-item ${pathname === "/roles" ? "active" : ""}`}
-                    onClick={() => setMobileSidebarOpen(false)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    <span className="nav-label">Roles</span>
-                  </Link>
+                  <>
+                    <Link href="/team/members" aria-label="Team Members"
+                      className={`sidebar-nav-item ${pathname === "/team/members" ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                      <span className="nav-label">Team Members</span>
+                      <span className="side-badge" aria-hidden="true" id="side-badge-team" />
+                    </Link>
+                    <Link href="/team/roles" aria-label="Roles & Permissions"
+                      className={`sidebar-nav-item ${pathname === "/team/roles" ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                      <span className="nav-label">Roles &amp; Permissions</span>
+                    </Link>
+                    <Link href="/team/audit" aria-label="Audit Log"
+                      className={`sidebar-nav-item ${pathname === "/team/audit" ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                      </svg>
+                      <span className="nav-label">Audit Log</span>
+                    </Link>
+                  </>
                 )}
 
                 {claims && platformOwner && (
