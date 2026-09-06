@@ -13,7 +13,7 @@ Deno.test("setPassword clears must_change_password", async () => {
   const supabase = testClient();
   const { data: authUser } = await supabase.auth.admin.createUser({
     email: `set-password-${crypto.randomUUID()}@example.com`,
-    password: "temporary-password-1",
+    password: "Temporary-Password-1!",
     email_confirm: true,
   });
 
@@ -24,7 +24,7 @@ Deno.test("setPassword clears must_change_password", async () => {
     must_change_password: true,
   }).select("id").single();
 
-  const result = await setPassword(supabase, staff!.id, authUser!.user!.id, "brand-new-password-2");
+  const result = await setPassword(supabase, staff!.id, authUser!.user!.id, "Brand-New-Password-2!");
 
   assertEquals(result.staffId, staff!.id);
 
