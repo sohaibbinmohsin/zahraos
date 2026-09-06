@@ -11,7 +11,7 @@ import { useToast } from "@/components/shell/ToastContext";
 import { deleteCustomRole } from "@/lib/platformFunctions";
 
 export default function TeamRolesPage() {
-  const { roles, members, accessToken, loading, refresh } = useTeamAccess();
+  const { roles, members, accessToken, loading, error, refresh } = useTeamAccess();
   const { setAction } = useTeamHeader();
   const { openCreateRole, openEditRole, openCloneRole } = useTeamDrawers();
   const { showToast } = useToast();
@@ -47,6 +47,7 @@ export default function TeamRolesPage() {
   }
 
   if (loading) return <p className="p-8 text-center text-[var(--ink-3)]">Loading roles…</p>;
+  if (error) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Couldn&apos;t load team data. {error}</p></div>;
 
   return (
     <div className="flex flex-col gap-6">

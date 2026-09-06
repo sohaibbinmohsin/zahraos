@@ -31,13 +31,17 @@ export function ChaptersPanel() {
   }
 
   async function toggle(chapterId: string, current: string) {
+    if (busy) return;
     if (!organizationId || !staffToken) return;
     const next = current === "active" ? "inactive" : "active";
+    setBusy(true);
     try {
       await updateChapter({ chapterId, organizationId, status: next }, staffToken);
       await refresh();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to update chapter.");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -66,7 +70,7 @@ export function ChaptersPanel() {
                   </span>
                 </td>
                 <td style={{ textAlign: "right" }}>
-                  <button type="button" className="btn btn-secondary btn-xs" onClick={() => toggle(c.id, c.status)}>
+                  <button type="button" className="btn btn-secondary btn-xs" disabled={busy} onClick={() => toggle(c.id, c.status)}>
                     {c.status === "active" ? "Deactivate" : "Reactivate"}
                   </button>
                 </td>

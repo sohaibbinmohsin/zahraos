@@ -45,7 +45,7 @@ export function RoleDrawer({
     // effect on every render and fight the state it sets. `request` is a
     // stable reference from TeamDrawers state and is the real trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request]);
+  }, [request, source?.id]);
 
   const templateOptions = useMemo(() => roles.filter((r) => r.isSystem), [roles]);
 
@@ -60,6 +60,10 @@ export function RoleDrawer({
   async function save() {
     if (!name.trim()) { showToast("Please specify a role title."); return; }
     if (!accessToken) return;
+    if (request?.mode === "edit" && !source) {
+      showToast("This role is no longer available — reopen it.");
+      return;
+    }
     setBusy(true);
     try {
       if (request?.mode === "edit" && source) {
@@ -73,7 +77,10 @@ export function RoleDrawer({
       await refresh();
       onClose();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to save role.");
+      const msg = err instanceof Error ? err.message : "";
+      if (msg === "role_name_taken") showToast("A role with that name already exists.");
+      else if (msg === "system_role_immutable") showToast("System roles can't be edited.");
+      else showToast("Failed to save role.");
     } finally {
       setBusy(false);
     }

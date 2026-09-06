@@ -51,7 +51,7 @@ export function AuditTable({ rows }: { rows: AuditRow[] }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <input className="search-input" placeholder="Search audit log actor, entity, action..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input aria-label="Search audit log" className="search-input" placeholder="Search audit log actor, entity, action..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <select aria-label="Action type filter" className="filter-select" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
           <option value="all">All Action Types</option>
           {ACTION_TYPES.map((a) => <option key={a} value={a}>{a}</option>)}

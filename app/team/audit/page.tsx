@@ -14,26 +14,32 @@ export default function TeamAuditPage() {
   const { showToast } = useToast();
   const [rows, setRows] = useState<AuditRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!organizationId) return;
+    setLoadError(null);
+    if (!organizationId) { setLoading(false); return; }
     setLoading(true);
     const supabase = getBrowserSupabaseClient();
-    const { data } = await supabase
-      .from("admin_audit_log")
-      .select("id, created_at, actor_name, action, summary, ip, scope_label")
-      .eq("organization_id", organizationId)
-      .order("created_at", { ascending: false })
-      .limit(500);
-    setRows((data ?? []).map((r) => ({
-      id: r.id as string,
-      createdAt: r.created_at as string,
-      actorName: r.actor_name as string,
-      action: r.action as string,
-      summary: r.summary as string,
-      ip: (r.ip as string) ?? null,
-      scopeLabel: (r.scope_label as string) ?? null,
-    })));
+    try {
+      const { data } = await supabase
+        .from("admin_audit_log")
+        .select("id, created_at, actor_name, action, summary, ip, scope_label")
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false })
+        .limit(500);
+      setRows((data ?? []).map((r) => ({
+        id: r.id as string,
+        createdAt: r.created_at as string,
+        actorName: r.actor_name as string,
+        action: r.action as string,
+        summary: r.summary as string,
+        ip: (r.ip as string) ?? null,
+        scopeLabel: (r.scope_label as string) ?? null,
+      })));
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : "load_failed");
+    }
     setLoading(false);
   }, [organizationId]);
 
@@ -66,6 +72,7 @@ export default function TeamAuditPage() {
   }, [rows]);
 
   if (loading) return <p className="p-8 text-center text-[var(--ink-3)]">Loading audit log…</p>;
+  if (loadError) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Couldn&apos;t load team data. {loadError}</p></div>;
 
   return (
     <div className="flex flex-col gap-6">

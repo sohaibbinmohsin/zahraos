@@ -1471,32 +1471,3 @@ input[type="password"].dots-placeholder::placeholder,
   gap: .5rem;
   align-items: center;
 }
-
-.perm-matrix-group {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: .85rem 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: .5rem;
-}
-.perm-matrix-group-title {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .04em;
-  color: var(--ink);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.perm-checkbox-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: var(--text-sm);
-  padding: .25rem 0;
-  border-bottom: 1px dashed var(--line-subtle);
-}
-.perm-checkbox-row:last-child { border-bottom: none; }

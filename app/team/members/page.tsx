@@ -12,7 +12,7 @@ const REVIEWER_ROLES = ["Application Reviewer", "Auditor"];
 const ADMIN_ROLES = ["Super Admin"];
 
 export default function TeamMembersPage() {
-  const { members, roles, chapters, loading } = useTeamAccess();
+  const { members, roles, chapters, loading, error } = useTeamAccess();
   const { setAction } = useTeamHeader();
   const { openInvite, openEditMember } = useTeamDrawers();
 
@@ -38,6 +38,7 @@ export default function TeamMembersPage() {
   }, [members]);
 
   if (loading) return <p className="p-8 text-center text-[var(--ink-3)]">Loading team directory…</p>;
+  if (error) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Couldn&apos;t load team data. {error}</p></div>;
 
   return (
     <div className="flex flex-col gap-6">

@@ -71,7 +71,7 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!organizationId) return;
+    if (!organizationId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
