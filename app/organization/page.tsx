@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { useSelectedOrg, useShellAccessToken } from "@/components/shell/AppShell";
+import { useSelectedOrg, useShellAccessToken, useIsOrgAdminOrAbove, useShellLoading } from "@/components/shell/AppShell";
 import { useToast } from "@/components/shell/ToastContext";
 import { updateOrganization, listChapters, type ChapterRow } from "@/lib/platformFunctions";
 import { ChaptersPanel } from "@/components/team/ChaptersPanel";
@@ -18,15 +18,16 @@ interface Profile {
 export default function OrganizationPage() {
   const organizationId = useSelectedOrg();
   const accessToken = useShellAccessToken();
+  const isOrgAdminOrAbove = useIsOrgAdminOrAbove();
+  const shellLoading = useShellLoading();
   const { showToast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [chapters, setChapters] = useState<ChapterRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!organizationId) { setLoading(false); return; }
-    setLoading(true);
+  const fetchAll = useCallback(async () => {
+    if (!organizationId) return;
     const supabase = getBrowserSupabaseClient();
     const { data: org } = await supabase.from("organizations")
       .select("name, about, brand_color, logo_url, favicon_url").eq("id", organizationId).single();
@@ -43,8 +44,17 @@ export default function OrganizationPage() {
         setChapters(res.chapters);
       } catch { setChapters([]); }
     }
-    setLoading(false);
   }, [organizationId, accessToken]);
+
+  const load = useCallback(async () => {
+    if (!organizationId || shellLoading || !isOrgAdminOrAbove) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      await fetchAll();
+    } finally {
+      setLoading(false);
+    }
+  }, [organizationId, shellLoading, isOrgAdminOrAbove, fetchAll]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -67,6 +77,8 @@ export default function OrganizationPage() {
   }
 
   if (!organizationId) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Select an organization.</p></div>;
+  if (shellLoading) return <p className="p-8 text-center text-[var(--ink-3)]">Loading organization…</p>;
+  if (!isOrgAdminOrAbove) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">You need organization admin access to view this page.</p></div>;
   if (loading || !profile) return <p className="p-8 text-center text-[var(--ink-3)]">Loading organization…</p>;
 
   return (
@@ -116,7 +128,7 @@ export default function OrganizationPage() {
         organizationId={organizationId}
         accessToken={accessToken ?? ""}
         chapters={chapters}
-        onChanged={load}
+        onChanged={fetchAll}
       />
     </div>
   );

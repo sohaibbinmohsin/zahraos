@@ -12,9 +12,13 @@ vi.mock("@/lib/platformFunctions", () => ({
   updateChapter: vi.fn(),
 }));
 vi.mock("@/components/shell/ToastContext", () => ({ useToast: () => ({ showToast: vi.fn() }) }));
+let isOrgAdmin = true;
+let shellLoading = false;
 vi.mock("@/components/shell/AppShell", () => ({
   useSelectedOrg: () => "org-1",
   useShellAccessToken: () => "access-token",
+  useIsOrgAdminOrAbove: () => isOrgAdmin,
+  useShellLoading: () => shellLoading,
 }));
 const from = vi.fn();
 vi.mock("@/lib/supabase/browserClient", () => ({
@@ -28,6 +32,8 @@ import OrganizationPage from "./page";
 describe("OrganizationPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    isOrgAdmin = true;
+    shellLoading = false;
     from.mockImplementation(() => ({
       select: () => ({ eq: () => ({ single: () => Promise.resolve({ data: { name: "Rizq", about: "help", brand_color: "#111111", logo_url: null, favicon_url: null } }) }) }),
     }));
@@ -53,5 +59,12 @@ describe("OrganizationPage", () => {
     await user.type(screen.getByLabelText("Chapter name"), "Rizq NUST");
     await user.click(screen.getByRole("button", { name: "Add Chapter" }));
     await waitFor(() => expect(createCh).toHaveBeenCalledWith({ organizationId: "org-1", name: "Rizq NUST" }, "access-token"));
+  });
+
+  it("blocks a non-admin with an access message and no editor", () => {
+    isOrgAdmin = false;
+    render(<OrganizationPage />);
+    expect(screen.getByText(/organization admin access/i)).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Organization name/i)).not.toBeInTheDocument();
   });
 });
