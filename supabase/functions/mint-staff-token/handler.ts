@@ -27,9 +27,16 @@ export async function mintStaffToken(
 ): Promise<string> {
   const { data: staffRow } = await supabase
     .from("staff")
-    .select("can_verify_identity, platform_owner")
+    .select("can_verify_identity, platform_owner, status, expires_at")
     .eq("id", staffId)
     .single();
+  if (
+    !staffRow ||
+    staffRow.status !== "active" ||
+    (staffRow.expires_at && new Date(staffRow.expires_at as string).getTime() < Date.now())
+  ) {
+    throw new Error("unauthorized");
+  }
 
   const { data: orgRoleRows } = await supabase
     .from("staff_org_roles")
