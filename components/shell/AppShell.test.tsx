@@ -15,6 +15,21 @@ vi.mock("@/lib/staffToken", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/staffToken")>();
   return { ...actual, fetchStaffToken: vi.fn() };
 });
+vi.mock("@/lib/youthRepublicFunctions", () => ({
+  listApplications: vi.fn().mockResolvedValue({
+    applications: [
+      { id: "app-1", status: "submitted" },
+      { id: "app-2", status: "under_review" },
+      { id: "app-3", status: "approved" },
+    ],
+  }),
+  listActivityHours: vi.fn().mockResolvedValue({
+    activity: [
+      { id: "h-1", verificationStatus: "pending" },
+      { id: "h-2", verificationStatus: "approved" },
+    ],
+  }),
+}));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: routerPush, refresh: routerRefresh }),
 }));
@@ -30,6 +45,8 @@ function mockSupabase(options: {
   staffRow: { full_name: string; platform_owner: boolean; email?: string };
   orgTierRows: Array<{ organization_id: string; org_tier: string }>;
   organizations: Array<{ id: string; name: string }>;
+  staffRoleAssignments?: Array<{ staff_id: string }>;
+  activeStaffRows?: Array<{ id: string }>;
 }) {
   const authStateListeners: Array<(event: string, session: { access_token: string } | null) => void> = [];
 
@@ -51,6 +68,9 @@ function mockSupabase(options: {
             eq: () => ({
               single: () => Promise.resolve({ data: options.staffRow, error: null }),
             }),
+            in: () => ({
+              eq: () => Promise.resolve({ data: options.activeStaffRows ?? [{ id: "s1" }, { id: "s2" }, { id: "s3" }, { id: "s4" }], error: null }),
+            }),
           }),
         };
       }
@@ -63,16 +83,20 @@ function mockSupabase(options: {
       }
       if (table === "organizations") {
         return {
-          // A platform_owner fetches ALL organizations with a bare .select()
-          // (no .in() filter — they aren't limited to claims-derived orgs);
-          // everyone else still goes through .select().in(availableOrgIds).
-          // Supabase's real query builder is thenable at every step, so this
-          // mock needs to support both `await .select(...)` directly and
-          // `await .select(...).in(...)`.
           select: () => ({
             in: () => Promise.resolve({ data: options.organizations, error: null }),
             then: (resolve: (value: { data: typeof options.organizations; error: null }) => void) =>
               resolve({ data: options.organizations, error: null }),
+          }),
+        };
+      }
+      if (table === "staff_role_assignments") {
+        return {
+          select: () => ({
+            eq: () => Promise.resolve({
+              data: options.staffRoleAssignments ?? [{ staff_id: "s1" }, { staff_id: "s2" }, { staff_id: "s3" }, { staff_id: "s4" }],
+              error: null,
+            }),
           }),
         };
       }
@@ -314,7 +338,7 @@ describe("AppShell", () => {
       mockSupabase({
         staffRow: { full_name: "Admin Staff", platform_owner: true },
         orgTierRows: [],
-        organizations: [],
+        organizations: [{ id: "org-1", name: "Youth Republic" }],
       }) as never,
     );
     vi.mocked(fetchStaffToken).mockResolvedValue(
@@ -340,12 +364,16 @@ describe("AppShell", () => {
     const birdImg = screen.getByRole("img", { name: "The Mohsin Project" });
     expect(birdImg).toHaveAttribute("src", "/assets/mohsin-project-white-bird.png");
 
-    // Sidebar badge numbers
-    expect(screen.getByText("6")).toHaveClass("side-badge");
-    expect(screen.getByText("5")).toHaveClass("side-badge");
-    expect(screen.getByText("3")).toHaveClass("side-badge");
-    expect(screen.getByText("4")).toHaveClass("side-badge");
-    expect(screen.getByText("8")).toHaveClass("side-badge");
+    // Sidebar badges: Opportunities and Volunteers have no badges
+    expect(document.getElementById("side-badge-opps")).toBeNull();
+    expect(document.getElementById("side-badge-vols")).toBeNull();
+
+    // Applications, Hours, and Team Members have dynamic counts
+    await waitFor(() => {
+      expect(document.getElementById("side-badge-apps")).toHaveTextContent("2");
+      expect(document.getElementById("side-badge-hours")).toHaveTextContent("1");
+      expect(document.getElementById("side-badge-team")).toHaveTextContent("4");
+    });
   });
 
   it("toggles sidebar collapsed state via toggle button, logo button, and empty sidebar click", async () => {

@@ -7,6 +7,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "@/lib/staffToken";
 import { resolveOrgSwitcherOptions, pickInitialOrgId, readStoredOrgId, writeStoredOrgId } from "@/lib/selectedOrg";
 import { MODULE_REGISTRY } from "@/registry/modules";
+import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
 import { ChangePasswordModal } from "./ChangePasswordModal";
@@ -85,6 +86,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
+  // Badge counts
+  const [pendingApplicationsCount, setPendingApplicationsCount] = useState<number | null>(null);
+  const [pendingHoursCount, setPendingHoursCount] = useState<number | null>(null);
+  const [activeTeamCount, setActiveTeamCount] = useState<number | null>(null);
+
   function resetShellState() {
     setFullName(null);
     setEmail(null);
@@ -96,6 +102,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSelectedOrgId(null);
     setAccessToken(null);
     setUserDropdownOpen(false);
+    setPendingApplicationsCount(null);
+    setPendingHoursCount(null);
+    setActiveTeamCount(null);
   }
 
   useEffect(() => {
@@ -248,6 +257,76 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       clearInterval(intervalId);
     };
   }, [accessToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!selectedOrgId || !accessToken) {
+      setPendingApplicationsCount(null);
+      setPendingHoursCount(null);
+      setActiveTeamCount(null);
+      return;
+    }
+
+    async function loadBadges() {
+      try {
+        const staffToken = await fetchStaffToken(accessToken!);
+        if (cancelled) return;
+
+        const [appsRes, hoursRes] = await Promise.allSettled([
+          listApplications({ organizationId: selectedOrgId!, limit: 100 }, staffToken),
+          listActivityHours({ organizationId: selectedOrgId!, limit: 100 }, staffToken),
+        ]);
+
+        if (!cancelled) {
+          if (appsRes.status === "fulfilled") {
+            const count = appsRes.value.applications.filter(
+              (a) => a.status === "submitted" || a.status === "under_review"
+            ).length;
+            setPendingApplicationsCount(count);
+          }
+          if (hoursRes.status === "fulfilled") {
+            const count = hoursRes.value.activity.filter(
+              (h) => h.verificationStatus === "pending"
+            ).length;
+            setPendingHoursCount(count);
+          }
+        }
+
+        const supabase = getBrowserSupabaseClient();
+        const { data: assignmentRows } = await supabase
+          .from("staff_role_assignments")
+          .select("staff_id")
+          .eq("organization_id", selectedOrgId);
+
+        if (cancelled) return;
+        const staffIds = Array.from(
+          new Set((assignmentRows ?? []).map((a: { staff_id: string }) => a.staff_id))
+        );
+        if (staffIds.length > 0) {
+          const { data: staffRows } = await supabase
+            .from("staff")
+            .select("id")
+            .in("id", staffIds)
+            .eq("status", "active");
+          if (!cancelled) {
+            setActiveTeamCount((staffRows ?? []).length);
+          }
+        } else {
+          if (!cancelled) {
+            setActiveTeamCount(0);
+          }
+        }
+      } catch {
+        // Silently catch so shell loading is unaffected
+      }
+    }
+
+    loadBadges();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedOrgId, accessToken, pathname]);
 
   useEffect(() => {
     function handleClickOutside() {
@@ -427,7 +506,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                   </svg>
                   <span className="nav-label">Opportunities</span>
-                  <span className="side-badge" id="side-badge-opps">6</span>
                 </Link>
 
                 <Link
@@ -441,7 +519,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
                   <span className="nav-label">Applications</span>
-                  <span className="side-badge" id="side-badge-apps">5</span>
+                  {pendingApplicationsCount !== null && pendingApplicationsCount > 0 && (
+                    <span className="side-badge" id="side-badge-apps">{pendingApplicationsCount}</span>
+                  )}
                 </Link>
 
                 <Link
@@ -455,7 +535,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
                   <span className="nav-label">Hours Verification</span>
-                  <span className="side-badge" id="side-badge-hours">3</span>
+                  {pendingHoursCount !== null && pendingHoursCount > 0 && (
+                    <span className="side-badge" id="side-badge-hours">{pendingHoursCount}</span>
+                  )}
                 </Link>
 
                 <Link
@@ -471,7 +553,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
                   <span className="nav-label">Volunteers</span>
-                  <span className="side-badge" id="side-badge-vols">4</span>
                 </Link>
 
                 <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Access</div>
@@ -486,7 +567,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
                       </svg>
                       <span className="nav-label">Team Members</span>
-                      <span className="side-badge" id="side-badge-team">8</span>
+                      {activeTeamCount !== null && activeTeamCount > 0 && (
+                        <span className="side-badge" id="side-badge-team">{activeTeamCount}</span>
+                      )}
                     </Link>
                     <Link href="/team/roles" aria-label="Roles & Permissions"
                       className={`sidebar-nav-item ${pathname === "/team/roles" ? "active" : ""}`}
