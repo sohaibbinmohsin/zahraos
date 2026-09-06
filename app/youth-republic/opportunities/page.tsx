@@ -163,7 +163,7 @@ export default function YouthRepublicOpportunitiesPage() {
       <div className="space-y-6">
         <button
           type="button"
-          className="btn btn-secondary btn-xs mb-2"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--ink-2)] hover:text-[var(--ink)] mb-3 bg-transparent border-0 p-0 cursor-pointer transition-colors"
           onClick={() => {
             setIsCreating(false);
             setEditTarget(null);
@@ -196,7 +196,7 @@ export default function YouthRepublicOpportunitiesPage() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title uppercase tracking-tight">Opportunities Noticeboard</h1>
+          <h1 className="page-title">Opportunities Noticeboard</h1>
           <div className="page-subtitle">
             Manage active drives, customize multi-field application forms, and track volunteer capacity.
           </div>
@@ -236,7 +236,7 @@ export default function YouthRepublicOpportunitiesPage() {
                     </span>
                   </div>
 
-                  <div className="opp-title uppercase">{opp.name}</div>
+                  <div className="opp-title">{opp.name}</div>
                   {opp.description && <div className="opp-lead">{opp.description}</div>}
 
                   <div className="opp-meta-row">
@@ -247,7 +247,7 @@ export default function YouthRepublicOpportunitiesPage() {
                           <circle cx="12" cy="10" r="3" />
                         </svg>
                       </span>
-                      <span>{opp.online ? "Online (Online)" : `${opp.city ?? "Lahore"} (In person)`}</span>
+                      <span>{opp.online ? "Online" : (opp.city || "Lahore")}</span>
                     </div>
                     <div className="opp-meta-item">
                       <span className="icon-svg">

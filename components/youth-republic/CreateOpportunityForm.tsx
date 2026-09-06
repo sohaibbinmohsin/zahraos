@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createOpportunity, updateOpportunity, type CreateOpportunityPayload } from "@/lib/youthRepublicFunctions";
 import { VolunteerApplyPreview } from "@/components/youth-republic/VolunteerApplyPreview";
+import { CityCombobox } from "@/components/youth-republic/CityCombobox";
 import type { FormDefinition, FieldDef, FieldType } from "@/lib/forms";
 import { useToast } from "@/components/shell/ToastContext";
 
@@ -111,6 +112,9 @@ export function CreateOpportunityForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+
   // Dynamic Form Question Handlers
   function handleAddQuestion() {
     const newId = `q_${Date.now().toString(36)}`;
@@ -158,6 +162,66 @@ export function CreateOpportunityForm({
     handleFieldChange(fieldIndex, { options: opts });
   }
 
+  function handleDragStart(e: React.DragEvent, index: number) {
+    const target = e.target as HTMLElement;
+    if (
+      target.tagName === "INPUT" ||
+      target.tagName === "TEXTAREA" ||
+      target.tagName === "SELECT" ||
+      target.tagName === "BUTTON"
+    ) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+  }
+
+  function handleDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverIdx !== index) {
+      setDragOverIdx(index);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent, index: number) {
+    if (dragOverIdx === index) {
+      setDragOverIdx(null);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent, targetIndex: number) {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIndex) {
+      setDraggedIdx(null);
+      setDragOverIdx(null);
+      return;
+    }
+
+    const updated = [...fields];
+    const [draggedItem] = updated.splice(draggedIdx, 1);
+    updated.splice(targetIndex, 0, draggedItem);
+    setFields(updated);
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+    showToast("Questions reordered.");
+  }
+
+  function handleDragEnd() {
+    setDraggedIdx(null);
+    setDragOverIdx(null);
+  }
+
+  function handleMoveQuestion(fromIndex: number, toIndex: number) {
+    if (toIndex < 0 || toIndex >= fields.length) return;
+    const updated = [...fields];
+    const [item] = updated.splice(fromIndex, 1);
+    updated.splice(toIndex, 0, item);
+    setFields(updated);
+  }
+
   const isLive = Boolean(initialOpportunity?.id && initialOpportunity.computedStatus !== "draft");
 
   async function handleToggleArchive() {
@@ -192,6 +256,16 @@ export function CreateOpportunityForm({
       setCurrentStep(1);
       return;
     }
+    if (name.trim().length > 80) {
+      setError("Opportunity name cannot exceed 80 characters");
+      setCurrentStep(1);
+      return;
+    }
+    if (description.trim().length > 200) {
+      setError("Short summary cannot exceed 200 characters");
+      setCurrentStep(1);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -202,8 +276,8 @@ export function CreateOpportunityForm({
       const isoOrUndef = (d: string) => (d ? new Date(d).toISOString() : undefined);
       const common = {
         description: description.trim() || undefined,
-        location: location || undefined,
-        isOnline: isOnline || undefined,
+        location: isOnline ? null : (location.trim() || null),
+        isOnline: Boolean(isOnline),
         capacity: capacity ? Number(capacity) : undefined,
         applicationOpenAt: isoOrUndef(applicationOpenAt),
         applicationDeadline: isoOrUndef(applicationDeadline),
@@ -266,30 +340,28 @@ export function CreateOpportunityForm({
           {initialOpportunity?.id && (
             <button
               type="button"
-              className="btn btn-secondary btn-sm"
+              className={initialOpportunity.deactivatedAt ? "btn btn-secondary btn-sm" : "btn btn-danger btn-sm"}
               onClick={handleToggleArchive}
               disabled={submitting}
             >
-              {initialOpportunity.deactivatedAt ? "Restore" : "Archive"}
-            </button>
-          )}
-          {!initialOpportunity?.id && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={() => handleSave(true)}
-              disabled={submitting}
-            >
-              {submitting ? "Saving..." : "Save Draft"}
-            </button>
-          )}
-          {onCancel && (
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm"
-              onClick={onCancel}
-            >
-              Cancel
+              {initialOpportunity.deactivatedAt ? (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                  <span>Restore</span>
+                </>
+              ) : (
+                <>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="21 8 21 21 3 21 3 8" />
+                    <rect x="1" y="3" width="22" height="5" />
+                    <line x1="10" y1="12" x2="14" y2="12" />
+                  </svg>
+                  <span>Archive</span>
+                </>
+              )}
             </button>
           )}
         </div>
@@ -305,6 +377,7 @@ export function CreateOpportunityForm({
           <span className="step-num">1</span>
           <span>Opportunity Specifications &amp; Overview</span>
         </button>
+        <span className="step-dot" aria-hidden="true">•</span>
         <button
           type="button"
           className={`step-tab ${currentStep === 2 ? "active" : ""}`}
@@ -313,6 +386,7 @@ export function CreateOpportunityForm({
           <span className="step-num">2</span>
           <span>Application Form Builder</span>
         </button>
+        <span className="step-dot" aria-hidden="true">•</span>
         <button
           type="button"
           className={`step-tab ${currentStep === 3 ? "active" : ""}`}
@@ -335,13 +409,19 @@ export function CreateOpportunityForm({
           <div className="builder-pane-card">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-group">
-              <label htmlFor="oppName" className="form-label">
-                Name
-              </label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="oppName" className="form-label mb-0">
+                  Name
+                </label>
+                <span className="text-xs text-[var(--ink-3)] font-mono">
+                  {name.length}/80
+                </span>
+              </div>
               <input
                 id="oppName"
-                className="form-input"
+                className="form-input mt-1"
                 value={name}
+                maxLength={80}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Ramadan Food Drive (Lahore Depot)"
                 required
@@ -368,8 +448,9 @@ export function CreateOpportunityForm({
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="form-group">
-              <label className="form-label">Delivery Format</label>
+              <label htmlFor="oppDeliveryFormat" className="form-label">Delivery Format</label>
               <select
+                id="oppDeliveryFormat"
                 className="form-select"
                 value={isOnline ? "online" : "onsite"}
                 onChange={(e) => setIsOnline(e.target.value === "online")}
@@ -380,12 +461,12 @@ export function CreateOpportunityForm({
             </div>
 
             <div className="form-group">
-              <label className="form-label">City &amp; Venue</label>
-              <input
-                className="form-input"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Lahore · Township Depot"
+              <label htmlFor="oppLocation" className="form-label">City &amp; Venue</label>
+              <CityCombobox
+                id="oppLocation"
+                value={isOnline ? "N/A" : location}
+                onChange={(c) => setLocation(c)}
+                disabled={isOnline}
               />
             </div>
 
@@ -442,10 +523,19 @@ export function CreateOpportunityForm({
           </div>
 
           <div className="form-group">
-            <label className="form-label">Short Summary <span className="text-[var(--ink-3)] font-normal">— one line, shown on the volunteer noticeboard card</span></label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="oppDescription" className="form-label mb-0">
+                Short Summary <span className="text-[var(--ink-3)] font-normal">— one line, shown on noticeboard cards</span>
+              </label>
+              <span className="text-xs text-[var(--ink-3)] font-mono">
+                {description.length}/200
+              </span>
+            </div>
             <textarea
+              id="oppDescription"
               rows={2}
-              className="form-textarea"
+              className="form-textarea mt-1"
+              maxLength={200}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Pack and distribute ration hampers to families across Lahore throughout Ramadan."
@@ -496,26 +586,30 @@ export function CreateOpportunityForm({
           </div>
         </div>
 
-        <div className="step-actions-row">
-          {!initialOpportunity?.id ? (
+        <div
+          className="step-actions-row justify-end"
+          style={{ display: "flex", justifyContent: "flex-end" }}
+        >
+          <div
+            className="flex items-center gap-3 ml-auto"
+            style={{ marginLeft: "auto" }}
+          >
             <button
-              type="submit"
-              className="btn btn-primary"
-              onClick={() => handleSave(false)}
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => handleSave(isLive ? false : true)}
               disabled={submitting}
             >
-              {submitting ? "Saving..." : "Create opportunity"}
+              {submitting ? "Saving..." : isLive ? "Update changes" : "Save draft"}
             </button>
-          ) : (
-            <div />
-          )}
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setCurrentStep(2)}
-          >
-            Proceed to Application Form Builder &rarr;
-          </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setCurrentStep(2)}
+            >
+              Proceed to Application Form Builder &rarr;
+            </button>
+          </div>
         </div>
         </div>
       )}
@@ -537,10 +631,61 @@ export function CreateOpportunityForm({
           </div>
 
           {fields.map((field, idx) => (
-            <div key={field.id} className="question-card">
+            <div
+              key={field.id}
+              className={`question-card ${draggedIdx === idx ? "is-dragging" : ""} ${dragOverIdx === idx && draggedIdx !== idx ? "drag-over" : ""}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDragLeave={(e) => handleDragLeave(e, idx)}
+              onDrop={(e) => handleDrop(e, idx)}
+              onDragEnd={handleDragEnd}
+            >
               <div className="q-header">
-                <div className="q-drag-handle" title="Question Index">
-                  <span className="font-mono text-xs font-semibold text-[var(--ink-3)]">#{idx + 1}</span>
+                <div className="flex items-center gap-1">
+                  <div
+                    className="q-drag-handle"
+                    title="Drag to reorder questions"
+                    aria-label={`Question ${idx + 1}. Drag to reorder.`}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" className="text-[var(--ink-3)]">
+                      <circle cx="9" cy="5" r="2" />
+                      <circle cx="9" cy="12" r="2" />
+                      <circle cx="9" cy="19" r="2" />
+                      <circle cx="15" cy="5" r="2" />
+                      <circle cx="15" cy="12" r="2" />
+                      <circle cx="15" cy="19" r="2" />
+                    </svg>
+                    <span className="font-mono text-xs font-semibold text-[var(--ink-3)]">#{idx + 1}</span>
+                  </div>
+                  <div className="flex flex-col text-[10px] text-[var(--ink-3)]">
+                    {idx > 0 && (
+                      <button
+                        type="button"
+                        title="Move question up"
+                        className="hover:text-[var(--ink)] leading-none px-1 py-0.5 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveQuestion(idx, idx - 1);
+                        }}
+                      >
+                        ▲
+                      </button>
+                    )}
+                    {idx < fields.length - 1 && (
+                      <button
+                        type="button"
+                        title="Move question down"
+                        className="hover:text-[var(--ink)] leading-none px-1 py-0.5 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveQuestion(idx, idx + 1);
+                        }}
+                      >
+                        ▼
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <input
@@ -604,13 +749,14 @@ export function CreateOpportunityForm({
               )}
 
               <div className="q-footer">
-                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer">
+                <label className="flex items-center gap-2 text-xs font-medium cursor-pointer select-none">
                   <input
                     type="checkbox"
+                    className="brand-checkbox"
                     checked={field.required ?? false}
                     onChange={(e) => handleFieldChange(idx, { required: e.target.checked })}
                   />
-                  <span>Required Question</span>
+                  <span className="text-[var(--ink)]">Required Question</span>
                 </label>
 
                 <button
@@ -640,13 +786,23 @@ export function CreateOpportunityForm({
             >
               &larr; Back to Specifications
             </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setCurrentStep(3)}
-            >
-              Preview Live Volunteer Experience &rarr;
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => handleSave(isLive ? false : true)}
+                disabled={submitting}
+              >
+                {submitting ? "Saving..." : isLive ? "Update changes" : "Save draft"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setCurrentStep(3)}
+              >
+                Preview Live Volunteer Experience &rarr;
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -690,7 +846,7 @@ export function CreateOpportunityForm({
               onClick={() => handleSave(false)}
               disabled={submitting}
             >
-              {submitting ? "Publishing..." : initialOpportunity?.id ? "Save changes" : "Create opportunity"}
+              {submitting ? "Publishing..." : isLive ? "Update changes" : "Create opportunity"}
             </button>
           </div>
         </div>

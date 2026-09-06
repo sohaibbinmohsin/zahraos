@@ -249,7 +249,7 @@ export interface CreateOpportunityPayload {
   name: string;
   type: string;
   description?: string;
-  location?: string;
+  location?: string | null;
   isOnline?: boolean;
   applicationOpenAt?: string;
   applicationDeadline?: string;
@@ -271,7 +271,7 @@ export interface UpdateOpportunityPayload {
   organizationId: string;
   name?: string;
   description?: string;
-  location?: string;
+  location?: string | null;
   isOnline?: boolean;
   applicationOpenAt?: string;
   applicationDeadline?: string;
