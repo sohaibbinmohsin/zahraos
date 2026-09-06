@@ -467,7 +467,7 @@ export function CreateOpportunityForm({
       {currentStep === 2 && (
         <div className="space-y-4">
           <div className="flex items-center justify-between pb-2 border-b border-[var(--line)]">
-            <h2 className="text-base font-semibold uppercase tracking-wide">
+            <h2 className="text-base font-semibold text-[var(--ink)] tracking-normal">
               Application Questions ({fields.length})
             </h2>
             <button
@@ -597,7 +597,7 @@ export function CreateOpportunityForm({
       {/* STEP 3: Live Volunteer Experience Preview — the real volunteer apply UI */}
       {currentStep === 3 && (
         <div className="builder-pane-card space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--ink-2)]">
+          <p className="text-xs font-semibold text-[var(--ink-2)]">
             Exactly how a volunteer sees this opportunity and its application form
           </p>
 

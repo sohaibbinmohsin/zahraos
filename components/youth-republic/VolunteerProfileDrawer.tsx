@@ -58,7 +58,7 @@ export function VolunteerProfileDrawer({
           <div className="p-4 rounded-xl bg-white border border-[var(--line)] shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <span className="text-[var(--text-2xs)] font-bold uppercase tracking-wider text-[var(--ink-3)]">
+                <span className="text-[var(--text-2xs)] font-bold text-[var(--ink-3)]">
                   Academic Affiliation &amp; Scope
                 </span>
                 <div className="text-base font-bold text-[var(--ink)] mt-0.5">
@@ -77,25 +77,25 @@ export function VolunteerProfileDrawer({
           {/* Quad Impact Telemetry Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="vol-stat-box">
-              <span className="text-[10px] uppercase font-bold text-[var(--ink-3)] block">Accredited Hours</span>
+              <span className="text-[10px] font-bold text-[var(--ink-3)] block">Accredited Hours</span>
               <span className="font-mono text-xl font-bold text-[var(--ink)]">{totalVerified} hrs</span>
             </div>
             <div className="vol-stat-box">
-              <span className="text-[10px] uppercase font-bold text-[var(--ink-3)] block">Drives Completed</span>
+              <span className="text-[10px] font-bold text-[var(--ink-3)] block">Drives Completed</span>
               <span className="font-mono text-xl font-bold text-[var(--ink)]">{detail.participations.length}</span>
             </div>
             <div className="vol-stat-box">
-              <span className="text-[10px] uppercase font-bold text-[var(--ink-3)] block">Reliability Score</span>
+              <span className="text-[10px] font-bold text-[var(--ink-3)] block">Reliability Score</span>
               <span className="font-mono text-xl font-bold text-emerald-700">100%</span>
             </div>
             <div className="vol-stat-box">
-              <span className="text-[10px] uppercase font-bold text-[var(--ink-3)] block">Applications</span>
+              <span className="text-[10px] font-bold text-[var(--ink-3)] block">Applications</span>
               <span className="font-mono text-xl font-bold text-[var(--ink)]">{detail.applications.length}</span>
             </div>
           </div>
 
           {/* Sub-Tabs: Activity vs Participations vs Certificates */}
-          <div className="border-b border-[var(--line)] flex gap-4 text-xs font-bold uppercase tracking-wider">
+          <div className="border-b border-[var(--line)] flex gap-4 text-xs font-bold">
             <button
               type="button"
               className={`pb-2 border-b-2 ${activeTab === "activity" ? "border-[var(--brand)] text-[var(--ink)]" : "border-transparent text-[var(--ink-3)]"}`}
