@@ -1477,6 +1477,12 @@ input[type="password"].dots-placeholder::placeholder,
   flex-shrink: 0;
 }
 
+.user-dropdown-profile .badge {
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+}
+
 .user-dropdown-items {
   display: flex;
   flex-direction: column;

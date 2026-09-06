@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
@@ -58,6 +58,27 @@ export function useShellLoading() {
   return useContext(ShellContext).loading;
 }
 
+export function getRoleRank(roleName: string): number {
+  const norm = roleName.trim().toLowerCase().replace(/[-_]/g, " ");
+  if (norm === "platform owner") return 100;
+  if (norm === "super admin") return 90;
+  if (norm === "admin" || norm === "org admin" || norm === "organization admin") return 80;
+  if (norm === "operations lead") return 70;
+  if (norm === "drive coordinator") return 60;
+  if (norm === "application reviewer") return 40;
+  if (norm === "auditor") return 30;
+  if (norm === "viewer") return 20;
+  return 50;
+}
+
+export function formatRoleTitle(roleName: string): string {
+  const norm = roleName.trim().replace(/[-_]/g, " ");
+  return norm
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   let pathname = "";
@@ -73,6 +94,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [claims, setClaims] = useState<StaffTokenClaims | null>(null);
   const [orgNames, setOrgNames] = useState<Record<string, string>>({});
   const [orgTiers, setOrgTiers] = useState<Record<string, string>>({});
+  const [assignedRolesByOrg, setAssignedRolesByOrg] = useState<Record<string, string[]>>({});
   const [availableOrgIds, setAvailableOrgIds] = useState<string[]>([]);
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [status, setStatus] = useState<ShellLoadStatus>("loading");
@@ -158,6 +180,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           tiersByOrg[row.organization_id] = row.org_tier;
         }
         setOrgTiers(tiersByOrg);
+
+        try {
+          const { data: userAssignments } = await supabase
+            .from("staff_role_assignments")
+            .select("organization_id, roles(name)")
+            .eq("staff_id", decoded.staffId);
+          if (userAssignments && !cancelled) {
+            const map: Record<string, string[]> = {};
+            for (const a of userAssignments as any[]) {
+              const rName = Array.isArray(a.roles) ? a.roles[0]?.name : a.roles?.name;
+              if (rName && a.organization_id) {
+                const list = map[a.organization_id] ?? [];
+                if (!list.includes(rName)) list.push(rName);
+                map[a.organization_id] = list;
+              }
+            }
+            setAssignedRolesByOrg(map);
+          }
+        } catch {
+          // Gracefully continue if role assignments join is not mock-configured
+        }
 
         let orgIds: string[];
         if (decoded.platformOwner) {
@@ -316,6 +359,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             setActiveTeamCount(0);
           }
         }
+
+        if (selectedOrgId && claims?.staffId) {
+          try {
+            const { data: userAssignments } = await supabase
+              .from("staff_role_assignments")
+              .select("organization_id, roles(name)")
+              .eq("staff_id", claims.staffId);
+            if (userAssignments && !cancelled) {
+              const map: Record<string, string[]> = {};
+              for (const a of userAssignments as any[]) {
+                const rName = Array.isArray(a.roles) ? a.roles[0]?.name : a.roles?.name;
+                if (rName && a.organization_id) {
+                  const list = map[a.organization_id] ?? [];
+                  if (!list.includes(rName)) list.push(rName);
+                  map[a.organization_id] = list;
+                }
+              }
+              setAssignedRolesByOrg((prev) => ({ ...prev, ...map }));
+            }
+          } catch {
+            // Silently catch
+          }
+        }
       } catch {
         // Silently catch so shell loading is unaffected
       }
@@ -358,7 +424,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
-  const isOrgAdminOrAbove = orgTier === "admin" || orgTier === "super_admin" || platformOwner;
+
+  const userRoles = useMemo(() => {
+    const rawRoles: string[] = [];
+
+    if (platformOwner) {
+      rawRoles.push("Platform Owner");
+    }
+
+    if (orgTier === "super_admin") {
+      rawRoles.push("Super Admin");
+    } else if (orgTier === "admin") {
+      rawRoles.push("Admin");
+    }
+
+    const assigned = (selectedOrgId ? assignedRolesByOrg[selectedOrgId] : []) ?? [];
+    for (const r of assigned) {
+      rawRoles.push(formatRoleTitle(r));
+    }
+
+    // If Super Admin is present, filter out generic "Admin"
+    const hasSuperAdmin = rawRoles.some((r) => r.toLowerCase() === "super admin");
+    const filtered = hasSuperAdmin ? rawRoles.filter((r) => r.toLowerCase() !== "admin") : rawRoles;
+
+    const seen = new Set<string>();
+    const uniqueRoles: string[] = [];
+    for (const r of filtered) {
+      const key = r.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueRoles.push(formatRoleTitle(r));
+      }
+    }
+
+    uniqueRoles.sort((a, b) => getRoleRank(b) - getRoleRank(a));
+
+    if (uniqueRoles.length === 0) {
+      return ["Staff"];
+    }
+    return uniqueRoles;
+  }, [platformOwner, orgTier, selectedOrgId, assignedRolesByOrg]);
+
+  const primaryRole = userRoles[0];
+  const isOrgAdminOrAbove =
+    orgTier === "admin" ||
+    orgTier === "super_admin" ||
+    platformOwner ||
+    userRoles.some((r) => ["super admin", "admin"].includes(r.toLowerCase()));
   const moduleLinks = selectedOrgId
     ? MODULE_REGISTRY.filter((m) => claims?.moduleAccess.some((a) => a.organizationId === selectedOrgId && a.module === m.key))
     : [];
@@ -700,8 +812,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <div className="avatar">{initials}</div>
                     <div className="user-text-info">
                       {fullName && <div style={{ fontWeight: 600, lineHeight: 1.1 }}>{fullName}</div>}
-                      <div style={{ fontSize: "var(--text-2xs)", color: "var(--ink-2)" }}>
-                        {platformOwner ? "Platform Owner" : orgTier ? orgTier.replace("_", " ").toUpperCase() : "Staff"}
+                      <div style={{ fontSize: "var(--text-2xs)", color: "var(--ink-2)", fontWeight: 500 }}>
+                        {primaryRole}
                       </div>
                     </div>
                   </div>
@@ -723,10 +835,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                               {email}
                             </div>
                           )}
-                          <div style={{ display: "flex", gap: ".35rem", marginTop: ".4rem", alignItems: "center" }}>
-                            <span className="badge badge-pos" style={{ fontSize: "var(--text-2xs)", padding: ".1rem .35rem" }}>
-                              {platformOwner ? "Platform Owner" : orgTier ? orgTier.replace("_", " ").toUpperCase() : "Active Staff"}
-                            </span>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: ".35rem", marginTop: ".45rem", alignItems: "center" }}>
+                            {userRoles.map((role) => (
+                              <span
+                                key={role}
+                                className="badge badge-pos"
+                                style={{
+                                  fontSize: "var(--text-2xs)",
+                                  padding: ".15rem .45rem",
+                                  fontWeight: 500,
+                                  textTransform: "none",
+                                  letterSpacing: "normal",
+                                }}
+                              >
+                                {role}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       </div>

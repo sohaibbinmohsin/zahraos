@@ -333,6 +333,36 @@ describe("AppShell", () => {
     expect(screen.queryByText(/ID: s1-abc/i)).not.toBeInTheDocument();
   });
 
+  it("displays highest access role in the user pill and all roles in the dropdown card in Title Case", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Rizq Admin", platform_owner: false, email: "admin@rizq.example.com" },
+        orgTierRows: [{ organization_id: "org-1", org_tier: "super_admin" }],
+        organizations: [{ id: "org-1", name: "Rizq" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({ actor_type: "staff", staff_id: "s1", platform_owner: false, org_roles: [{ organization_id: "org-1" }], module_access: [] }),
+    );
+
+    const user = userEvent.setup();
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Rizq Admin")).toBeInTheDocument());
+
+    // In pill, should show Super Admin (highest access, Title Case, not all caps "ADMIN")
+    expect(screen.getByText("Super Admin")).toBeInTheDocument();
+
+    // Open dropdown card
+    await user.click(screen.getByLabelText("User Profile Menu"));
+    expect(screen.getByText("admin@rizq.example.com")).toBeInTheDocument();
+    expect(screen.getAllByText("Super Admin").length).toBeGreaterThanOrEqual(1);
+  });
+
   it("renders Rizq brand logo and title in sidebar, and ZahraOS 2026 with Mohsin bird logo in footer", async () => {
     vi.mocked(getBrowserSupabaseClient).mockReturnValue(
       mockSupabase({
