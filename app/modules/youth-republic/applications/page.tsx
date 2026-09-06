@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
@@ -16,7 +16,7 @@ import { useSelectedOrg } from "@/components/shell/AppShell";
 import { ApplicationReviewDrawer } from "@/components/youth-republic/ApplicationReviewDrawer";
 import { useToast } from "@/components/shell/ToastContext";
 
-export default function YouthRepublicApplicationsPage() {
+function ApplicationsContent() {
   const organizationId = useSelectedOrg();
   const searchParams = useSearchParams();
   const opportunityIdParam = searchParams.get("opportunityId");
@@ -296,5 +296,13 @@ export default function YouthRepublicApplicationsPage() {
         onDecide={handleDecide}
       />
     </div>
+  );
+}
+
+export default function YouthRepublicApplicationsPage() {
+  return (
+    <Suspense fallback={<p className="p-8 text-center text-[var(--ink-3)]">Loading applications…</p>}>
+      <ApplicationsContent />
+    </Suspense>
   );
 }
