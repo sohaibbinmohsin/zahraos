@@ -106,7 +106,7 @@ function ApplicationsContent() {
           <span className="text-[var(--ink-2)]">
             Showing applications for <strong className="text-[var(--ink)]">{filteredOppName ?? "this opportunity"}</strong>
           </span>
-          <Link href="/modules/youth-republic/applications" className="btn btn-secondary btn-xs">
+          <Link href="/youth-republic/applications" className="btn btn-secondary btn-xs">
             Clear filter
           </Link>
         </div>

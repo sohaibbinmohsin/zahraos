@@ -6,5 +6,5 @@ export interface ModuleRegistryEntry {
 }
 
 export const MODULE_REGISTRY: ModuleRegistryEntry[] = [
-  { key: "youth-republic", navLabel: "Youth Republic", route: "/modules/youth-republic", icon: "🤝" },
+  { key: "youth-republic", navLabel: "Youth Republic", route: "/youth-republic", icon: "🤝" },
 ];

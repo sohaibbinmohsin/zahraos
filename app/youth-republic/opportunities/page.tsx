@@ -308,7 +308,7 @@ export default function YouthRepublicOpportunitiesPage() {
                   </button>
 
                   <Link
-                    href={`/modules/youth-republic/applications?opportunityId=${opp.id}`}
+                    href={`/youth-republic/applications?opportunityId=${opp.id}`}
                     className="btn btn-dark btn-xs"
                   >
                     View Applicants &rarr;

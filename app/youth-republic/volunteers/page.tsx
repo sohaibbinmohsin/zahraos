@@ -127,7 +127,7 @@ export default function YouthRepublicVolunteersPage() {
                   <td>
                     <div>
                       <Link
-                        href={`/modules/youth-republic/volunteers/${v.id}`}
+                        href={`/youth-republic/volunteers/${v.id}`}
                         className="font-bold text-[var(--ink)] hover:underline"
                       >
                         {v.fullName}

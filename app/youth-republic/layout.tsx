@@ -12,7 +12,7 @@ type Badges = { applications: number; hours: number };
 
 const TAB_META = [
   {
-    href: "/modules/youth-republic/dashboard",
+    href: "/youth-republic/dashboard",
     label: "Dashboard",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -25,7 +25,7 @@ const TAB_META = [
     key: null,
   },
   {
-    href: "/modules/youth-republic/opportunities",
+    href: "/youth-republic/opportunities",
     label: "Opportunities",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -36,7 +36,7 @@ const TAB_META = [
     key: null,
   },
   {
-    href: "/modules/youth-republic/applications",
+    href: "/youth-republic/applications",
     label: "Applications",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -47,7 +47,7 @@ const TAB_META = [
     key: "applications" as const,
   },
   {
-    href: "/modules/youth-republic/hours",
+    href: "/youth-republic/hours",
     label: "Hours",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -58,7 +58,7 @@ const TAB_META = [
     key: "hours" as const,
   },
   {
-    href: "/modules/youth-republic/volunteers",
+    href: "/youth-republic/volunteers",
     label: "Volunteers",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

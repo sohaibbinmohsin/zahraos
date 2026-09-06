@@ -524,7 +524,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     if (sidebarCollapsed) {
                       setSidebarCollapsed(false);
                     } else {
-                      router.push("/modules/youth-republic/dashboard");
+                      router.push("/youth-republic/dashboard");
                       setMobileSidebarOpen(false);
                     }
                   }}
@@ -593,7 +593,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div className="nav-group-label">Youth Republic</div>
 
                 <Link
-                  href="/modules/youth-republic/dashboard"
+                  href="/youth-republic/dashboard"
                   aria-label="Dashboard"
                   className={`sidebar-nav-item ${pathname?.includes("/dashboard") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -608,7 +608,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
-                  href="/modules/youth-republic/opportunities"
+                  href="/youth-republic/opportunities"
                   aria-label="Opportunities"
                   className={`sidebar-nav-item ${pathname?.includes("/opportunities") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -621,7 +621,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
-                  href="/modules/youth-republic/applications"
+                  href="/youth-republic/applications"
                   aria-label="Applications"
                   className={`sidebar-nav-item ${pathname?.includes("/applications") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -637,7 +637,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
-                  href="/modules/youth-republic/hours"
+                  href="/youth-republic/hours"
                   aria-label="Hours"
                   className={`sidebar-nav-item ${pathname?.includes("/hours") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -653,7 +653,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
-                  href="/modules/youth-republic/volunteers"
+                  href="/youth-republic/volunteers"
                   aria-label="Volunteers"
                   className={`sidebar-nav-item ${pathname?.includes("/volunteers") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -790,7 +790,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                   <div
                     className="brand-name-lockup"
-                    onClick={() => router.push(pathname?.startsWith("/team") ? "/team/members" : "/modules/youth-republic/dashboard")}
+                    onClick={() => router.push(pathname?.startsWith("/team") ? "/team/members" : "/youth-republic/dashboard")}
                   >
                     <span className="brand-title">
                       {pathname?.startsWith("/team") ? "Team & Governance" : "Youth Republic"}
