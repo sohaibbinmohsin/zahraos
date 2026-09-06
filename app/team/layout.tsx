@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useIsOrgAdminOrAbove } from "@/components/shell/AppShell";
+import { useIsOrgAdminOrAbove, useShellLoading } from "@/components/shell/AppShell";
 import { TeamAccessProvider } from "@/components/team/TeamAccessProvider";
 import { TeamDrawersProvider } from "@/components/team/TeamDrawers";
 import { TeamHeaderContext, type TeamHeaderAction } from "@/components/team/teamHeader";
@@ -31,10 +31,21 @@ const HEADINGS: Record<string, { title: string; subtitle: string }> = {
 
 export default function TeamLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "/team/members";
+  const shellLoading = useShellLoading();
   const isAdmin = useIsOrgAdminOrAbove();
   const [action, setAction] = useState<TeamHeaderAction | null>(null);
   const heading = HEADINGS[pathname] ?? HEADINGS["/team/members"];
   const headerValue = useMemo(() => ({ action, setAction }), [action]);
+
+  if (shellLoading) {
+    return (
+      <div className="panel p-8 text-center">
+        <p className="text-[var(--ink-3)] font-medium">
+          Loading team access…
+        </p>
+      </div>
+    );
+  }
 
   if (!isAdmin) {
     return (

@@ -21,6 +21,7 @@ interface ShellContextValue {
   orgTier: string | null;
   isOrgAdminOrAbove: boolean;
   accessToken: string | null;
+  loading: boolean;
 }
 
 const ShellContext = createContext<ShellContextValue>({
@@ -29,6 +30,7 @@ const ShellContext = createContext<ShellContextValue>({
   orgTier: null,
   isOrgAdminOrAbove: false,
   accessToken: null,
+  loading: true,
 });
 
 export function useSelectedOrg() {
@@ -49,6 +51,10 @@ export function useIsOrgAdminOrAbove() {
 
 export function useShellAccessToken() {
   return useContext(ShellContext).accessToken;
+}
+
+export function useShellLoading() {
+  return useContext(ShellContext).loading;
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -291,14 +297,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isAuthPage) {
     return (
-      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken }}>
+      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, loading: status === "loading" }}>
         <ToastProvider>{children}</ToastProvider>
       </ShellContext.Provider>
     );
   }
 
   return (
-    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken }}>
+    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, loading: status === "loading" }}>
       <ToastProvider>
         <div className="app-shell">
           <div
