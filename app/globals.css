@@ -1405,3 +1405,98 @@ input[type="password"].dots-placeholder::placeholder,
   .opp-grid { grid-template-columns: 1fr; }
   .drawer { max-width: 100%; }
 }
+
+/* ---- Team & Access (ported from prototype #screen-team) ---- */
+.stat-card.accent-gold { border-left: 3px solid var(--brand); }
+.stat-card.accent-green { border-left: 3px solid var(--st-pos-fg, #1a7f4b); }
+.stat-card.accent-dark { border-left: 3px solid var(--ink); }
+.stat-card.accent-red { border-left: 3px solid var(--st-neg-fg, #b42318); }
+
+.role-chip .scope-pill,
+.scope-pill {
+  color: var(--ink-2);
+  font-weight: 500;
+  font-size: var(--text-xs);
+  background: var(--bg-page);
+  padding: .1rem .35rem;
+  border-radius: 4px;
+  border: 1px solid var(--line-subtle);
+}
+
+.perm-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: .15rem .45rem;
+  background: var(--bg-page);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.badge-system {
+  background: var(--ink);
+  color: #fff;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  padding: .15rem .45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.badge-custom {
+  background: var(--brand-tint);
+  color: var(--on-brand);
+  border: 1px solid var(--brand-bd);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: .04em;
+  padding: .15rem .45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.role-repeater-box {
+  display: flex;
+  flex-direction: column;
+  gap: .65rem;
+  background: var(--bg-page);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .85rem;
+}
+.role-repeater-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: .5rem;
+  align-items: center;
+}
+
+.perm-matrix-group {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: .85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.perm-matrix-group-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.perm-checkbox-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-sm);
+  padding: .25rem 0;
+  border-bottom: 1px dashed var(--line-subtle);
+}
+.perm-checkbox-row:last-child { border-bottom: none; }
