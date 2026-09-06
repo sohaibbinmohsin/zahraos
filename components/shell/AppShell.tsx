@@ -421,6 +421,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                   </svg>
                   <span className="nav-label">Opportunities</span>
+                  <span className="side-badge" id="side-badge-opps">6</span>
                 </Link>
 
                 <Link
@@ -434,6 +435,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <polyline points="14 2 14 8 20 8" />
                   </svg>
                   <span className="nav-label">Applications</span>
+                  <span className="side-badge" id="side-badge-apps">5</span>
                 </Link>
 
                 <Link
@@ -446,7 +448,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
                   </svg>
-                  <span className="nav-label">Hours</span>
+                  <span className="nav-label">Hours Verification</span>
+                  <span className="side-badge" id="side-badge-hours">3</span>
                 </Link>
 
                 <Link
@@ -462,6 +465,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
                   </svg>
                   <span className="nav-label">Volunteers</span>
+                  <span className="side-badge" id="side-badge-vols">4</span>
                 </Link>
 
                 <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Access</div>
@@ -476,7 +480,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
                       </svg>
                       <span className="nav-label">Team Members</span>
-                      <span className="side-badge" aria-hidden="true" id="side-badge-team" />
+                      <span className="side-badge" id="side-badge-team">8</span>
                     </Link>
                     <Link href="/team/roles" aria-label="Roles & Permissions"
                       className={`sidebar-nav-item ${pathname === "/team/roles" ? "active" : ""}`}

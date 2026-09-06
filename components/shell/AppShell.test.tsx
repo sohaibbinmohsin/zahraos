@@ -339,6 +339,13 @@ describe("AppShell", () => {
     expect(screen.getByText("A free software by The Mohsin Project")).toBeInTheDocument();
     const birdImg = screen.getByRole("img", { name: "The Mohsin Project" });
     expect(birdImg).toHaveAttribute("src", "/assets/mohsin-project-white-bird.png");
+
+    // Sidebar badge numbers
+    expect(screen.getByText("6")).toHaveClass("side-badge");
+    expect(screen.getByText("5")).toHaveClass("side-badge");
+    expect(screen.getByText("3")).toHaveClass("side-badge");
+    expect(screen.getByText("4")).toHaveClass("side-badge");
+    expect(screen.getByText("8")).toHaveClass("side-badge");
   });
 
   it("toggles sidebar collapsed state via toggle button, logo button, and empty sidebar click", async () => {
