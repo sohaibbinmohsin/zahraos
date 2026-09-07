@@ -367,14 +367,11 @@ export function CreateOpportunityForm({
           type,
           chapterId: chapterId || null,
           ...common,
+          // Create as a draft in one atomic call so a half-created opportunity
+          // never leaks to the volunteer noticeboard.
+          ...(isDraft ? { statusOverride: "draft" } : {}),
         };
-        const created = await createOpportunity(payload, staffToken);
-        if (isDraft) {
-          await updateOpportunity(
-            { opportunityId: created.opportunityId, organizationId, statusOverride: "draft" },
-            staffToken,
-          );
-        }
+        await createOpportunity(payload, staffToken);
         showToast(isDraft ? "Opportunity draft saved." : "Opportunity published to Noticeboard.");
       }
       onCreated();

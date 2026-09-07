@@ -106,7 +106,7 @@ describe("CreateOpportunityForm", () => {
     expect(await screen.findByRole("button", { name: /\+ Add Question/i })).toBeInTheDocument();
   });
 
-  it("saves as draft when clicking Save draft on a new opportunity", async () => {
+  it("saves as draft in one atomic create call (statusOverride: draft, no follow-up update)", async () => {
     vi.mocked(youthRepublicFunctions.createOpportunity).mockResolvedValue({ opportunityId: "opp-new" });
     vi.mocked(youthRepublicFunctions.updateOpportunity).mockResolvedValue({ opportunityId: "opp-new" });
     const onCreated = vi.fn();
@@ -119,15 +119,12 @@ describe("CreateOpportunityForm", () => {
 
     await waitFor(() => {
       expect(youthRepublicFunctions.createOpportunity).toHaveBeenCalledWith(
-        expect.objectContaining({ name: "Draft Food Drive" }),
-        "staff-jwt",
-      );
-      expect(youthRepublicFunctions.updateOpportunity).toHaveBeenCalledWith(
-        expect.objectContaining({ opportunityId: "opp-new", statusOverride: "draft" }),
+        expect.objectContaining({ name: "Draft Food Drive", statusOverride: "draft" }),
         "staff-jwt",
       );
       expect(onCreated).toHaveBeenCalled();
     });
+    expect(youthRepublicFunctions.updateOpportunity).not.toHaveBeenCalled();
   });
 
   it("renders red Archive button, no Cancel button, and renders Update changes instead of Save draft when live", async () => {

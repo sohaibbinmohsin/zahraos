@@ -347,7 +347,7 @@ export default function YouthRepublicOpportunitiesPage() {
 
                       <Link
                         href={`/youth-republic/applications?opportunityId=${opp.id}`}
-                        className="btn btn-secondary btn-xs"
+                        className="btn btn-dark btn-xs"
                       >
                         <span className="icon-svg">
                           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
