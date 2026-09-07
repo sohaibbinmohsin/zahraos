@@ -14,8 +14,11 @@ import {
   writeStoredNavHint,
   readStoredBrandHint,
   writeStoredBrandHint,
+  readStoredUserHint,
+  writeStoredUserHint,
   type NavHint,
   type BrandHint,
+  type UserHint,
 } from "@/lib/selectedOrg";
 import { MODULE_REGISTRY } from "@/registry/modules";
 import { isDisplayableLogo } from "@/lib/orgLogo";
@@ -99,15 +102,23 @@ export function formatRoleTitle(roleName: string): string {
 // value immediately after hydration — no mismatch, no setState-in-effect.
 const EMPTY_NAV_HINT: NavHint = { governance: false, platform: false };
 const EMPTY_BRAND_HINT: BrandHint = { label: null, logoUrl: null, brandColor: null };
+const EMPTY_USER_HINT: UserHint = { fullName: null, role: null };
 let navHintSnapshot: NavHint | null = null;
 let brandHintSnapshot: BrandHint | null = null;
+let userHintSnapshot: UserHint | null = null;
 
 function subscribeShellHints(onChange: () => void) {
   if (typeof window === "undefined") return () => {};
   const handler = (e: StorageEvent) => {
-    if (e.key === null || e.key === "platform.navHint" || e.key === "platform.brandHint") {
+    if (
+      e.key === null ||
+      e.key === "platform.navHint" ||
+      e.key === "platform.brandHint" ||
+      e.key === "platform.userHint"
+    ) {
       navHintSnapshot = null;
       brandHintSnapshot = null;
+      userHintSnapshot = null;
       onChange();
     }
   };
@@ -121,6 +132,10 @@ function getNavHintSnapshot(): NavHint {
 function getBrandHintSnapshot(): BrandHint {
   if (!brandHintSnapshot) brandHintSnapshot = readStoredBrandHint();
   return brandHintSnapshot;
+}
+function getUserHintSnapshot(): UserHint {
+  if (!userHintSnapshot) userHintSnapshot = readStoredUserHint();
+  return userHintSnapshot;
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -154,6 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // claims/org data re-resolve. Only consulted while status !== "ready".
   const navHint = useSyncExternalStore(subscribeShellHints, getNavHintSnapshot, () => EMPTY_NAV_HINT);
   const brandHint = useSyncExternalStore(subscribeShellHints, getBrandHintSnapshot, () => EMPTY_BRAND_HINT);
+  const userHint = useSyncExternalStore(subscribeShellHints, getUserHintSnapshot, () => EMPTY_USER_HINT);
 
   // UI states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -179,6 +195,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setAccessToken(null);
     writeStoredNavHint({ governance: false, platform: false });
     writeStoredBrandHint({ label: null, logoUrl: null, brandColor: null });
+    writeStoredUserHint({ fullName: null, role: null });
     setUserDropdownOpen(false);
     setPendingApplicationsCount(null);
     setPendingHoursCount(null);
@@ -581,8 +598,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
   }, [status, claims, isOrgAdminOrAbove, platformOwner]);
 
-  const initials = fullName
-    ? fullName
+  // Header pill: keep the last known name + role visible while the account
+  // re-resolves on a reload, instead of blanking the name until the fetch.
+  const displayName = fullName ?? (isReady ? null : userHint.fullName);
+  const displayRole =
+    isReady || primaryRole !== "Staff" ? primaryRole : userHint.role ?? primaryRole;
+
+  useEffect(() => {
+    if (status !== "ready") return;
+    writeStoredUserHint({ fullName, role: primaryRole });
+  }, [status, fullName, primaryRole]);
+
+  const initials = (displayName ?? fullName)
+    ? (displayName ?? fullName)!
         .split(" ")
         .map((p) => p[0])
         .join("")
@@ -972,9 +1000,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   >
                     <div className="avatar">{initials}</div>
                     <div className="user-text-info">
-                      {fullName && <div style={{ fontWeight: 600, lineHeight: 1.1 }}>{fullName}</div>}
+                      {displayName && <div style={{ fontWeight: 600, lineHeight: 1.1 }}>{displayName}</div>}
                       <div style={{ fontSize: "var(--text-2xs)", color: "var(--ink-2)", fontWeight: 500 }}>
-                        {primaryRole}
+                        {displayRole}
                       </div>
                     </div>
                   </div>
@@ -989,7 +1017,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <div className="avatar-large">{initials}</div>
                         <div style={{ overflow: "hidden" }}>
                           <div style={{ fontWeight: 600, fontSize: "var(--text-base)", color: "var(--ink)", lineHeight: 1.2 }}>
-                            {fullName ?? "Admin Staff"}
+                            {displayName ?? "Admin Staff"}
                           </div>
                           {email && (
                             <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

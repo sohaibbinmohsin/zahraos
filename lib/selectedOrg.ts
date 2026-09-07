@@ -105,3 +105,35 @@ export function writeStoredBrandHint(hint: BrandHint): void {
     // Non-fatal — the sidebar still reconciles once org data loads.
   }
 }
+
+// Remembers the signed-in user's display name + role so the header pill
+// keeps showing them on a reload instead of blanking until the staff row
+// and claims re-resolve.
+const USER_HINT_KEY = "platform.userHint";
+
+export interface UserHint {
+  fullName: string | null;
+  role: string | null;
+}
+
+export function readStoredUserHint(): UserHint {
+  const empty: UserHint = { fullName: null, role: null };
+  if (typeof window === "undefined") return empty;
+  try {
+    const raw = window.localStorage.getItem(USER_HINT_KEY);
+    if (!raw) return empty;
+    const parsed = JSON.parse(raw) as Partial<UserHint>;
+    return { fullName: parsed.fullName ?? null, role: parsed.role ?? null };
+  } catch {
+    return empty;
+  }
+}
+
+export function writeStoredUserHint(hint: UserHint): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(USER_HINT_KEY, JSON.stringify(hint));
+  } catch {
+    // Non-fatal — the pill still reconciles once the account loads.
+  }
+}
