@@ -36,3 +36,35 @@ export function writeStoredOrgId(orgId: string): void {
     // switcher still works for the current session either way.
   }
 }
+
+// Remembers which governance nav groups the signed-in user can see, so a
+// reload paints the sidebar with the same fixed set of items immediately
+// instead of hiding them until claims re-resolve.
+const NAV_HINT_KEY = "platform.navHint";
+
+export interface NavHint {
+  governance: boolean;
+  platform: boolean;
+}
+
+export function readStoredNavHint(): NavHint {
+  const empty: NavHint = { governance: false, platform: false };
+  if (typeof window === "undefined") return empty;
+  try {
+    const raw = window.localStorage.getItem(NAV_HINT_KEY);
+    if (!raw) return empty;
+    const parsed = JSON.parse(raw) as Partial<NavHint>;
+    return { governance: Boolean(parsed.governance), platform: Boolean(parsed.platform) };
+  } catch {
+    return empty;
+  }
+}
+
+export function writeStoredNavHint(hint: NavHint): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(NAV_HINT_KEY, JSON.stringify(hint));
+  } catch {
+    // Non-fatal — the sidebar still reconciles once claims load.
+  }
+}

@@ -5,14 +5,21 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "@/lib/staffToken";
-import { resolveOrgSwitcherOptions, pickInitialOrgId, readStoredOrgId, writeStoredOrgId } from "@/lib/selectedOrg";
+import {
+  resolveOrgSwitcherOptions,
+  pickInitialOrgId,
+  readStoredOrgId,
+  writeStoredOrgId,
+  readStoredNavHint,
+  writeStoredNavHint,
+} from "@/lib/selectedOrg";
 import { MODULE_REGISTRY } from "@/registry/modules";
 import { isDisplayableLogo } from "@/lib/orgLogo";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
 import { ChangePasswordModal } from "./ChangePasswordModal";
-import { SidebarNavSkeleton, ShellContentSkeleton } from "@/components/ui/skeletons";
+import { ShellContentSkeleton } from "@/components/ui/skeletons";
 
 type ShellLoadStatus = "loading" | "ready" | "error";
 
@@ -106,6 +113,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [reloadToken, setReloadToken] = useState(0);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
+  // Read once at mount from the last ready session, so the sidebar's
+  // governance groups stay fixed across a reload instead of vanishing until
+  // claims re-resolve. Only consulted while status !== "ready".
+  const [navHint] = useState(() => readStoredNavHint());
+
   // UI states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -128,6 +140,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setAvailableOrgIds([]);
     setSelectedOrgId(null);
     setAccessToken(null);
+    writeStoredNavHint({ governance: false, platform: false });
     setUserDropdownOpen(false);
     setPendingApplicationsCount(null);
     setPendingHoursCount(null);
@@ -492,6 +505,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ? MODULE_REGISTRY.filter((m) => claims?.moduleAccess.some((a) => a.organizationId === selectedOrgId && a.module === m.key))
     : [];
 
+  // Sidebar governance groups: once the account is ready these follow the real
+  // claims; while it's still loading they fall back to the remembered value so
+  // the sidebar's item set stays fixed across a reload.
+  const isReady = status === "ready";
+  const showGovernanceNav = isReady ? (Boolean(claims) && isOrgAdminOrAbove) : navHint.governance;
+  const showOrganizationsNav = isReady ? (Boolean(claims) && platformOwner) : navHint.platform;
+
+  useEffect(() => {
+    if (status !== "ready") return;
+    writeStoredNavHint({
+      governance: Boolean(claims) && isOrgAdminOrAbove,
+      platform: Boolean(claims) && platformOwner,
+    });
+  }, [status, claims, isOrgAdminOrAbove, platformOwner]);
+
   const initials = fullName
     ? fullName
         .split(" ")
@@ -704,9 +732,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
                 <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
 
-                {status === "loading" && <SidebarNavSkeleton rows={5} />}
-
-                {claims && isOrgAdminOrAbove && (
+                {showGovernanceNav && (
                   <>
                     <Link
                       href="/organization"
@@ -764,7 +790,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </>
                 )}
 
-                {claims && platformOwner && (
+                {showOrganizationsNav && (
                   <>
                     <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
                     <Link
