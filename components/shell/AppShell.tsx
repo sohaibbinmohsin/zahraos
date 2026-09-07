@@ -75,6 +75,19 @@ export function useShellLoading() {
   return useContext(ShellContext).loading;
 }
 
+/**
+ * Sign-out leaves via a document navigation rather than the router. Tearing
+ * the page down means no component ever renders against half-cleared shell
+ * state, and the SWR cache dies with it. Guarded so a stray SIGNED_OUT while
+ * already on an auth page can't turn into a reload loop.
+ */
+function leaveForLogin() {
+  if (typeof window === "undefined") return;
+  const { pathname } = window.location;
+  if (pathname.startsWith("/login") || pathname.startsWith("/set-password")) return;
+  window.location.assign("/login");
+}
+
 export function getRoleRank(roleName: string): number {
   const norm = roleName.trim().toLowerCase().replace(/[-_]/g, " ");
   if (norm === "platform owner") return 100;
@@ -249,8 +262,9 @@ export function AppShell({
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
-        clearClaims();
-        setStatus("ready");
+        // Covers this tab and a sign-out in another one. Same reasoning as
+        // handleSignOut: navigate out rather than render a half-cleared shell.
+        leaveForLogin();
         return;
       }
       if (session) {
@@ -404,10 +418,15 @@ export function AppShell({
     });
     if (!ok) return;
     const supabase = getBrowserSupabaseClient();
-    await supabase.auth.signOut();
-    resetShellState();
-    router.push("/login");
-    router.refresh();
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      // Leave via the browser, not the router. Clearing shell state in place
+      // would repaint the current page with no org ("Select an organization…")
+      // and a stripped sidebar for a beat before the route changed. A document
+      // navigation skips that entirely and drops every in-memory cache with it.
+      leaveForLogin();
+    }
   }
 
   function handleRetry() {
