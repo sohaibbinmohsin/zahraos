@@ -71,7 +71,8 @@ describe("YouthRepublicApplicationsPage", () => {
 
     // The queue opens on Pending Review by default; widen it to see the
     // already-decided (waitlisted) row.
-    await user.selectOptions(await screen.findByRole("combobox", { name: "Filter by status" }), "all");
+    await user.click(await screen.findByRole("combobox", { name: "Filter by status" }));
+    await user.click(await screen.findByRole("option", { name: "All Application Statuses" }));
 
     expect(await screen.findByText("Bilal Ahmed")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Select" })).not.toBeInTheDocument();
@@ -98,7 +99,7 @@ describe("YouthRepublicApplicationsPage", () => {
     render(<YouthRepublicApplicationsPage />);
 
     const filter = await screen.findByRole("combobox", { name: "Filter by status" });
-    expect(filter).toHaveValue("pending_review");
+    expect(filter).toHaveTextContent("Pending Review");
   });
 
   it("shows a spinner and loading label on the clicked decision button while the server call is in flight", async () => {

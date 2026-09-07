@@ -136,13 +136,14 @@ export function ChangePasswordModal({
   }
 
   return (
-    <>
-      <div className="drawer-backdrop open" onClick={handleClose} />
+    <div className="modal-scrim" style={{ zIndex: 110 }} onClick={handleClose}>
       <div
-        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[110] bg-white rounded-xl shadow-2xl p-6 w-full max-w-md border border-[var(--line)]"
+        className="modal-card p-6"
+        style={{ maxWidth: 420, overflowY: "auto" }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="change-password-title"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between pb-3 border-b border-[var(--line)] mb-4">
           <h2 id="change-password-title" className="font-semibold text-lg tracking-normal text-[var(--ink)]">
@@ -324,6 +325,6 @@ export function ChangePasswordModal({
           </div>
         </form>
       </div>
-    </>
+    </div>
   );
 }

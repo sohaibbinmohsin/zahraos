@@ -1236,6 +1236,102 @@ h1, h2, h3, h4, h5, h6 {
   outline: none;
 }
 
+/* ── Custom dropdown (components/ui/Select.tsx) ─────────────────────────
+   Replaces the native <select>. Trigger matches .filter-select; the menu
+   is a card-styled popover. */
+.ui-select {
+  position: relative;
+  display: inline-block;
+}
+
+.ui-select-trigger {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  background: #FFF;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-btn);
+  padding: .45rem .65rem;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color .12s ease, box-shadow .12s ease;
+}
+.ui-select-trigger:hover { border-color: var(--ink-2); }
+.ui-select-trigger:focus-visible,
+.ui-select-trigger[aria-expanded="true"] {
+  border-color: var(--ink);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(20, 22, 27, .06);
+}
+.ui-select-trigger:disabled { opacity: .55; cursor: not-allowed; }
+
+.ui-select-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ui-select-chevron {
+  flex-shrink: 0;
+  color: var(--ink-2);
+  transition: transform .15s ease;
+}
+.ui-select-trigger[aria-expanded="true"] .ui-select-chevron { transform: rotate(180deg); }
+
+.ui-select-menu {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 100%;
+  max-width: min(320px, 80vw);
+  max-height: 15rem;
+  overflow-y: auto;
+  padding: .3rem;
+  background: #FFF;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow:
+    0 1px 2px rgba(20, 22, 27, .04),
+    0 16px 36px -12px rgba(20, 22, 27, .28);
+  animation: ui-select-pop .12s cubic-bezier(.16, 1, .3, 1);
+}
+@keyframes ui-select-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-select-menu { animation: none; }
+}
+
+.ui-select-option {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .5rem .6rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: var(--text-sm);
+  font-family: inherit;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.ui-select-option.is-active { background: var(--bg-page); }
+.ui-select-option.is-selected { font-weight: 600; }
+.ui-select-option.is-selected.is-active { background: var(--bg-page); }
+.ui-select-option svg { flex-shrink: 0; color: var(--brand-dark, var(--ink)); }
+.ui-select-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Opportunities Grid & Cards */
 .opp-grid {
   display: grid;
@@ -1784,20 +1880,21 @@ input[type="checkbox"] {
   -webkit-backdrop-filter: blur(4px);
   z-index: 100;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 6vh 1rem 2rem;
+  padding: 1.5rem;
   overflow-y: auto;
 }
 
 .modal-card {
+  /* margin:auto centres the card in the scrim on both axes when it fits,
+     and still lets you scroll to the top when it's taller than the screen. */
+  margin: auto;
   background: #FFF;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 14px;
   box-shadow: 0 24px 64px rgba(0, 0, 0, .3);
   width: 100%;
   max-width: 560px;
-  max-height: 88vh;
+  max-height: calc(100dvh - 3rem);
   display: flex;
   flex-direction: column;
   animation: modal-pop .16s cubic-bezier(.16, 1, .3, 1);
@@ -2091,10 +2188,12 @@ input[type="checkbox"] {
   }
   .page-toolbar .btn,
   .page-toolbar .search-input,
-  .page-toolbar .filter-select {
+  .page-toolbar .filter-select,
+  .page-toolbar .ui-select {
     width: 100%;
     min-width: 100%;
   }
+  .page-toolbar .ui-select { display: block; }
 
   /* Multi-step drive builder */
   .builder-pane-card { padding: 1rem .85rem; }
@@ -2143,7 +2242,8 @@ input[type="checkbox"] {
 @media (max-width: 480px) {
   .stat-grid { grid-template-columns: 1fr; }
   .search-input { min-width: 100%; }
-  .filter-select { width: 100%; }
+  .filter-select,
+  .ui-select { width: 100%; }
 }
 
 /* ---- Team & Access (ported from prototype #screen-team) ---- */

@@ -64,7 +64,7 @@ describe("YouthRepublicHoursPage", () => {
     render(<YouthRepublicHoursPage />);
 
     const filter = await screen.findByRole("combobox", { name: "Filter by status" });
-    expect(filter).toHaveValue("pending");
+    expect(filter).toHaveTextContent("Pending Review");
     // ah-1's verificationStatus is "recorded" — the Pending Review filter
     // must treat that as pending (regression: it previously matched only the
     // exact "recorded"/"pending" string and hid the row).

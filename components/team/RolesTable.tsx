@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CAPABILITY_KEYS, CAPABILITY_META, permissionKeysToGrid, type CapabilityLevel } from "@/lib/capabilityMap";
 import type { TeamRole } from "./TeamAccessProvider";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import { Select } from "@/components/ui/Select";
 
 function levelBadge(level: CapabilityLevel) {
   if (level === "granted") return <span className="badge badge-pos">Granted</span>;
@@ -38,11 +39,16 @@ export function RolesTable({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <input className="search-input" placeholder="Search role title or description..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select aria-label="Role type filter" className="filter-select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
-          <option value="all">All Role Types</option>
-          <option value="system">System Default (Protected)</option>
-          <option value="custom">Custom Organization Roles</option>
-        </select>
+        <Select
+          aria-label="Role type filter"
+          value={typeFilter}
+          onChange={setTypeFilter}
+          options={[
+            { value: "all", label: "All Role Types" },
+            { value: "system", label: "System Default (Protected)" },
+            { value: "custom", label: "Custom Organization Roles" },
+          ]}
+        />
       </div>
 
       <div className="table-card">

@@ -17,6 +17,7 @@ import { BulkAssignHoursForm, type ParticipantOption } from "@/components/youth-
 import { AdjustHoursDrawer } from "@/components/youth-republic/AdjustHoursDrawer";
 import { useToast } from "@/components/shell/ToastContext";
 import { Modal } from "@/components/ui/Modal";
+import { Select } from "@/components/ui/Select";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
@@ -168,28 +169,26 @@ export default function YouthRepublicHoursPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select
-            className="filter-select"
-            value={selectedDrive}
-            onChange={(e) => setSelectedDrive(e.target.value)}
+          <Select
             aria-label="Filter by drive"
-          >
-            <option value="all">All Drives</option>
-            {driveNames.map((nm) => (
-              <option key={nm} value={nm}>{nm}</option>
-            ))}
-          </select>
-          <select
-            className="filter-select"
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            value={selectedDrive}
+            onChange={setSelectedDrive}
+            options={[
+              { value: "all", label: "All Drives" },
+              ...driveNames.map((nm) => ({ value: nm, label: nm })),
+            ]}
+          />
+          <Select
             aria-label="Filter by status"
-          >
-            <option value="all">All Verification Statuses</option>
-            <option value="pending">Pending Review</option>
-            <option value="verified">Verified &amp; Accredited</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            value={selectedStatus}
+            onChange={setSelectedStatus}
+            options={[
+              { value: "all", label: "All Verification Statuses" },
+              { value: "pending", label: "Pending Review" },
+              { value: "verified", label: "Verified & Accredited" },
+              { value: "rejected", label: "Rejected" },
+            ]}
+          />
           <button
             type="button"
             className="btn btn-primary btn-sm"

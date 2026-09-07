@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Select } from "@/components/ui/Select";
 
 export interface AuditRow {
   id: string;
@@ -52,10 +53,15 @@ export function AuditTable({ rows }: { rows: AuditRow[] }) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
         <input aria-label="Search audit log" className="search-input" placeholder="Search audit log actor, entity, action..." value={search} onChange={(e) => setSearch(e.target.value)} />
-        <select aria-label="Action type filter" className="filter-select" value={actionFilter} onChange={(e) => setActionFilter(e.target.value)}>
-          <option value="all">All Action Types</option>
-          {ACTION_TYPES.map((a) => <option key={a} value={a}>{a}</option>)}
-        </select>
+        <Select
+          aria-label="Action type filter"
+          value={actionFilter}
+          onChange={setActionFilter}
+          options={[
+            { value: "all", label: "All Action Types" },
+            ...ACTION_TYPES.map((a) => ({ value: a, label: a })),
+          ]}
+        />
       </div>
 
       <div className="table-card">

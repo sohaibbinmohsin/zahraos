@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Select } from "@/components/ui/Select";
 import { effectivePermissionTags } from "@/lib/capabilityMap";
 import type { Chapter, TeamMember, TeamRole } from "./TeamAccessProvider";
 
@@ -52,24 +53,35 @@ export function MembersTable({
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select aria-label="Role filter" className="filter-select" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-          <option value="all">All Roles</option>
-          {roles.map((r) => (
-            <option key={r.id} value={r.name}>{r.name}{r.isSystem ? "" : " (Custom)"}</option>
-          ))}
-        </select>
-        <select aria-label="Scope filter" className="filter-select" value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)}>
-          <option value="all">All Scopes / Chapters</option>
-          <option value="org_wide">National / All Chapters</option>
-          {chapters.map((c) => (
-            <option key={c.id} value={c.id}>{c.city ? `${c.name} — ${c.city}` : c.name}</option>
-          ))}
-        </select>
-        <select aria-label="Status filter" className="filter-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-          <option value="all">All Statuses</option>
-          <option value="active">Active &amp; Verified</option>
-          <option value="invited">Pending Invitation</option>
-        </select>
+        <Select
+          aria-label="Role filter"
+          value={roleFilter}
+          onChange={setRoleFilter}
+          options={[
+            { value: "all", label: "All Roles" },
+            ...roles.map((r) => ({ value: r.name, label: `${r.name}${r.isSystem ? "" : " (Custom)"}` })),
+          ]}
+        />
+        <Select
+          aria-label="Scope filter"
+          value={scopeFilter}
+          onChange={setScopeFilter}
+          options={[
+            { value: "all", label: "All Scopes / Chapters" },
+            { value: "org_wide", label: "National / All Chapters" },
+            ...chapters.map((c) => ({ value: c.id, label: c.city ? `${c.name} — ${c.city}` : c.name })),
+          ]}
+        />
+        <Select
+          aria-label="Status filter"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: "all", label: "All Statuses" },
+            { value: "active", label: "Active & Verified" },
+            { value: "invited", label: "Pending Invitation" },
+          ]}
+        />
       </div>
 
       <div className="table-card">

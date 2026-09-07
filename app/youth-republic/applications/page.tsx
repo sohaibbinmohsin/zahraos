@@ -13,6 +13,7 @@ import {
 import { useSelectedOrg } from "@/components/shell/AppShell";
 import { ApplicationReviewDrawer } from "@/components/youth-republic/ApplicationReviewDrawer";
 import { useToast } from "@/components/shell/ToastContext";
+import { Select } from "@/components/ui/Select";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 // Statuses that still need a triage decision. The backend now emits a single
@@ -205,29 +206,27 @@ function ApplicationsContent() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select
-            className="filter-select"
-            value={driveFilter}
-            onChange={(e) => setDriveFilter(e.target.value)}
+          <Select
             aria-label="Filter by drive"
-          >
-            <option value="all">All Drives</option>
-            {driveOptions.map(([id, nm]) => (
-              <option key={id} value={id}>{nm}</option>
-            ))}
-          </select>
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={driveFilter}
+            onChange={setDriveFilter}
+            options={[
+              { value: "all", label: "All Drives" },
+              ...driveOptions.map(([id, nm]) => ({ value: id, label: nm })),
+            ]}
+          />
+          <Select
             aria-label="Filter by status"
-          >
-            <option value="all">All Application Statuses</option>
-            <option value="pending_review">Pending Review</option>
-            <option value="selected">Selected</option>
-            <option value="waitlisted">Waitlisted</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: "All Application Statuses" },
+              { value: "pending_review", label: "Pending Review" },
+              { value: "selected", label: "Selected" },
+              { value: "waitlisted", label: "Waitlisted" },
+              { value: "rejected", label: "Rejected" },
+            ]}
+          />
         </div>
       </div>
 
