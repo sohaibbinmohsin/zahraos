@@ -18,7 +18,7 @@ export default function TeamMembersPage() {
   const { openInvite, openEditMember } = useTeamDrawers();
 
   useEffect(() => {
-    setAction({ label: "Invite Team Member", onClick: openInvite, variant: "primary" });
+    setAction({ label: "Add Team Member", onClick: openInvite, variant: "primary" });
     return () => setAction(null);
   }, [setAction, openInvite]);
 

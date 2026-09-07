@@ -29,13 +29,25 @@ function fmtDateRange(start: string | null, end: string | null): string | null {
   return s ?? e;
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  open: "Open",
-  coming_soon: "Coming soon",
-  in_progress: "In progress",
-  completed: "Completed",
-  closed: "Closed",
-};
+// Card status pill — label, colour class, and whether to show the live
+// (brand-gold blinking) dot.
+function statusPill(computedStatus: string, archived: boolean): { label: string; cls: string; live: boolean } {
+  if (archived) return { label: "Archived", cls: "badge-neu", live: false };
+  switch (computedStatus) {
+    case "open":
+      return { label: "Open", cls: "badge-pos", live: false };
+    case "in_progress":
+      return { label: "In Progress", cls: "badge-prog", live: true };
+    case "completed":
+      return { label: "Completed", cls: "badge-comp", live: false };
+    case "coming_soon":
+      return { label: "Coming Soon", cls: "badge-pend", live: false };
+    case "closed":
+      return { label: "Closed", cls: "badge-neu", live: false };
+    default:
+      return { label: computedStatus.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), cls: "badge-neu", live: false };
+  }
+}
 
 export default function YouthRepublicOpportunitiesPage() {
   const organizationId = useSelectedOrg();
@@ -221,15 +233,16 @@ export default function YouthRepublicOpportunitiesPage() {
             const percent = cap && cap > 0 ? Math.min(100, Math.round((filled / cap) * 100)) : 0;
             const dateRange = fmtDateRange(opp.activityStartAt, opp.activityEndAt);
             const archived = Boolean(opp.deactivatedAt);
-            const statusLabel = archived ? "Archived" : (STATUS_LABEL[opp.computedStatus] ?? opp.computedStatus);
+            const pill = statusPill(opp.computedStatus, archived);
 
             return (
               <div key={opp.id} className="opp-card" style={archived ? { opacity: 0.6 } : undefined}>
                 <div>
                   <div className="opp-head">
                     <span className={`type-pill ${opp.type}`}>{opp.type}</span>
-                    <span className={`badge ${archived ? "badge-neu" : opp.computedStatus === "open" ? "badge-pos" : opp.computedStatus === "in_progress" ? "badge-prog" : "badge-neu"}`}>
-                      {statusLabel}
+                    <span className={`badge ${pill.cls}`}>
+                      {pill.live && <span className="live-dot" aria-hidden="true" />}
+                      {pill.label}
                     </span>
                   </div>
 

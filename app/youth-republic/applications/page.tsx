@@ -95,6 +95,10 @@ function ApplicationsContent() {
   // that button shows a spinner and the rest of the row locks.
   const [busy, setBusy] = useState<{ id: string; decision: DecideApplicationPayload["decision"] } | null>(null);
 
+  // "Reconsider" is a purely local reveal — it opens Select/Waitlist/Reject on
+  // an already-decided row. No server call until one of those is clicked.
+  const [reconsideringId, setReconsideringId] = useState<string | null>(null);
+
   // Search & Filter — opens on the triage queue (Pending Review) by default.
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending_review");
@@ -133,6 +137,7 @@ function ApplicationsContent() {
     try {
       await decideApplication({ applicationId, decision }, staffToken);
       showToast(`Application ${DECISION_META[decision].toast}.`);
+      setReconsideringId(null);
       await load();
     } catch (err) {
       showToast(
@@ -286,6 +291,8 @@ function ApplicationsContent() {
                       {(() => {
                         const rowBusy = busy?.id === a.id;
                         const isPending = PENDING_STATUSES.includes(a.status);
+                        const isReconsidering = reconsideringId === a.id;
+                        const showDecisionButtons = isPending || isReconsidering;
                         return (
                           <div className="inline-flex items-center gap-1.5 justify-end">
                             <button
@@ -298,7 +305,7 @@ function ApplicationsContent() {
                               Review Answers
                             </button>
 
-                            {isPending ? (
+                            {showDecisionButtons ? (
                               <>
                                 <DecisionButton
                                   decision="selected"
@@ -318,14 +325,25 @@ function ApplicationsContent() {
                                   disabled={rowBusy}
                                   onClick={() => decideFromRow(a.id, "rejected")}
                                 />
+                                {isReconsidering && !isPending && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-xs"
+                                    onClick={() => setReconsideringId(null)}
+                                    disabled={rowBusy}
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
                               </>
                             ) : (
-                              <DecisionButton
-                                decision="pending_review"
-                                loading={rowBusy && busy?.decision === "pending_review"}
-                                disabled={rowBusy}
-                                onClick={() => decideFromRow(a.id, "pending_review")}
-                              />
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-xs"
+                                onClick={() => setReconsideringId(a.id)}
+                              >
+                                Reconsider
+                              </button>
                             )}
                           </div>
                         );

@@ -894,10 +894,43 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: .04em;
 }
 
-.type-pill.community { background: #FEFCE8; color: #716205; border: 1px solid #EFE698; }
-.type-pill.education { background: #F1F3F5; color: #14161B; border: 1px solid #DDE2E5; }
-.type-pill.environment { background: #EAF7EE; color: #1B5E20; border: 1px solid #BDE4C7; }
-.type-pill.health { background: #FDF2F2; color: #991B1B; border: 1px solid #F8B4B4; }
+/* Youth Republic type colours: community=orange, education=blue,
+   environment=green, health=red. */
+.type-pill.community { background: #FEF1E0; color: #A85C04; border: 1px solid #F7D6AC; }
+.type-pill.education { background: #E4F3FC; color: #0A6DA0; border: 1px solid #B7E0F4; }
+.type-pill.environment { background: #E3F5E9; color: #0A6E36; border: 1px solid #B4E4C5; }
+.type-pill.health { background: #FCE7E8; color: #B00610; border: 1px solid #F6BFC2; }
+
+/* Completed drives — distinct from open/closed. */
+.badge-comp { background: #F2ECFB; color: #5B21B6; border-color: #DFD1F3; }
+
+/* Live "in progress" indicator — brand-gold blinking dot. */
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--brand-dark);
+  position: relative;
+  display: inline-block;
+  flex: none;
+  margin-right: .3rem;
+}
+.live-dot::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  background: var(--brand-dark);
+  opacity: .45;
+  animation: live-dot-ripple 1.6s ease-out infinite;
+}
+@keyframes live-dot-ripple {
+  0% { transform: scale(.7); opacity: .7; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot::after { animation: none; }
+}
 
 /* Page Header & Toolbars */
 .page-header {

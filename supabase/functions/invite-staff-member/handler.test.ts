@@ -27,7 +27,7 @@ async function setup() {
   return { supabase, orgId: org!.id as string, moduleId: mod!.id as string, roleId: role!.id as string, adminId: admin!.id as string };
 }
 
-Deno.test("inviteStaffMember creates an invited staff row, assignments, and an audit entry", async () => {
+Deno.test("inviteStaffMember creates an active staff row with a temp password, assignments, and an audit entry", async () => {
   const { supabase, orgId, roleId, adminId } = await setup();
   const email = `invitee-${crypto.randomUUID()}@example.com`;
   const { data: chapter } = await supabase.from("chapters").insert({
@@ -35,29 +35,33 @@ Deno.test("inviteStaffMember creates an invited staff row, assignments, and an a
   }).select("id").single();
 
   const result = await inviteStaffMember(supabase, adminId, false, {
-    organizationId: orgId, fullName: "Newly Invited", email, phone: "0300-1234567",
+    organizationId: orgId, fullName: "Newly Added", email, phone: "0300-1234567",
     roles: [
       { roleId, scopeKind: "org_wide", scopeLabel: "National / All Chapters" },
       { roleId, scopeKind: "chapter", chapterId: chapter!.id, scopeLabel: "Lahore Chapter" },
     ],
-    sendActivationEmail: true, enforce2fa: true,
   });
 
-  const { data: staff } = await supabase.from("staff").select("status, full_name").eq("id", result.staffId).single();
-  assertEquals(staff!.status, "invited");
+  // A readable one-time password is returned for the admin to hand over.
+  assertEquals(result.temporaryPassword.startsWith("Rizq-"), true);
+  assertEquals(result.temporaryPassword.length >= 8, true);
+
+  const { data: staff } = await supabase
+    .from("staff")
+    .select("status, must_change_password")
+    .eq("id", result.staffId)
+    .single();
+  // Active immediately, but forced to rotate the password on first login.
+  assertEquals(staff!.status, "active");
+  assertEquals(staff!.must_change_password, true);
 
   const { data: assigns } = await supabase.from("staff_role_assignments").select("scope_kind")
     .eq("staff_id", result.staffId);
   assertEquals(assigns!.length, 2);
 
-  const { data: invite } = await supabase.from("staff_invitations").select("status, enforce_2fa")
-    .eq("id", result.invitationId).single();
-  assertEquals(invite!.status, "pending");
-  assertEquals(invite!.enforce_2fa, true);
-
   const { data: audit } = await supabase.from("admin_audit_log").select("action, summary")
     .eq("organization_id", orgId).eq("entity_id", result.staffId).single();
-  assertEquals(audit!.action, "Member Invited");
+  assertEquals(audit!.action, "Member Added");
 });
 
 Deno.test("inviteStaffMember persists expiresAt to staff.expires_at", async () => {
@@ -66,7 +70,7 @@ Deno.test("inviteStaffMember persists expiresAt to staff.expires_at", async () =
   const result = await inviteStaffMember(supabase, adminId, false, {
     organizationId: orgId, fullName: "Timed", email: `timed-${crypto.randomUUID()}@example.com`,
     roles: [{ roleId, scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
-    sendActivationEmail: false, enforce2fa: true, expiresAt: when,
+    expiresAt: when,
   });
   const { data: staff } = await supabase.from("staff").select("expires_at").eq("id", result.staffId).single();
   assertEquals(new Date(staff!.expires_at as string).getTime(), new Date(when).getTime());
@@ -84,7 +88,6 @@ Deno.test("inviteStaffMember rejects a non-admin caller", async () => {
     () => inviteStaffMember(supabase, outsider!.id, false, {
       organizationId: orgId, fullName: "X", email: `x-${crypto.randomUUID()}@example.com`,
       roles: [{ roleId, scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
-      sendActivationEmail: false, enforce2fa: true,
     }),
     Error, "forbidden",
   );
