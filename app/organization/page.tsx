@@ -8,6 +8,7 @@ import { updateOrganization, listChapters, type ChapterRow } from "@/lib/platfor
 import { ChaptersPanel } from "@/components/team/ChaptersPanel";
 import { isDisplayableLogo } from "@/lib/orgLogo";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import { FormSkeleton } from "@/components/ui/skeletons";
 
 interface Profile {
   name: string;
@@ -110,9 +111,9 @@ export default function OrganizationPage() {
   }
 
   if (!organizationId) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Select an organization.</p></div>;
-  if (shellLoading) return <p className="p-8 text-center text-[var(--ink-3)]">Loading organization…</p>;
+  if (shellLoading) return <FormSkeleton />;
   if (!isOrgAdminOrAbove) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">You need organization admin access to view this page.</p></div>;
-  if (loading || !profile) return <p className="p-8 text-center text-[var(--ink-3)]">Loading organization…</p>;
+  if (loading || !profile) return <FormSkeleton />;
 
   return (
     <div className="flex flex-col gap-6">

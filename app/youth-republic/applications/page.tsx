@@ -14,6 +14,7 @@ import {
 import { useSelectedOrg } from "@/components/shell/AppShell";
 import { ApplicationReviewDrawer } from "@/components/youth-republic/ApplicationReviewDrawer";
 import { useToast } from "@/components/shell/ToastContext";
+import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 // Statuses that still need a triage decision. The backend now emits a single
 // "pending_review"; the two legacy values are kept here so older rows still
@@ -153,6 +154,10 @@ function ApplicationsContent() {
         <p className="text-[var(--ink-2)] font-medium">Select an organization to see its applications.</p>
       </div>
     );
+  }
+
+  if (loading && applications.length === 0) {
+    return <ListPageSkeleton columns={5} rows={8} />;
   }
 
   const filteredOppName = opportunityIdParam
@@ -364,7 +369,7 @@ function ApplicationsContent() {
 
 export default function YouthRepublicApplicationsPage() {
   return (
-    <Suspense fallback={<p className="p-8 text-center text-[var(--ink-3)]">Loading applications…</p>}>
+    <Suspense fallback={<ListPageSkeleton columns={5} rows={8} />}>
       <ApplicationsContent />
     </Suspense>
   );

@@ -133,8 +133,11 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    expect(screen.getByText("page content")).toBeInTheDocument();
+    // The shell holds page content back behind a skeleton until the account
+    // (and its selected org) resolves, so no screen flashes a "select an
+    // organization" empty state during hydration.
     await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
+    expect(screen.getByText("page content")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Organizations" })).toBeInTheDocument();
   });
 
@@ -498,6 +501,9 @@ describe("AppShell", () => {
     );
 
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
+    // The sidebar keeps its shape while the shell resolves — the governance
+    // group heading stays put instead of vanishing until claims arrive.
+    expect(screen.getByText("Team & Governance")).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
     expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();

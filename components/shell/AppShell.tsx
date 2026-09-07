@@ -12,6 +12,7 @@ import { listApplications, listActivityHours } from "@/lib/youthRepublicFunction
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
 import { ChangePasswordModal } from "./ChangePasswordModal";
+import { SidebarNavSkeleton, ShellContentSkeleton } from "@/components/ui/skeletons";
 
 type ShellLoadStatus = "loading" | "ready" | "error";
 
@@ -703,6 +704,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
                 <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
 
+                {status === "loading" && <SidebarNavSkeleton rows={5} />}
+
                 {claims && isOrgAdminOrAbove && (
                   <>
                     <Link
@@ -949,7 +952,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* Main Application Container */}
             <main className="app-wrap">
-              {status === "loading" && <p className="mb-4 text-sm text-gray-500">Loading your account…</p>}
               {status === "error" && (
                 <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                   <p className="font-semibold">We could not load your account. {loadError}</p>
@@ -958,7 +960,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </button>
                 </div>
               )}
-              {children}
+              {/* Hold the page back until the account (and its selected org) is
+                  resolved, so no screen flashes a "select an organization"
+                  empty state during hydration. */}
+              {status === "loading" ? <ShellContentSkeleton /> : children}
             </main>
           </div>
         </div>

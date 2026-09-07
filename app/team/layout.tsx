@@ -7,6 +7,7 @@ import { TeamAccessProvider } from "@/components/team/TeamAccessProvider";
 import { TeamDrawersProvider } from "@/components/team/TeamDrawers";
 import { TeamHeaderContext, type TeamHeaderAction } from "@/components/team/teamHeader";
 import { GovernanceTabs } from "@/components/team/GovernanceTabs";
+import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 const HEADINGS: Record<string, { title: string; subtitle: string }> = {
   "/team/members": {
@@ -33,10 +34,9 @@ export default function TeamLayout({ children }: { children: React.ReactNode }) 
 
   if (shellLoading) {
     return (
-      <div className="panel p-8 text-center">
-        <p className="text-[var(--ink-3)] font-medium">
-          Loading team access…
-        </p>
+      <div>
+        <GovernanceTabs />
+        <ListPageSkeleton columns={5} rows={6} />
       </div>
     );
   }

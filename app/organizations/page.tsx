@@ -5,6 +5,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { OrganizationsList, type OrganizationSummary } from "@/components/OrganizationsList";
 import { CreateOrganizationForm } from "@/components/CreateOrganizationForm";
 import { ModuleEnablementPanel, type ModuleSummary } from "@/components/ModuleEnablementPanel";
+import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 export default function OrganizationsPage() {
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export default function OrganizationsPage() {
   }, [load]);
 
   if (!accessToken) {
-    return <p>Loading…</p>;
+    return <ListPageSkeleton columns={4} filterBar={false} />;
   }
 
   return (

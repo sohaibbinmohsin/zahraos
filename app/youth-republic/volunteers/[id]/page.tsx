@@ -6,6 +6,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import { getVolunteerDetail, type VolunteerDetail } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
+import { DetailSkeleton } from "@/components/ui/skeletons";
 
 export default function YouthRepublicVolunteerDetailPage() {
   const organizationId = useSelectedOrg();
@@ -26,7 +27,7 @@ export default function YouthRepublicVolunteerDetailPage() {
   }, [organizationId, id]);
 
   if (!organizationId) return <p>Select an organization to see this volunteer.</p>;
-  if (!detail) return <p>Loading…</p>;
+  if (!detail) return <DetailSkeleton />;
 
   return (
     <div className="space-y-8">
