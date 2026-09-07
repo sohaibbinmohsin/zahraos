@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
@@ -96,47 +96,19 @@ export function formatRoleTitle(roleName: string): string {
     .join(" ");
 }
 
-// --- Persisted shell hints (last ready session), read without tripping
-// hydration. useSyncExternalStore hands the server + first client render the
-// empty snapshot that matches the SSR HTML, then swaps to the localStorage
-// value immediately after hydration — no mismatch, no setState-in-effect.
+// --- Persisted shell hints (last ready session) ---
+// The server can't read localStorage, so it renders the empty state; if we
+// applied the stored hint in a plain useEffect (which runs *after* paint)
+// the sidebar's governance group and the header name would flash empty for
+// a frame on every reload. Reading it in a layout effect instead — flushed
+// *before* the browser paints — means the first paint already has the hint.
 const EMPTY_NAV_HINT: NavHint = { governance: false, platform: false };
 const EMPTY_BRAND_HINT: BrandHint = { label: null, logoUrl: null, brandColor: null };
 const EMPTY_USER_HINT: UserHint = { fullName: null, role: null };
-let navHintSnapshot: NavHint | null = null;
-let brandHintSnapshot: BrandHint | null = null;
-let userHintSnapshot: UserHint | null = null;
 
-function subscribeShellHints(onChange: () => void) {
-  if (typeof window === "undefined") return () => {};
-  const handler = (e: StorageEvent) => {
-    if (
-      e.key === null ||
-      e.key === "platform.navHint" ||
-      e.key === "platform.brandHint" ||
-      e.key === "platform.userHint"
-    ) {
-      navHintSnapshot = null;
-      brandHintSnapshot = null;
-      userHintSnapshot = null;
-      onChange();
-    }
-  };
-  window.addEventListener("storage", handler);
-  return () => window.removeEventListener("storage", handler);
-}
-function getNavHintSnapshot(): NavHint {
-  if (!navHintSnapshot) navHintSnapshot = readStoredNavHint();
-  return navHintSnapshot;
-}
-function getBrandHintSnapshot(): BrandHint {
-  if (!brandHintSnapshot) brandHintSnapshot = readStoredBrandHint();
-  return brandHintSnapshot;
-}
-function getUserHintSnapshot(): UserHint {
-  if (!userHintSnapshot) userHintSnapshot = readStoredUserHint();
-  return userHintSnapshot;
-}
+// useLayoutEffect warns during SSR (no DOM); fall back to useEffect there,
+// where effects don't run anyway.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -164,12 +136,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [reloadToken, setReloadToken] = useState(0);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  // Last ready session's nav/brand shape, so the sidebar's governance groups
-  // and brand mark stay fixed across a reload instead of vanishing until
-  // claims/org data re-resolve. Only consulted while status !== "ready".
-  const navHint = useSyncExternalStore(subscribeShellHints, getNavHintSnapshot, () => EMPTY_NAV_HINT);
-  const brandHint = useSyncExternalStore(subscribeShellHints, getBrandHintSnapshot, () => EMPTY_BRAND_HINT);
-  const userHint = useSyncExternalStore(subscribeShellHints, getUserHintSnapshot, () => EMPTY_USER_HINT);
+  // Last ready session's nav/brand/user shape, so the sidebar's governance
+  // groups, brand mark and header name stay fixed across a reload instead of
+  // vanishing until claims/org data re-resolve. Only consulted while
+  // status !== "ready".
+  const [navHint, setNavHint] = useState<NavHint>(EMPTY_NAV_HINT);
+  const [brandHint, setBrandHint] = useState<BrandHint>(EMPTY_BRAND_HINT);
+  const [userHint, setUserHint] = useState<UserHint>(EMPTY_USER_HINT);
+
+  useIsomorphicLayoutEffect(() => {
+    // Runs before the first paint — see the note by EMPTY_NAV_HINT.
+    setNavHint(readStoredNavHint());
+    setBrandHint(readStoredBrandHint());
+    setUserHint(readStoredUserHint());
+  }, []);
 
   // UI states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
