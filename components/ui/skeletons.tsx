@@ -210,21 +210,6 @@ export function DetailSkeleton() {
   );
 }
 
-/** Sidebar nav placeholder — keeps the sidebar's shape while the shell
- *  resolves which governance links the user can see. */
-export function SidebarNavSkeleton({ rows = 4 }: { rows?: number }) {
-  return (
-    <div className="flex flex-col gap-1 px-2 py-1" aria-hidden="true">
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="flex items-center gap-2.5 px-2 py-2">
-          <Skeleton w={16} h={16} style={{ borderRadius: 4, flex: "none" }} />
-          <Skeleton w={`${60 + (i % 3) * 12}%`} h={12} />
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** Generic full-page skeleton the AppShell shows in <main> while the account
  *  is still loading — page header + filter bar + table. */
 export function ShellContentSkeleton() {

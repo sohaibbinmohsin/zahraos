@@ -69,6 +69,10 @@ describe("YouthRepublicApplicationsPage", () => {
 
     render(<YouthRepublicApplicationsPage />);
 
+    // The queue opens on Pending Review by default; widen it to see the
+    // already-decided (waitlisted) row.
+    await user.selectOptions(await screen.findByRole("combobox"), "all");
+
     expect(await screen.findByText("Bilal Ahmed")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Select" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
@@ -80,6 +84,13 @@ describe("YouthRepublicApplicationsPage", () => {
         "staff-jwt",
       );
     });
+  });
+
+  it("opens with the status filter defaulted to Pending Review", async () => {
+    render(<YouthRepublicApplicationsPage />);
+
+    const filter = await screen.findByRole("combobox");
+    expect(filter).toHaveValue("pending_review");
   });
 
   it("shows a spinner and loading label on the clicked decision button while the server call is in flight", async () => {
