@@ -43,7 +43,7 @@ const DECISION_META: Record<
     label: "Reconsider",
     loadingLabel: "Moving to review…",
     toast: "moved back to pending review",
-    variant: "btn-secondary",
+    variant: "btn-primary",
   },
 };
 
@@ -157,7 +157,7 @@ function ApplicationsContent() {
   }
 
   if (loading && applications.length === 0) {
-    return <ListPageSkeleton columns={5} rows={8} filterBar={false} />;
+    return <ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={2} />;
   }
 
   const filteredOppName = opportunityIdParam
@@ -358,7 +358,7 @@ function ApplicationsContent() {
 
 export default function YouthRepublicApplicationsPage() {
   return (
-    <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} />}>
+    <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={2} />}>
       <ApplicationsContent />
     </Suspense>
   );

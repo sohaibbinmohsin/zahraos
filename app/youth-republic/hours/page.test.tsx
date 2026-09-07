@@ -60,6 +60,17 @@ describe("YouthRepublicHoursPage", () => {
     });
   });
 
+  it("opens with the status filter on Pending Review and still shows a 'recorded' shift log", async () => {
+    render(<YouthRepublicHoursPage />);
+
+    const filter = await screen.findByRole("combobox");
+    expect(filter).toHaveValue("pending");
+    // ah-1's verificationStatus is "recorded" — the Pending Review filter
+    // must treat that as pending (regression: it previously matched only the
+    // exact "recorded"/"pending" string and hid the row).
+    expect(screen.getByText("Aisha Khan")).toBeInTheDocument();
+  });
+
   it("keeps the bulk-assign form hidden until its button is clicked, then shows it in a modal", async () => {
     render(<YouthRepublicHoursPage />);
     await screen.findByText("Aisha Khan");

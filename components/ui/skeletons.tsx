@@ -4,7 +4,15 @@ import { Skeleton } from "./Skeleton";
  * (page-header, filter bar, table-card, stat-grid, opp-grid) so a loading
  * screen keeps the same shape as the content that replaces it. */
 
-export function PageHeaderSkeleton({ toolbar = true }: { toolbar?: boolean }) {
+export function PageHeaderSkeleton({
+  toolbar = true,
+  toolbarItems = 1,
+}: {
+  toolbar?: boolean;
+  /** How many controls sit in the header toolbar (search box, filter, button…). */
+  toolbarItems?: number;
+}) {
+  const widths = [220, 170, 150, 130];
   return (
     <div className="page-header">
       <div className="flex flex-col gap-2">
@@ -13,7 +21,9 @@ export function PageHeaderSkeleton({ toolbar = true }: { toolbar?: boolean }) {
       </div>
       {toolbar && (
         <div className="page-toolbar">
-          <Skeleton w={150} h={32} style={{ borderRadius: 6 }} />
+          {Array.from({ length: toolbarItems }).map((_, i) => (
+            <Skeleton key={i} w={widths[i] ?? 130} h={34} style={{ borderRadius: 8 }} />
+          ))}
         </div>
       )}
     </div>
@@ -87,14 +97,16 @@ export function ListPageSkeleton({
   columns = 5,
   rows = 6,
   filterBar = true,
+  toolbarItems = 1,
 }: {
   columns?: number;
   rows?: number;
   filterBar?: boolean;
+  toolbarItems?: number;
 }) {
   return (
     <div className="space-y-6">
-      <PageHeaderSkeleton />
+      <PageHeaderSkeleton toolbarItems={toolbarItems} />
       {filterBar && <FilterBarSkeleton />}
       <TableSkeleton rows={rows} columns={columns} />
     </div>
