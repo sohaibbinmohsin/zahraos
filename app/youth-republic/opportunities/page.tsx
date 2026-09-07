@@ -259,10 +259,10 @@ export default function YouthRepublicOpportunitiesPage() {
                   </div>
 
                   <div className="opp-title">
+                    {opp.name}
                     {running && (
                       <span className="live-dot" aria-hidden="true" title="Drive in progress" />
                     )}
-                    {opp.name}
                   </div>
                   {opp.description && <div className="opp-lead">{opp.description}</div>}
 
