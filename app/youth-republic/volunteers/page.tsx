@@ -13,6 +13,7 @@ import {
 import { useSelectedOrg } from "@/components/shell/AppShell";
 import { VolunteerProfileDrawer } from "@/components/youth-republic/VolunteerProfileDrawer";
 import { useToast } from "@/components/shell/ToastContext";
+import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 export default function YouthRepublicVolunteersPage() {
   const organizationId = useSelectedOrg();
@@ -68,6 +69,10 @@ export default function YouthRepublicVolunteersPage() {
         <p className="text-[var(--ink-2)] font-medium">Select an organization to see its volunteers directory.</p>
       </div>
     );
+  }
+
+  if (loading && volunteers.length === 0) {
+    return <ListPageSkeleton columns={5} rows={6} />;
   }
 
   return (

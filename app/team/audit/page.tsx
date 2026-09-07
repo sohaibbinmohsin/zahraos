@@ -7,6 +7,7 @@ import { useTeamHeader } from "@/components/team/teamHeader";
 import { useToast } from "@/components/shell/ToastContext";
 import { AuditTable, auditRowsToCsv, type AuditRow } from "@/components/team/AuditTable";
 import { StatCard } from "@/components/team/StatCard";
+import { StatGridSkeleton, TableSkeleton } from "@/components/ui/skeletons";
 
 export default function TeamAuditPage() {
   const organizationId = useSelectedOrg();
@@ -71,7 +72,12 @@ export default function TeamAuditPage() {
     };
   }, [rows]);
 
-  if (loading) return <p className="p-8 text-center text-[var(--ink-3)]">Loading audit log…</p>;
+  if (loading) return (
+    <div className="flex flex-col gap-6">
+      <StatGridSkeleton />
+      <TableSkeleton columns={5} rows={8} />
+    </div>
+  );
   if (loadError) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Couldn&apos;t load team data. {loadError}</p></div>;
 
   return (

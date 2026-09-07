@@ -6,6 +6,7 @@ import { useTeamHeader } from "@/components/team/teamHeader";
 import { useTeamDrawers } from "@/components/team/TeamDrawers";
 import { MembersTable } from "@/components/team/MembersTable";
 import { StatCard } from "@/components/team/StatCard";
+import { StatGridSkeleton, TableSkeleton } from "@/components/ui/skeletons";
 
 const LEAD_ROLES = ["Operations Lead", "Drive Coordinator", "Regional Logistics Lead"];
 const REVIEWER_ROLES = ["Application Reviewer", "Auditor"];
@@ -37,7 +38,12 @@ export default function TeamMembersPage() {
     };
   }, [members]);
 
-  if (loading) return <p className="p-8 text-center text-[var(--ink-3)]">Loading team directory…</p>;
+  if (loading) return (
+    <div className="flex flex-col gap-6">
+      <StatGridSkeleton />
+      <TableSkeleton columns={6} rows={6} />
+    </div>
+  );
   if (error) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Couldn&apos;t load team data. {error}</p></div>;
 
   return (

@@ -18,6 +18,7 @@ import { AdjustHoursDrawer } from "@/components/youth-republic/AdjustHoursDrawer
 import { useToast } from "@/components/shell/ToastContext";
 import { Modal } from "@/components/ui/Modal";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 export default function YouthRepublicHoursPage() {
   const organizationId = useSelectedOrg();
@@ -115,6 +116,10 @@ export default function YouthRepublicHoursPage() {
         <p className="text-[var(--ink-2)] font-medium">Select an organization to see its activity hours.</p>
       </div>
     );
+  }
+
+  if (loading && activity.length === 0) {
+    return <ListPageSkeleton columns={7} rows={6} />;
   }
 
   const filtered = activity.filter((a) => {

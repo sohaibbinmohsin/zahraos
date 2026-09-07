@@ -14,6 +14,7 @@ import { useSelectedOrg, useShellAccessToken } from "@/components/shell/AppShell
 import { CreateOpportunityForm } from "@/components/youth-republic/CreateOpportunityForm";
 import { useToast } from "@/components/shell/ToastContext";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import { CardGridSkeleton } from "@/components/ui/skeletons";
 
 type EditTarget = NonNullable<
   React.ComponentProps<typeof CreateOpportunityForm>["initialOpportunity"]
@@ -211,9 +212,7 @@ export default function YouthRepublicOpportunitiesPage() {
       </div>
 
       {loading && opportunities.length === 0 ? (
-        <div className="panel p-8 text-center">
-          <p className="text-sm text-[var(--ink-2)]">Loading opportunities…</p>
-        </div>
+        <CardGridSkeleton header={false} />
       ) : (
         <div className="opp-grid">
           {opportunities.map((opp) => {

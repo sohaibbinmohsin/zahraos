@@ -16,6 +16,7 @@ import {
 } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
 import { useToast } from "@/components/shell/ToastContext";
+import { DashboardSkeleton } from "@/components/ui/skeletons";
 
 const ACTIVE_OPP_STATUSES = ["open", "coming_soon", "in_progress"];
 const PENDING_APP_STATUSES = ["pending_review", "submitted", "under_review"];
@@ -92,11 +93,7 @@ export default function YouthRepublicDashboardPage() {
   }
 
   if (loading && !kpis) {
-    return (
-      <div className="p-8 text-center">
-        <p className="text-[var(--ink-3)] font-medium">Loading live operations data…</p>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   const liveOpps = opps.filter((o) => !o.deactivatedAt);
