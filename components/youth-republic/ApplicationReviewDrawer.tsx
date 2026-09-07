@@ -28,9 +28,15 @@ export function ApplicationReviewDrawer({
   onDecide,
 }: ApplicationReviewDrawerProps) {
   const [pending, setPending] = useState<Decision | null>(null);
+  // Local-only reveal of the decision buttons on an already-decided
+  // application. Scoped to an application id so it clears itself when the
+  // drawer opens for a different candidate.
+  const [reconsideringFor, setReconsideringFor] = useState<string | null>(null);
   const submitting = pending !== null;
 
   if (!isOpen || !application) return null;
+
+  const reconsidering = reconsideringFor === application.id;
 
   async function handleDecision(decision: Decision) {
     if (!application) return;
@@ -193,32 +199,51 @@ export function ApplicationReviewDrawer({
           </button>
 
           <div className="flex items-center gap-2">
-            {(isPending
-              ? (["rejected", "waitlisted", "selected"] as const)
-              : (["pending_review"] as const)
-            ).map((decision) => {
-              const meta = DECISION_META[decision];
-              const loading = pending === decision;
-              return (
-                <button
-                  key={decision}
-                  type="button"
-                  className={`btn ${meta.variant} btn-sm`}
-                  onClick={() => handleDecision(decision)}
-                  disabled={submitting}
-                  aria-busy={loading || undefined}
-                >
-                  {loading ? (
-                    <>
-                      <span className="btn-spinner" aria-hidden="true" />
-                      {meta.loadingLabel}
-                    </>
-                  ) : (
-                    meta.label
-                  )}
-                </button>
-              );
-            })}
+            {isPending || reconsidering ? (
+              <>
+                {(["rejected", "waitlisted", "selected"] as const).map((decision) => {
+                  const meta = DECISION_META[decision];
+                  const loading = pending === decision;
+                  return (
+                    <button
+                      key={decision}
+                      type="button"
+                      className={`btn ${meta.variant} btn-sm`}
+                      onClick={() => handleDecision(decision)}
+                      disabled={submitting}
+                      aria-busy={loading || undefined}
+                    >
+                      {loading ? (
+                        <>
+                          <span className="btn-spinner" aria-hidden="true" />
+                          {meta.loadingLabel}
+                        </>
+                      ) : (
+                        meta.label
+                      )}
+                    </button>
+                  );
+                })}
+                {reconsidering && !isPending && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setReconsideringFor(null)}
+                    disabled={submitting}
+                  >
+                    Cancel
+                  </button>
+                )}
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => setReconsideringFor(application.id)}
+              >
+                Reconsider
+              </button>
+            )}
           </div>
         </div>
       </div>

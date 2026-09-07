@@ -98,11 +98,14 @@ export interface InviteStaffMemberPayload {
   email: string;
   phone?: string;
   roles: RoleAssignmentPayload[];
-  sendActivationEmail: boolean;
-  enforce2fa: boolean;
   expiresAt?: string | null;
 }
-export interface InviteStaffMemberResponse { staffId: string; invitationId: string }
+export interface InviteStaffMemberResponse {
+  staffId: string;
+  invitationId: string;
+  /** One-time password to hand to the new member; they must reset it on first login. */
+  temporaryPassword: string;
+}
 export function inviteStaffMember(payload: InviteStaffMemberPayload, accessToken: string) {
   return callFunction<InviteStaffMemberResponse>("invite-staff-member", payload, accessToken);
 }

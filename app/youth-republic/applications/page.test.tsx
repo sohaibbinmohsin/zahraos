@@ -54,7 +54,7 @@ describe("YouthRepublicApplicationsPage", () => {
     });
   });
 
-  it("shows only a Reconsider action on a decided application and moves it back to pending review", async () => {
+  it("Reconsider is a local reveal on a decided row — the decision buttons appear and only then hit the server", async () => {
     vi.mocked(youthRepublicFunctions.listApplications).mockResolvedValue({
       applications: [{
         id: "app-2", volunteerId: "vol-2", volunteerName: "Bilal Ahmed", opportunityId: "opp-1",
@@ -76,11 +76,19 @@ describe("YouthRepublicApplicationsPage", () => {
     expect(await screen.findByText("Bilal Ahmed")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Select" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Reconsider" }));
 
+    // Reconsider only reveals the buttons — no server call yet.
+    await user.click(screen.getByRole("button", { name: "Reconsider" }));
+    expect(youthRepublicFunctions.decideApplication).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Select" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Waitlist" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeInTheDocument();
+
+    // Now picking one hits the server.
+    await user.click(screen.getByRole("button", { name: "Select" }));
     await waitFor(() => {
       expect(youthRepublicFunctions.decideApplication).toHaveBeenCalledWith(
-        { applicationId: "app-2", decision: "pending_review" },
+        { applicationId: "app-2", decision: "selected" },
         "staff-jwt",
       );
     });
