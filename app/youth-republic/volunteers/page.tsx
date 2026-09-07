@@ -12,12 +12,10 @@ import {
 } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
 import { VolunteerProfileDrawer } from "@/components/youth-republic/VolunteerProfileDrawer";
-import { useToast } from "@/components/shell/ToastContext";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 export default function YouthRepublicVolunteersPage() {
   const organizationId = useSelectedOrg();
-  const { showToast } = useToast();
   const [volunteers, setVolunteers] = useState<VolunteerSummary[]>([]);
   const [search, setSearch] = useState("");
   const [staffToken, setStaffToken] = useState<string | null>(null);
@@ -44,14 +42,13 @@ export default function YouthRepublicVolunteersPage() {
     }
   }, [organizationId]);
 
+  // Live search — debounced so we don't fire a request per keystroke.
   useEffect(() => {
-    load("");
-  }, [load]);
-
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    await load(search);
-  }
+    const t = setTimeout(() => {
+      load(search);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search, load]);
 
   async function handleOpenProfile(volunteerId: string) {
     if (!organizationId || !staffToken) return;
@@ -72,12 +69,12 @@ export default function YouthRepublicVolunteersPage() {
   }
 
   if (loading && volunteers.length === 0) {
-    return <ListPageSkeleton columns={5} rows={6} />;
+    return <ListPageSkeleton columns={5} rows={6} filterBar={false} toolbarItems={1} />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Page Header — search lives inline with the title */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Volunteers Directory</h1>
@@ -86,31 +83,16 @@ export default function YouthRepublicVolunteersPage() {
           </div>
         </div>
         <div className="page-toolbar">
+          <label htmlFor="volunteerSearch" className="sr-only">Search</label>
+          <input
+            id="volunteerSearch"
+            type="search"
+            className="search-input"
+            placeholder="Search by student name, CNIC, or institution..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
         </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-[var(--line)] rounded-xl">
-        <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-2 flex-1">
-          <div className="flex-1 min-w-[240px]">
-            <label htmlFor="volunteerSearch" className="sr-only">Search</label>
-            <input
-              id="volunteerSearch"
-              type="text"
-              className="search-input w-full"
-              placeholder="Search by student name, CNIC, or institution..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <button type="submit" className="btn btn-primary btn-sm">
-            Search
-          </button>
-        </form>
-
-        <span className="text-xs font-semibold text-[var(--ink-2)]">
-          Total Registered: {volunteers.length} volunteers
-        </span>
       </div>
 
       {/* Data Table */}

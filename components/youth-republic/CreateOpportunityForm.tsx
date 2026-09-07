@@ -159,6 +159,8 @@ export function CreateOpportunityForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [busyAction, setBusyAction] = useState<"archive" | "save" | null>(null);
+  // Set once the user tries to leave Step 1 with gaps — reveals per-field hints.
+  const [showStep1Errors, setShowStep1Errors] = useState(false);
 
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -384,6 +386,42 @@ export function CreateOpportunityForm({
     }
   }
 
+  const nonEmptyLines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean).length;
+
+  // Every Step 1 field is mandatory before the user can move on.
+  const step1Errors: Record<string, string> = {};
+  if (!name.trim()) step1Errors.name = "Give the opportunity a name.";
+  if (isChapterScoped && !chapterId) step1Errors.chapter = "Select a chapter.";
+  if (!isOnline && !location.trim()) step1Errors.location = "Add the city & venue for an on-site drive.";
+  if (!capacity || Number(capacity) < 1) step1Errors.capacity = "Set a volunteer capacity of 1 or more.";
+  if (!applicationOpenAt) step1Errors.applicationOpenAt = "Pick a date.";
+  if (!applicationDeadline) step1Errors.applicationDeadline = "Pick a date.";
+  if (!activityStartAt) step1Errors.activityStartAt = "Pick a date.";
+  if (!activityEndAt) step1Errors.activityEndAt = "Pick a date.";
+  if (!description.trim()) step1Errors.description = "Add a one-line summary.";
+  if (!about.trim()) step1Errors.about = "Add the full details.";
+  if (nonEmptyLines(dutiesStr) === 0) step1Errors.duties = "List at least one duty.";
+  if (nonEmptyLines(eligibilityStr) === 0) step1Errors.eligibility = "List at least one requirement.";
+  if (nonEmptyLines(whatToBringStr) === 0) step1Errors.whatToBring = "List at least one item.";
+  const step1Valid = Object.keys(step1Errors).length === 0;
+
+  const errClass = (key: string) => (showStep1Errors && step1Errors[key] ? " field-invalid" : "");
+  const fieldError = (key: string) =>
+    showStep1Errors && step1Errors[key] ? (
+      <p className="text-xs text-red-600 mt-1">{step1Errors[key]}</p>
+    ) : null;
+
+  function goToStep(target: 1 | 2 | 3) {
+    if (target > 1 && !step1Valid) {
+      setShowStep1Errors(true);
+      setError("Complete every field in Step 1 before continuing.");
+      setCurrentStep(1);
+      return;
+    }
+    setError(null);
+    setCurrentStep(target);
+  }
+
   return (
     <div className="space-y-6">
       {/* Top Page Header with Save Draft in line with title */}
@@ -440,7 +478,7 @@ export function CreateOpportunityForm({
         <button
           type="button"
           className={`step-tab ${currentStep === 2 ? "active" : ""}`}
-          onClick={() => setCurrentStep(2)}
+          onClick={() => goToStep(2)}
         >
           <span className="step-num">2</span>
           <span>Application Form Builder</span>
@@ -449,7 +487,7 @@ export function CreateOpportunityForm({
         <button
           type="button"
           className={`step-tab ${currentStep === 3 ? "active" : ""}`}
-          onClick={() => setCurrentStep(3)}
+          onClick={() => goToStep(3)}
         >
           <span className="step-num">3</span>
           <span>Live Volunteer Experience Preview</span>
@@ -478,13 +516,14 @@ export function CreateOpportunityForm({
               </div>
               <input
                 id="oppName"
-                className="form-input mt-1"
+                className={`form-input mt-1${errClass("name")}`}
                 value={name}
                 maxLength={80}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Ramadan Food Drive (Lahore Depot)"
                 required
               />
+              {fieldError("name")}
             </div>
 
             <div className="form-group">
@@ -522,20 +561,23 @@ export function CreateOpportunityForm({
                   disabled
                 />
               ) : (
-                <select
-                  id="oppChapter"
-                  className="form-select"
-                  value={chapterId}
-                  onChange={(e) => setChapterId(e.target.value)}
-                  required={isChapterScoped}
-                >
-                  {!isChapterScoped && <option value="">Org-wide (no chapter)</option>}
-                  {chapterOptions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <select
+                    id="oppChapter"
+                    className={`form-select${errClass("chapter")}`}
+                    value={chapterId}
+                    onChange={(e) => setChapterId(e.target.value)}
+                    required={isChapterScoped}
+                  >
+                    {!isChapterScoped && <option value="">Org-wide (no chapter)</option>}
+                    {chapterOptions.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  {fieldError("chapter")}
+                </>
               )}
             </div>
           </div>
@@ -556,63 +598,76 @@ export function CreateOpportunityForm({
 
             <div className="form-group">
               <label htmlFor="oppLocation" className="form-label">City &amp; Venue</label>
-              <CityCombobox
-                id="oppLocation"
-                value={isOnline ? "N/A" : location}
-                onChange={(c) => setLocation(c)}
-                disabled={isOnline}
-              />
+              <div className={showStep1Errors && step1Errors.location ? "field-invalid" : undefined}>
+                <CityCombobox
+                  id="oppLocation"
+                  value={isOnline ? "N/A" : location}
+                  onChange={(c) => setLocation(c)}
+                  disabled={isOnline}
+                />
+              </div>
+              {fieldError("location")}
             </div>
 
             <div className="form-group">
-              <label className="form-label">Target Volunteer Capacity</label>
+              <label htmlFor="oppCapacity" className="form-label">Target Volunteer Capacity</label>
               <input
+                id="oppCapacity"
                 type="number"
-                className="form-input font-mono"
-                value={capacity}
-                onChange={(e) => setCapacity(Number(e.target.value))}
+                className={`form-input font-mono${errClass("capacity")}`}
+                value={capacity ?? ""}
+                onChange={(e) => setCapacity(e.target.value === "" ? undefined : Number(e.target.value))}
                 min="1"
                 max="5000"
               />
+              {fieldError("capacity")}
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="form-group">
-              <label className="form-label">Applications Open</label>
+              <label htmlFor="oppApplicationsOpen" className="form-label">Applications Open</label>
               <input
+                id="oppApplicationsOpen"
                 type="date"
-                className="form-input font-mono"
+                className={`form-input font-mono${errClass("applicationOpenAt")}`}
                 value={applicationOpenAt}
                 onChange={(e) => setApplicationOpenAt(e.target.value)}
               />
+              {fieldError("applicationOpenAt")}
             </div>
             <div className="form-group">
-              <label className="form-label">Application Deadline</label>
+              <label htmlFor="oppApplicationDeadline" className="form-label">Application Deadline</label>
               <input
+                id="oppApplicationDeadline"
                 type="date"
-                className="form-input font-mono"
+                className={`form-input font-mono${errClass("applicationDeadline")}`}
                 value={applicationDeadline}
                 onChange={(e) => setApplicationDeadline(e.target.value)}
               />
+              {fieldError("applicationDeadline")}
             </div>
             <div className="form-group">
-              <label className="form-label">Drive Start Date</label>
+              <label htmlFor="oppDriveStart" className="form-label">Drive Start Date</label>
               <input
+                id="oppDriveStart"
                 type="date"
-                className="form-input font-mono"
+                className={`form-input font-mono${errClass("activityStartAt")}`}
                 value={activityStartAt}
                 onChange={(e) => setActivityStartAt(e.target.value)}
               />
+              {fieldError("activityStartAt")}
             </div>
             <div className="form-group">
-              <label className="form-label">Drive End Date</label>
+              <label htmlFor="oppDriveEnd" className="form-label">Drive End Date</label>
               <input
+                id="oppDriveEnd"
                 type="date"
-                className="form-input font-mono"
+                className={`form-input font-mono${errClass("activityEndAt")}`}
                 value={activityEndAt}
                 onChange={(e) => setActivityEndAt(e.target.value)}
               />
+              {fieldError("activityEndAt")}
             </div>
           </div>
 
@@ -628,54 +683,63 @@ export function CreateOpportunityForm({
             <textarea
               id="oppDescription"
               rows={2}
-              className="form-textarea mt-1"
+              className={`form-textarea mt-1${errClass("description")}`}
               maxLength={200}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. Pack and distribute ration hampers to families across Lahore throughout Ramadan."
             />
+            {fieldError("description")}
           </div>
 
           <div className="form-group">
-            <label className="form-label">Full Details <span className="text-[var(--ink-3)] font-normal">— shown on the opportunity page below the summary</span></label>
+            <label htmlFor="oppAbout" className="form-label">Full Details <span className="text-[var(--ink-3)] font-normal">— shown on the opportunity page below the summary</span></label>
             <textarea
+              id="oppAbout"
               rows={4}
-              className="form-textarea"
+              className={`form-textarea${errClass("about")}`}
               value={about}
               onChange={(e) => setAbout(e.target.value)}
               placeholder="Shift times, meeting point, what the day looks like, who to contact..."
             />
+            {fieldError("about")}
           </div>
 
           <div className="form-group">
-            <label className="form-label">Key Volunteer Duties (One per line)</label>
+            <label htmlFor="oppDuties" className="form-label">Key Volunteer Duties (One per line)</label>
             <textarea
+              id="oppDuties"
               rows={3}
-              className="form-textarea"
+              className={`form-textarea${errClass("duties")}`}
               value={dutiesStr}
               onChange={(e) => setDutiesStr(e.target.value)}
             />
+            {fieldError("duties")}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-group">
-              <label className="form-label">Eligibility &amp; Requirements (One per line)</label>
+              <label htmlFor="oppEligibility" className="form-label">Eligibility &amp; Requirements (One per line)</label>
               <textarea
+                id="oppEligibility"
                 rows={3}
-                className="form-textarea"
+                className={`form-textarea${errClass("eligibility")}`}
                 value={eligibilityStr}
                 onChange={(e) => setEligibilityStr(e.target.value)}
               />
+              {fieldError("eligibility")}
             </div>
 
             <div className="form-group">
-              <label className="form-label">What Volunteers Should Bring (One per line)</label>
+              <label htmlFor="oppWhatToBring" className="form-label">What Volunteers Should Bring (One per line)</label>
               <textarea
+                id="oppWhatToBring"
                 rows={3}
-                className="form-textarea"
+                className={`form-textarea${errClass("whatToBring")}`}
                 value={whatToBringStr}
                 onChange={(e) => setWhatToBringStr(e.target.value)}
               />
+              {fieldError("whatToBring")}
             </div>
           </div>
         </div>
@@ -700,7 +764,7 @@ export function CreateOpportunityForm({
             <button
               type="button"
               className="btn btn-primary"
-              onClick={() => setCurrentStep(2)}
+              onClick={() => goToStep(2)}
             >
               Proceed to Application Form Builder &rarr;
             </button>
@@ -893,7 +957,7 @@ export function CreateOpportunityForm({
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={() => setCurrentStep(3)}
+                onClick={() => goToStep(3)}
               >
                 Preview Live Volunteer Experience &rarr;
               </button>

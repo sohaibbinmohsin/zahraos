@@ -1347,6 +1347,14 @@ input[type="password"].dots-placeholder::placeholder,
 
 .form-textarea { resize: vertical; }
 
+.form-input.field-invalid,
+.form-select.field-invalid,
+.form-textarea.field-invalid,
+.field-invalid .form-input {
+  border-color: #E5484D;
+  background: #FDF2F2;
+}
+
 /* Interactive Question Cards */
 .question-card {
   background: #FFF;
