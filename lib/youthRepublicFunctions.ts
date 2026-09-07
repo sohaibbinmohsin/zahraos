@@ -285,6 +285,7 @@ export interface UpdateOpportunityPayload {
   capacity?: number;
   statusOverride?: string;
   deactivatedAt?: string | null;
+  hardDelete?: boolean;
 }
 export function updateOpportunity(payload: UpdateOpportunityPayload, staffToken: string) {
   return callYouthRepublicFunction<{ opportunityId: string }>("update-opportunity", payload, staffToken);

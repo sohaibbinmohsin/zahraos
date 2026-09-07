@@ -131,20 +131,15 @@ export default function YouthRepublicOpportunitiesPage() {
     }
     setBusyId(opp.id);
     try {
-      const supabase = getBrowserSupabaseClient();
-      const { error: delError } = await supabase.from("opportunities").delete().eq("id", opp.id);
-      if (delError) {
-        await updateOpportunity(
-          { opportunityId: opp.id, organizationId, statusOverride: "deleted" },
-          staffToken,
-        );
-      }
+      await updateOpportunity(
+        { opportunityId: opp.id, organizationId, hardDelete: true },
+        staffToken,
+      );
       setOpportunities((prev) => prev.filter((o) => o.id !== opp.id));
       showToast(`Opportunity "${opp.name}" deleted.`);
     } catch (err) {
       console.error(err);
-      setOpportunities((prev) => prev.filter((o) => o.id !== opp.id));
-      showToast(`Opportunity "${opp.name}" deleted.`);
+      showToast(err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete opportunity.");
     } finally {
       setBusyId(null);
     }
