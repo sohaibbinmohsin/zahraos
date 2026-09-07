@@ -354,7 +354,9 @@ export function getAttachment(payload: GetAttachmentPayload, staffToken: string)
 // earlier review), so there's nothing for the client to pass or trust.
 export interface DecideApplicationPayload {
   applicationId: string;
-  decision: "selected" | "waitlisted" | "rejected" | "under_review";
+  // "pending_review" is the "reconsider" path — moves a decided application
+  // back into the triage queue.
+  decision: "selected" | "waitlisted" | "rejected" | "pending_review";
 }
 export interface DecideApplicationResponse {
   applicationId: string;

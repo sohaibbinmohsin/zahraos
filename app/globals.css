@@ -819,6 +819,24 @@ h1, h2, h3, h4, h5, h6 {
 .btn-success { background: var(--st-pos-bg); color: var(--st-pos-fg); border-color: var(--st-pos-bd); }
 .btn-success:hover { background: #D6F0DD; }
 
+.btn[aria-busy="true"] { pointer-events: none; opacity: .85; }
+
+/* Circular in-button loader — inherits the button's text color. */
+.btn-spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: btn-spin .6s linear infinite;
+}
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .btn-spinner { animation-duration: 1.4s; }
+}
+
 /* Badges */
 .badge {
   display: inline-flex;

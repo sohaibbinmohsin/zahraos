@@ -15,6 +15,69 @@ import { useSelectedOrg } from "@/components/shell/AppShell";
 import { ApplicationReviewDrawer } from "@/components/youth-republic/ApplicationReviewDrawer";
 import { useToast } from "@/components/shell/ToastContext";
 
+// Statuses that still need a triage decision. The backend now emits a single
+// "pending_review"; the two legacy values are kept here so older rows still
+// render in the "needs a decision" bucket.
+const PENDING_STATUSES = ["pending_review", "submitted", "under_review"];
+
+const STATUS_LABEL: Record<string, string> = {
+  pending_review: "pending review",
+  submitted: "pending review",
+  under_review: "pending review",
+  selected: "selected",
+  waitlisted: "waitlisted",
+  rejected: "rejected",
+  withdrawn: "withdrawn",
+  draft: "draft",
+};
+
+const DECISION_META: Record<
+  DecideApplicationPayload["decision"],
+  { label: string; loadingLabel: string; toast: string; variant: string }
+> = {
+  selected: { label: "Select", loadingLabel: "Selecting…", toast: "selected", variant: "btn-primary" },
+  waitlisted: { label: "Waitlist", loadingLabel: "Waitlisting…", toast: "waitlisted", variant: "btn-secondary" },
+  rejected: { label: "Reject", loadingLabel: "Rejecting…", toast: "rejected", variant: "btn-danger" },
+  pending_review: {
+    label: "Reconsider",
+    loadingLabel: "Moving to review…",
+    toast: "moved back to pending review",
+    variant: "btn-secondary",
+  },
+};
+
+function DecisionButton({
+  decision,
+  loading,
+  disabled,
+  onClick,
+}: {
+  decision: DecideApplicationPayload["decision"];
+  loading: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  const meta = DECISION_META[decision];
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      className={`btn ${meta.variant} btn-xs`}
+    >
+      {loading ? (
+        <>
+          <span className="btn-spinner" aria-hidden="true" />
+          {meta.loadingLabel}
+        </>
+      ) : (
+        meta.label
+      )}
+    </button>
+  );
+}
+
 function ApplicationsContent() {
   const organizationId = useSelectedOrg();
   const searchParams = useSearchParams();
@@ -26,6 +89,10 @@ function ApplicationsContent() {
 
   // Drawer state
   const [selectedApp, setSelectedApp] = useState<ApplicationListRow | null>(null);
+
+  // Which row + decision is currently being written to the server, so only
+  // that button shows a spinner and the rest of the row locks.
+  const [busy, setBusy] = useState<{ id: string; decision: DecideApplicationPayload["decision"] } | null>(null);
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,12 +124,28 @@ function ApplicationsContent() {
     load();
   }, [load]);
 
+  // Throws on failure so the review drawer can keep itself open; the table
+  // rows call it through `void`, relying on the toast for the error.
   async function handleDecide(applicationId: string, decision: DecideApplicationPayload["decision"]) {
     if (!staffToken) return;
-    await decideApplication({ applicationId, decision }, staffToken);
-    showToast(`Application marked as ${decision}.`);
-    await load();
+    setBusy({ id: applicationId, decision });
+    try {
+      await decideApplication({ applicationId, decision }, staffToken);
+      showToast(`Application ${DECISION_META[decision].toast}.`);
+      await load();
+    } catch (err) {
+      showToast(
+        err instanceof Error ? `Could not update application: ${err.message}` : "Could not update application.",
+      );
+      throw err;
+    } finally {
+      setBusy(null);
+    }
   }
+
+  const decideFromRow = (applicationId: string, decision: DecideApplicationPayload["decision"]) => {
+    void handleDecide(applicationId, decision).catch(() => {});
+  };
 
   if (!organizationId) {
     return (
@@ -83,7 +166,10 @@ function ApplicationsContent() {
       !searchQuery ||
       candidateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       oppName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === "all" || a.status === statusFilter;
+    const matchesStatus =
+      statusFilter === "all" ||
+      a.status === statusFilter ||
+      (statusFilter === "pending_review" && PENDING_STATUSES.includes(a.status));
     return matchesSearch && matchesStatus;
   });
 
@@ -129,7 +215,7 @@ function ApplicationsContent() {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="all">All Application Statuses</option>
-            <option value="submitted">Applied (Pending Review)</option>
+            <option value="pending_review">Pending Review</option>
             <option value="selected">Selected</option>
             <option value="waitlisted">Waitlisted</option>
             <option value="rejected">Rejected</option>
@@ -199,54 +285,57 @@ function ApplicationsContent() {
                             : "badge-pend"
                         }`}
                       >
-                        {a.status}
+                        {STATUS_LABEL[a.status] ?? a.status}
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <div className="inline-flex items-center gap-1.5 justify-end">
-                        <button
-                          type="button"
-                          onClick={() => setSelectedApp(a)}
-                          className="btn btn-secondary btn-xs"
-                          title="View submitted questionnaire answers"
-                        >
-                          Review Answers
-                        </button>
-
-                        {a.status === "waitlisted" ? (
-                          <button
-                            type="button"
-                            onClick={() => handleDecide(a.id, "selected")}
-                            className="btn btn-primary btn-xs"
-                          >
-                            Promote to selected
-                          </button>
-                        ) : (
-                          <>
+                      {(() => {
+                        const rowBusy = busy?.id === a.id;
+                        const isPending = PENDING_STATUSES.includes(a.status);
+                        return (
+                          <div className="inline-flex items-center gap-1.5 justify-end">
                             <button
                               type="button"
-                              onClick={() => handleDecide(a.id, "selected")}
-                              className="btn btn-primary btn-xs"
-                            >
-                              Select
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDecide(a.id, "waitlisted")}
+                              onClick={() => setSelectedApp(a)}
                               className="btn btn-secondary btn-xs"
+                              title="View submitted questionnaire answers"
+                              disabled={rowBusy}
                             >
-                              Waitlist
+                              Review Answers
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDecide(a.id, "rejected")}
-                              className="btn btn-danger btn-xs"
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </div>
+
+                            {isPending ? (
+                              <>
+                                <DecisionButton
+                                  decision="selected"
+                                  loading={rowBusy && busy?.decision === "selected"}
+                                  disabled={rowBusy}
+                                  onClick={() => decideFromRow(a.id, "selected")}
+                                />
+                                <DecisionButton
+                                  decision="waitlisted"
+                                  loading={rowBusy && busy?.decision === "waitlisted"}
+                                  disabled={rowBusy}
+                                  onClick={() => decideFromRow(a.id, "waitlisted")}
+                                />
+                                <DecisionButton
+                                  decision="rejected"
+                                  loading={rowBusy && busy?.decision === "rejected"}
+                                  disabled={rowBusy}
+                                  onClick={() => decideFromRow(a.id, "rejected")}
+                                />
+                              </>
+                            ) : (
+                              <DecisionButton
+                                decision="pending_review"
+                                loading={rowBusy && busy?.decision === "pending_review"}
+                                disabled={rowBusy}
+                                onClick={() => decideFromRow(a.id, "pending_review")}
+                              />
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 );

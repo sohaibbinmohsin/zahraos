@@ -333,7 +333,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (!cancelled) {
           if (appsRes.status === "fulfilled") {
             const count = appsRes.value.applications.filter(
-              (a) => a.status === "submitted" || a.status === "under_review"
+              (a) => a.status === "pending_review" || a.status === "submitted" || a.status === "under_review"
             ).length;
             setPendingApplicationsCount(count);
           }

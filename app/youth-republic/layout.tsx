@@ -95,7 +95,9 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
         ]);
         if (cancelled) return;
         setBadges({
-          applications: apps.applications.filter((a) => a.status === "submitted" || a.status === "under_review").length,
+          applications: apps.applications.filter(
+            (a) => a.status === "pending_review" || a.status === "submitted" || a.status === "under_review",
+          ).length,
           hours: hours.activity.filter((h) => h.verificationStatus === "pending").length,
         });
       } catch {
