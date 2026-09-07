@@ -262,6 +262,8 @@ export interface CreateOpportunityPayload {
   whatToBring?: string[];
   applicationForm?: FormDefinition;
   capacity?: number;
+  /** e.g. "draft" to create the opportunity hidden from the noticeboard. */
+  statusOverride?: string;
 }
 export function createOpportunity(payload: CreateOpportunityPayload, staffToken: string) {
   return callYouthRepublicFunction<{ opportunityId: string }>("create-opportunity", payload, staffToken);
