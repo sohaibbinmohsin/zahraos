@@ -8,6 +8,7 @@ import {
   CAPABILITY_KEYS, CAPABILITY_META, RESTRICTED_GRID, permissionKeysToGrid,
   type CapabilityGrid, type CapabilityKey, type CapabilityLevel,
 } from "@/lib/capabilityMap";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 const LEVEL_LABEL: Record<CapabilityLevel, string> = {
   granted: "Granted", read_only: "Read Only", restricted: "Restricted",
@@ -162,9 +163,9 @@ export function RoleDrawer({
               <div style={{ marginLeft: "auto", display: "flex", gap: ".45rem" }}>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
                 {!readOnly && (
-                  <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={save}>
+                  <LoadingButton className="btn btn-primary btn-sm" disabled={busy} loading={busy} loadingText="Saving…" onClick={save}>
                     Save Role &amp; Permissions
-                  </button>
+                  </LoadingButton>
                 )}
               </div>
             </div>

@@ -60,12 +60,45 @@ describe("YouthRepublicHoursPage", () => {
     });
   });
 
+  it("keeps the bulk-assign form hidden until its button is clicked, then shows it in a modal", async () => {
+    render(<YouthRepublicHoursPage />);
+    await screen.findByText("Aisha Khan");
+
+    expect(screen.queryByLabelText("Opportunity / drive")).not.toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Bulk-Assign Hours/ }));
+
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText("Opportunity / drive")).toBeInTheDocument();
+  });
+
+  it("shows a spinner and loading label on the Verify button while the server call is in flight", async () => {
+    let resolve: (v: { activityHoursId: string }) => void = () => {};
+    vi.mocked(youthRepublicFunctions.verifyHours).mockImplementation(
+      () => new Promise((r) => { resolve = r; }),
+    );
+    const user = userEvent.setup();
+
+    render(<YouthRepublicHoursPage />);
+    await screen.findByText("Aisha Khan");
+    await user.click(screen.getByRole("button", { name: "Verify" }));
+
+    const busy = await screen.findByRole("button", { name: /Accrediting/ });
+    expect(busy).toHaveAttribute("aria-busy", "true");
+
+    resolve({ activityHoursId: "ah-1" });
+    await waitFor(() => expect(youthRepublicFunctions.verifyHours).toHaveBeenCalled());
+  });
+
   it("loads participants for the selected opportunity so bulk-assign can offer them", async () => {
     render(<YouthRepublicHoursPage />);
 
-    await screen.findByText("Beach Cleanup", { selector: "option" });
     const user = userEvent.setup();
-    await user.selectOptions(screen.getByLabelText("Bulk-assign for opportunity"), "opp-1");
+    await user.click(await screen.findByRole("button", { name: /Bulk-Assign Hours/ }));
+
+    await screen.findByText("Beach Cleanup", { selector: "option" });
+    await user.selectOptions(screen.getByLabelText("Opportunity / drive"), "opp-1");
 
     await waitFor(() => {
       expect(youthRepublicFunctions.listParticipationForOpportunity).toHaveBeenCalledWith(

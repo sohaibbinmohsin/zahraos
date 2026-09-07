@@ -7,6 +7,7 @@ import { VolunteerApplyPreview } from "@/components/youth-republic/VolunteerAppl
 import { CityCombobox } from "@/components/youth-republic/CityCombobox";
 import type { FormDefinition, FieldDef, FieldType } from "@/lib/forms";
 import { useToast } from "@/components/shell/ToastContext";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 import { useStaffClaims } from "@/components/shell/AppShell";
 
 interface CreateOpportunityFormProps {
@@ -157,6 +158,7 @@ export function CreateOpportunityForm({
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [busyAction, setBusyAction] = useState<"archive" | "save" | null>(null);
 
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
@@ -277,6 +279,7 @@ export function CreateOpportunityForm({
       return;
     }
     setSubmitting(true);
+    setBusyAction("archive");
     try {
       await updateOpportunity(
         {
@@ -292,6 +295,7 @@ export function CreateOpportunityForm({
       setError(err instanceof Error ? err.message : "Failed to update archive status");
     } finally {
       setSubmitting(false);
+      setBusyAction(null);
     }
   }
 
@@ -319,6 +323,7 @@ export function CreateOpportunityForm({
     }
 
     setSubmitting(true);
+    setBusyAction("save");
     try {
       const duties = dutiesStr.split("\n").map((s) => s.trim()).filter(Boolean);
       const eligibility = eligibilityStr.split("\n").map((s) => s.trim()).filter(Boolean);
@@ -375,6 +380,7 @@ export function CreateOpportunityForm({
       setError(err instanceof Error ? err.message : "Failed to save opportunity");
     } finally {
       setSubmitting(false);
+      setBusyAction(null);
     }
   }
 
@@ -390,11 +396,12 @@ export function CreateOpportunityForm({
         </div>
         <div className="page-toolbar">
           {initialOpportunity?.id && (
-            <button
-              type="button"
+            <LoadingButton
               className={initialOpportunity.deactivatedAt ? "btn btn-secondary btn-sm" : "btn btn-danger btn-sm"}
               onClick={handleToggleArchive}
               disabled={submitting}
+              loading={busyAction === "archive"}
+              loadingText={initialOpportunity.deactivatedAt ? "Restoring…" : "Archiving…"}
             >
               {initialOpportunity.deactivatedAt ? (
                 <>
@@ -414,7 +421,7 @@ export function CreateOpportunityForm({
                   <span>Archive</span>
                 </>
               )}
-            </button>
+            </LoadingButton>
           )}
         </div>
       </div>
@@ -681,14 +688,15 @@ export function CreateOpportunityForm({
             className="flex items-center gap-3 ml-auto"
             style={{ marginLeft: "auto" }}
           >
-            <button
-              type="button"
+            <LoadingButton
               className="btn btn-secondary"
               onClick={() => handleSave(isLive ? false : true)}
               disabled={submitting}
+              loading={busyAction === "save"}
+              loadingText="Saving…"
             >
-              {submitting ? "Saving..." : isLive ? "Update changes" : "Save draft"}
-            </button>
+              {isLive ? "Update changes" : "Save draft"}
+            </LoadingButton>
             <button
               type="button"
               className="btn btn-primary"
@@ -927,14 +935,15 @@ export function CreateOpportunityForm({
             >
               &larr; Back to Form Builder
             </button>
-            <button
-              type="button"
+            <LoadingButton
               className="btn btn-primary"
               onClick={() => handleSave(false)}
               disabled={submitting}
+              loading={busyAction === "save"}
+              loadingText="Publishing…"
             >
-              {submitting ? "Publishing..." : isLive ? "Update changes" : "Create opportunity"}
-            </button>
+              {isLive ? "Update changes" : "Create opportunity"}
+            </LoadingButton>
           </div>
         </div>
       )}

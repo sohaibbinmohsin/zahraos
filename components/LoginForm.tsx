@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export function LoginForm() {
   const router = useRouter();
@@ -99,13 +100,14 @@ export function LoginForm() {
         </div>
       </div>
 
-      <button
+      <LoadingButton
         type="submit"
-        disabled={loading}
+        loading={loading}
+        loadingText="Logging in…"
         className="w-full mt-2 rounded-lg bg-[#14161B] hover:bg-[#232730] text-white py-2.5 font-medium text-sm transition duration-150 flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
       >
-        {loading ? "Logging in..." : "Log in"}
-      </button>
+        Log in
+      </LoadingButton>
     </form>
   );
 }

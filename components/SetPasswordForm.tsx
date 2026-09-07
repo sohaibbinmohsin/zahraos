@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { setPassword } from "@/lib/platformFunctions";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export function SetPasswordForm() {
   const router = useRouter();
@@ -151,13 +152,14 @@ export function SetPasswordForm() {
         </div>
       </div>
 
-      <button
+      <LoadingButton
         type="submit"
-        disabled={submitting}
+        loading={submitting}
+        loadingText="Setting password…"
         className="w-full mt-2 rounded-lg bg-[#D3BD2A] hover:bg-[#BFAB24] text-[#14161B] py-2.5 font-semibold text-sm transition duration-150 flex items-center justify-center gap-2 shadow-xs disabled:opacity-50 cursor-pointer"
       >
-        {submitting ? "Setting password..." : "Set password"}
-      </button>
+        Set password
+      </LoadingButton>
     </form>
   );
 

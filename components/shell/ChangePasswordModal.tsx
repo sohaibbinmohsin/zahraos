@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { useToast } from "./ToastContext";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export function ChangePasswordModal({
   isOpen,
@@ -312,13 +313,14 @@ export function ChangePasswordModal({
             >
               Cancel
             </button>
-            <button
+            <LoadingButton
               type="submit"
               className="btn btn-primary btn-sm cursor-pointer"
-              disabled={submitting}
+              loading={submitting}
+              loadingText="Updating…"
             >
-              {submitting ? "Updating..." : "Update Password"}
-            </button>
+              Update Password
+            </LoadingButton>
           </div>
         </form>
       </div>

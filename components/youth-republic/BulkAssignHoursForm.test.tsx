@@ -30,9 +30,9 @@ describe("BulkAssignHoursForm", () => {
     );
 
     await user.type(screen.getByLabelText("Activity date"), "2026-02-01");
-    await user.type(screen.getByLabelText("Hours"), "3");
+    await user.type(screen.getByLabelText("Hours per volunteer"), "3");
     await user.click(screen.getByLabelText("Aisha Khan"));
-    await user.click(screen.getByRole("button", { name: "Bulk-assign hours" }));
+    await user.click(screen.getByRole("button", { name: /Assign hours to/ }));
 
     await waitFor(() => {
       expect(youthRepublicFunctions.bulkAssignHours).toHaveBeenCalledWith(

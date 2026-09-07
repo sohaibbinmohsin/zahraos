@@ -6,6 +6,7 @@ import { useToast } from "@/components/shell/ToastContext";
 import { removeStaffMember, updateStaffAccess } from "@/lib/platformFunctions";
 import { effectivePermissionTags } from "@/lib/capabilityMap";
 import { RoleScopeRepeater, rowsToAssignmentPayload, type RoleScopeRow } from "./RoleScopeRepeater";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -18,7 +19,7 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
   const [rows, setRows] = useState<RoleScopeRow[]>([]);
   const [status, setStatus] = useState<"active" | "invited" | "deactivated">("active");
   const [expiresAt, setExpiresAt] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"save" | "remove" | null>(null);
 
   useEffect(() => {
     if (member) {
@@ -40,7 +41,7 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
 
   async function save() {
     if (!member || !organizationId || !accessToken) return;
-    setBusy(true);
+    setBusy("save");
     try {
       await updateStaffAccess({
         staffId: member.id,
@@ -55,14 +56,14 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to save changes.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
   async function remove() {
     if (!member || !organizationId || !accessToken) return;
     if (!window.confirm(`Remove ${member.fullName} from the team?`)) return;
-    setBusy(true);
+    setBusy("remove");
     try {
       await removeStaffMember({ staffId: member.id, organizationId }, accessToken);
       await refresh();
@@ -71,7 +72,7 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to remove member.");
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
@@ -150,10 +151,10 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
             </div>
 
             <div className="drawer-footer">
-              <button type="button" className="btn btn-danger btn-xs" disabled={busy} onClick={remove}>Remove from Team</button>
+              <LoadingButton className="btn btn-danger btn-xs" disabled={busy !== null} loading={busy === "remove"} loadingText="Removing…" onClick={remove}>Remove from Team</LoadingButton>
               <div style={{ display: "flex", gap: ".45rem" }}>
-                <button type="button" className="btn btn-secondary btn-xs" onClick={onClose}>Cancel</button>
-                <button type="button" className="btn btn-primary btn-xs" disabled={busy} onClick={save}>Save Changes</button>
+                <button type="button" className="btn btn-secondary btn-xs" onClick={onClose} disabled={busy !== null}>Cancel</button>
+                <LoadingButton className="btn btn-primary btn-xs" disabled={busy !== null} loading={busy === "save"} loadingText="Saving…" onClick={save}>Save Changes</LoadingButton>
               </div>
             </div>
           </>

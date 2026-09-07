@@ -7,6 +7,7 @@ import { useToast } from "@/components/shell/ToastContext";
 import { updateOrganization, listChapters, type ChapterRow } from "@/lib/platformFunctions";
 import { ChaptersPanel } from "@/components/team/ChaptersPanel";
 import { isDisplayableLogo } from "@/lib/orgLogo";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 interface Profile {
   name: string;
@@ -167,10 +168,11 @@ export default function OrganizationPage() {
               className="hidden"
               onChange={(e) => { pickLogo(e.target.files?.[0]); e.target.value = ""; }}
             />
-            <button type="button" className="btn btn-secondary btn-sm" disabled={logoUploading}
+            <LoadingButton className="btn btn-secondary btn-sm" disabled={logoUploading}
+              loading={logoUploading} loadingText="Uploading…"
               onClick={() => logoInputRef.current?.click()}>
-              {logoUploading ? "Uploading…" : isDisplayableLogo(profile.logoUrl) ? "Replace logo" : "Upload logo"}
-            </button>
+              {isDisplayableLogo(profile.logoUrl) ? "Replace logo" : "Upload logo"}
+            </LoadingButton>
             {isDisplayableLogo(profile.logoUrl) && !logoUploading && (
               <button type="button" className="btn btn-danger btn-sm" onClick={() => setProfile({ ...profile, logoUrl: "" })}>
                 Remove
@@ -182,7 +184,7 @@ export default function OrganizationPage() {
           </p>
         </div>
         <div className="flex justify-end" style={{ marginTop: ".25rem" }}>
-          <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={saveProfile}>Save profile</button>
+          <LoadingButton className="btn btn-primary btn-sm" disabled={saving} loading={saving} loadingText="Saving…" onClick={saveProfile}>Save profile</LoadingButton>
         </div>
       </div>
 

@@ -16,6 +16,8 @@ import { useSelectedOrg } from "@/components/shell/AppShell";
 import { BulkAssignHoursForm, type ParticipantOption } from "@/components/youth-republic/BulkAssignHoursForm";
 import { AdjustHoursDrawer } from "@/components/youth-republic/AdjustHoursDrawer";
 import { useToast } from "@/components/shell/ToastContext";
+import { Modal } from "@/components/ui/Modal";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export default function YouthRepublicHoursPage() {
   const organizationId = useSelectedOrg();
@@ -32,6 +34,12 @@ export default function YouthRepublicHoursPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [showBulkAssign, setShowBulkAssign] = useState(false);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+  const closeBulkAssign = useCallback(() => {
+    setShowBulkAssign(false);
+    setSelectedOpportunityId("");
+  }, []);
 
   const load = useCallback(async () => {
     if (!organizationId) return;
@@ -82,9 +90,16 @@ export default function YouthRepublicHoursPage() {
 
   async function handleVerify(activityHoursId: string, hoursSubmitted: number) {
     if (!staffToken) return;
-    await verifyHours({ activityHoursId, decision: "verified", hoursVerified: hoursSubmitted }, staffToken);
-    showToast("Shift hours accredited.");
-    await load();
+    setVerifyingId(activityHoursId);
+    try {
+      await verifyHours({ activityHoursId, decision: "verified", hoursVerified: hoursSubmitted }, staffToken);
+      showToast("Shift hours accredited.");
+      await load();
+    } catch (err) {
+      showToast(err instanceof Error ? `Could not accredit hours: ${err.message}` : "Could not accredit hours.");
+    } finally {
+      setVerifyingId(null);
+    }
   }
 
   async function handleSaveAdjustment(payload: VerifyHoursPayload) {
@@ -125,57 +140,15 @@ export default function YouthRepublicHoursPage() {
           <button
             type="button"
             className="btn btn-primary btn-sm"
-            onClick={() => setShowBulkAssign(!showBulkAssign)}
+            onClick={() => setShowBulkAssign(true)}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            <span>{showBulkAssign ? "Close Bulk Assign" : "Bulk-Assign Hours"}</span>
+            <span>Bulk-Assign Hours</span>
           </button>
         </div>
-      </div>
-
-      {/* Bulk-Assign Section */}
-      <div className="panel p-5 space-y-4">
-        <div className="panel-head">
-          <div>
-            <h2 className="panel-title">Bulk-Assign Shift Hours</h2>
-            <p className="text-xs text-[var(--ink-2)] mt-0.5">Accredit verified hours across participating volunteers for a drive.</p>
-          </div>
-        </div>
-
-        <div className="form-group max-w-md">
-          <label htmlFor="bulkOpportunity" className="form-label">
-            Bulk-assign for opportunity
-          </label>
-          <select
-            id="bulkOpportunity"
-            className="form-select"
-            value={selectedOpportunityId}
-            onChange={(e) => setSelectedOpportunityId(e.target.value)}
-          >
-            <option value="">Select an opportunity</option>
-            {opportunities.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {selectedOpportunityId && staffToken && (
-          <BulkAssignHoursForm
-            organizationId={organizationId}
-            opportunityId={selectedOpportunityId}
-            participants={participants}
-            staffToken={staffToken}
-            onAssigned={() => {
-              showToast("Bulk hours assigned successfully.");
-              load();
-            }}
-          />
-        )}
       </div>
 
       {/* Filter & Search Bar */}
@@ -267,19 +240,22 @@ export default function YouthRepublicHoursPage() {
                     <td style={{ textAlign: "right" }}>
                       <div className="inline-flex items-center gap-1.5 justify-end">
                         {isPending && (
-                          <button
-                            type="button"
+                          <LoadingButton
                             onClick={() => handleVerify(a.id, a.hoursSubmitted)}
                             className="btn btn-primary btn-xs"
+                            loading={verifyingId === a.id}
+                            loadingText="Accrediting…"
+                            disabled={verifyingId !== null}
                           >
                             Verify
-                          </button>
+                          </LoadingButton>
                         )}
 
                         <button
                           type="button"
                           onClick={() => setAdjustingRow(a)}
                           className="btn btn-secondary btn-xs"
+                          disabled={verifyingId === a.id}
                         >
                           Adjust Hours
                         </button>
@@ -306,6 +282,53 @@ export default function YouthRepublicHoursPage() {
         onClose={() => setAdjustingRow(null)}
         onSave={handleSaveAdjustment}
       />
+
+      {/* Bulk-Assign Hours Modal */}
+      <Modal
+        isOpen={showBulkAssign}
+        onClose={closeBulkAssign}
+        title="Bulk-Assign Shift Hours"
+        description="Accredit hours across confirmed participants for a drive."
+        maxWidth={520}
+      >
+        <div className="space-y-4">
+          <div className="form-group">
+            <label htmlFor="bulkOpportunity" className="form-label">Opportunity / drive</label>
+            <select
+              id="bulkOpportunity"
+              className="form-select"
+              value={selectedOpportunityId}
+              onChange={(e) => setSelectedOpportunityId(e.target.value)}
+            >
+              <option value="">Select an opportunity</option>
+              {opportunities.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {selectedOpportunityId && staffToken ? (
+            <BulkAssignHoursForm
+              organizationId={organizationId}
+              opportunityId={selectedOpportunityId}
+              participants={participants}
+              staffToken={staffToken}
+              onCancel={closeBulkAssign}
+              onAssigned={() => {
+                showToast("Bulk hours assigned successfully.");
+                closeBulkAssign();
+                load();
+              }}
+            />
+          ) : (
+            <p className="text-xs text-[var(--ink-2)]">
+              Pick an opportunity to choose participants and assign hours.
+            </p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }
