@@ -562,7 +562,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         src={brandLogoUrl}
                         alt={`${brandLabel} logo`}
                         className="sidebar-logo-img"
-                        style={{ width: 22, height: 22, borderRadius: 5, objectFit: "contain", background: "#fff", flexShrink: 0 }}
+                        /* No background: a transparent logo sits on the sidebar itself; a
+                           logo with its own coloured background fills the rounded square. */
+                        style={{ width: 22, height: 22, borderRadius: 5, objectFit: "contain", overflow: "hidden", flexShrink: 0 }}
                       />
                     ) : (
                       <span
