@@ -95,9 +95,9 @@ function ApplicationsContent() {
   // that button shows a spinner and the rest of the row locks.
   const [busy, setBusy] = useState<{ id: string; decision: DecideApplicationPayload["decision"] } | null>(null);
 
-  // Search & Filter
+  // Search & Filter — opens on the triage queue (Pending Review) by default.
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("pending_review");
 
   const load = useCallback(async () => {
     if (!organizationId) return;
@@ -157,7 +157,7 @@ function ApplicationsContent() {
   }
 
   if (loading && applications.length === 0) {
-    return <ListPageSkeleton columns={5} rows={8} />;
+    return <ListPageSkeleton columns={5} rows={8} filterBar={false} />;
   }
 
   const filteredOppName = opportunityIdParam
@@ -180,7 +180,7 @@ function ApplicationsContent() {
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Page Header — search + status filter live inline with the title */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Volunteer Applications</h1>
@@ -189,6 +189,24 @@ function ApplicationsContent() {
           </div>
         </div>
         <div className="page-toolbar">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search candidate name or drive..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <select
+            className="filter-select"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Application Statuses</option>
+            <option value="pending_review">Pending Review</option>
+            <option value="selected">Selected</option>
+            <option value="waitlisted">Waitlisted</option>
+            <option value="rejected">Rejected</option>
+          </select>
         </div>
       </div>
 
@@ -202,35 +220,6 @@ function ApplicationsContent() {
           </Link>
         </div>
       )}
-
-      {/* Filter & Search Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-[var(--line)] rounded-xl">
-        <div className="flex flex-wrap items-center gap-2 flex-1">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search candidate name or drive..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Application Statuses</option>
-            <option value="pending_review">Pending Review</option>
-            <option value="selected">Selected</option>
-            <option value="waitlisted">Waitlisted</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
-
-        <span className="text-xs font-semibold text-[var(--ink-2)]">
-          Showing {filtered.length} of {applications.length} candidates
-        </span>
-      </div>
 
       {/* Data Table */}
       <div className="table-card">
@@ -369,7 +358,7 @@ function ApplicationsContent() {
 
 export default function YouthRepublicApplicationsPage() {
   return (
-    <Suspense fallback={<ListPageSkeleton columns={5} rows={8} />}>
+    <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} />}>
       <ApplicationsContent />
     </Suspense>
   );
