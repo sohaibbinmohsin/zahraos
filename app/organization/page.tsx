@@ -26,6 +26,7 @@ export default function OrganizationPage() {
   const [chapters, setChapters] = useState<ChapterRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAll = useCallback(async () => {
@@ -59,8 +60,8 @@ export default function OrganizationPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  function pickLogo(file: File | undefined) {
-    if (!file || !profile) return;
+  async function pickLogo(file: File | undefined) {
+    if (!file || !profile || !organizationId) return;
     if (!file.type.startsWith("image/")) {
       showToast("Please choose an image file.");
       return;
@@ -69,10 +70,24 @@ export default function OrganizationPage() {
       showToast("Logo must be 512 KB or smaller.");
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => setProfile({ ...profile, logoUrl: String(reader.result) });
-    reader.onerror = () => showToast("Could not read that file.");
-    reader.readAsDataURL(file);
+    setLogoUploading(true);
+    try {
+      const supabase = getBrowserSupabaseClient();
+      const ext = (file.name.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+      const path = `${organizationId}/logo-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("org-logos").upload(path, file, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: file.type,
+      });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("org-logos").getPublicUrl(path);
+      setProfile({ ...profile, logoUrl: pub.publicUrl });
+    } catch (err) {
+      showToast(err instanceof Error ? `Logo upload failed: ${err.message}` : "Logo upload failed.");
+    } finally {
+      setLogoUploading(false);
+    }
   }
 
   async function saveProfile() {
@@ -147,21 +162,22 @@ export default function OrganizationPage() {
             <input
               ref={logoInputRef}
               type="file"
-              accept="image/*"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
               className="hidden"
               onChange={(e) => { pickLogo(e.target.files?.[0]); e.target.value = ""; }}
             />
-            <button type="button" className="btn btn-secondary btn-sm" onClick={() => logoInputRef.current?.click()}>
-              {profile.logoUrl ? "Replace logo" : "Upload logo"}
+            <button type="button" className="btn btn-secondary btn-sm" disabled={logoUploading}
+              onClick={() => logoInputRef.current?.click()}>
+              {logoUploading ? "Uploading…" : profile.logoUrl ? "Replace logo" : "Upload logo"}
             </button>
-            {profile.logoUrl && (
+            {profile.logoUrl && !logoUploading && (
               <button type="button" className="btn btn-danger btn-sm" onClick={() => setProfile({ ...profile, logoUrl: "" })}>
                 Remove
               </button>
             )}
           </div>
           <p style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: ".4rem" }}>
-            PNG, JPG or SVG, up to 512 KB. Also shown on the volunteer-facing Youth Republic pages.
+            PNG, JPG, WebP or SVG, up to 512 KB. Shown in the sidebar and on the volunteer-facing Youth Republic pages.
           </p>
         </div>
         <div className="flex justify-end" style={{ marginTop: ".25rem" }}>
