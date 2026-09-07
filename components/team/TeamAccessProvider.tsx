@@ -2,8 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
-import { useSelectedOrg, useShellAccessToken } from "@/components/shell/AppShell";
+import { useSelectedOrg, useShellAccessToken, useShellStaffToken } from "@/components/shell/AppShell";
 import { listChapters, type ChapterRow } from "@/lib/platformFunctions";
 
 export interface MemberAssignment {
@@ -63,7 +62,7 @@ export function useTeamAccess() {
 export function TeamAccessProvider({ children }: { children: React.ReactNode }) {
   const organizationId = useSelectedOrg();
   const accessToken = useShellAccessToken();
-  const [staffToken, setStaffToken] = useState<string | null>(null);
+  const staffToken = useShellStaffToken();
   const [moduleId, setModuleId] = useState<string | null>(null);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [roles, setRoles] = useState<TeamRole[]>([]);
@@ -77,10 +76,6 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
     setError(null);
     try {
       const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token ?? null;
-      const st = token ? await fetchStaffToken(token) : null;
-      setStaffToken(st);
 
       const { data: moduleRow } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
       const modId = (moduleRow?.id as string) ?? null;

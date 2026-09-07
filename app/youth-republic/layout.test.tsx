@@ -10,6 +10,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/components/shell/AppShell", () => ({
   useSelectedOrg: () => "org-1",
+  useShellStaffToken: () => "staff-token",
 }));
 vi.mock("@/lib/supabase/browserClient", () => ({
   getBrowserSupabaseClient: () => ({

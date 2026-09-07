@@ -1,22 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
 import {
   listActivityHours,
   verifyHours,
   listOpportunities,
   listParticipationForOpportunity,
   type ActivityListRow,
-  type OpportunitySummary,
   type VerifyHoursPayload,
 } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg } from "@/components/shell/AppShell";
+import useSWR from "swr";
+import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { BulkAssignHoursForm, type ParticipantOption } from "@/components/youth-republic/BulkAssignHoursForm";
 import { AdjustHoursDrawer } from "@/components/youth-republic/AdjustHoursDrawer";
 import { useToast } from "@/components/shell/ToastContext";
 import { Modal } from "@/components/ui/Modal";
+import { Select } from "@/components/ui/Select";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
@@ -35,12 +34,9 @@ const HOURS_STATUS_LABEL: Record<string, string> = {
 export default function YouthRepublicHoursPage() {
   const organizationId = useSelectedOrg();
   const { showToast } = useToast();
-  const [activity, setActivity] = useState<ActivityListRow[]>([]);
-  const [opportunities, setOpportunities] = useState<OpportunitySummary[]>([]);
+  const staffToken = useShellStaffToken();
   const [selectedOpportunityId, setSelectedOpportunityId] = useState("");
   const [participants, setParticipants] = useState<ParticipantOption[]>([]);
-  const [staffToken, setStaffToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Drawer & Filter states
   const [adjustingRow, setAdjustingRow] = useState<ActivityListRow | null>(null);
@@ -55,31 +51,23 @@ export default function YouthRepublicHoursPage() {
     setSelectedOpportunityId("");
   }, []);
 
-  const load = useCallback(async () => {
-    if (!organizationId) return;
-    setLoading(true);
-    try {
-      const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-      const token = await fetchStaffToken(sessionData.session.access_token);
-      setStaffToken(token);
+  const {
+    data: hoursData,
+    isLoading: loading,
+    mutate: load,
+  } = useSWR(
+    organizationId && staffToken ? ["hoursPage", organizationId] : null,
+    async () => {
       const [hoursResult, opportunitiesResult] = await Promise.all([
-        listActivityHours({ organizationId }, token),
-        listOpportunities({ organizationId }, token),
+        listActivityHours({ organizationId: organizationId! }, staffToken!),
+        listOpportunities({ organizationId: organizationId! }, staffToken!),
       ]);
-      setActivity(hoursResult.activity);
-      setOpportunities(opportunitiesResult.opportunities);
-    } catch (err) {
-      console.error("Failed to load activity hours", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [organizationId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+      return { activity: hoursResult.activity, opportunities: opportunitiesResult.opportunities };
+    },
+    { onError: (err) => console.error("Failed to load activity hours", err) },
+  );
+  const activity = hoursData?.activity ?? [];
+  const opportunities = hoursData?.opportunities ?? [];
 
   useEffect(() => {
     async function loadParticipants() {
@@ -168,28 +156,26 @@ export default function YouthRepublicHoursPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select
-            className="filter-select"
-            value={selectedDrive}
-            onChange={(e) => setSelectedDrive(e.target.value)}
+          <Select
             aria-label="Filter by drive"
-          >
-            <option value="all">All Drives</option>
-            {driveNames.map((nm) => (
-              <option key={nm} value={nm}>{nm}</option>
-            ))}
-          </select>
-          <select
-            className="filter-select"
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            value={selectedDrive}
+            onChange={setSelectedDrive}
+            options={[
+              { value: "all", label: "All Drives" },
+              ...driveNames.map((nm) => ({ value: nm, label: nm })),
+            ]}
+          />
+          <Select
             aria-label="Filter by status"
-          >
-            <option value="all">All Verification Statuses</option>
-            <option value="pending">Pending Review</option>
-            <option value="verified">Verified &amp; Accredited</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            value={selectedStatus}
+            onChange={setSelectedStatus}
+            options={[
+              { value: "all", label: "All Verification Statuses" },
+              { value: "pending", label: "Pending Review" },
+              { value: "verified", label: "Verified & Accredited" },
+              { value: "rejected", label: "Rejected" },
+            ]}
+          />
           <button
             type="button"
             className="btn btn-primary btn-sm"

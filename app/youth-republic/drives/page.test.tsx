@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithSwr } from "@/tests/renderWithSwr";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import YouthRepublicOpportunitiesPage from "./page";
@@ -12,12 +13,13 @@ vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
-  return { ...actual, useSelectedOrg: vi.fn() };
+  return { ...actual, useSelectedOrg: vi.fn(), useShellStaffToken: vi.fn() };
 });
 
 describe("YouthRepublicOpportunitiesPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
+    vi.mocked(shell.useShellStaffToken).mockReturnValue("staff-jwt");
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
@@ -31,26 +33,26 @@ describe("YouthRepublicOpportunitiesPage", () => {
   });
 
   it("lists opportunities with their computed status", async () => {
-    render(<YouthRepublicOpportunitiesPage />);
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
     expect(await screen.findByText("Beach Cleanup")).toBeInTheDocument();
     expect(screen.getAllByText("Open").length).toBeGreaterThan(0);
   });
 
   it("refreshes the list after a new opportunity is created", async () => {
-    render(<YouthRepublicOpportunitiesPage />);
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Beach Cleanup");
     expect(youthRepublicFunctions.listOpportunities).toHaveBeenCalledTimes(1);
   });
 
   it("does not render search or status filters", async () => {
-    render(<YouthRepublicOpportunitiesPage />);
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Beach Cleanup");
     expect(screen.queryByPlaceholderText(/Search by name/i)).not.toBeInTheDocument();
     expect(screen.queryByText("All Statuses")).not.toBeInTheDocument();
   });
 
   it("shows capacity, edit and view applicants in footer, without archive button for active cards", async () => {
-    render(<YouthRepublicOpportunitiesPage />);
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Beach Cleanup");
     expect(screen.getByText("Capacity: 3 / 20")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Edit/i })).toBeInTheDocument();
@@ -83,7 +85,7 @@ describe("YouthRepublicOpportunitiesPage", () => {
       facets: { cities: [], orgs: [] },
     });
 
-    render(<YouthRepublicOpportunitiesPage />);
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Archived Project");
     expect(screen.getByRole("button", { name: "Restore" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
@@ -93,8 +95,42 @@ describe("YouthRepublicOpportunitiesPage", () => {
     expect(screen.queryByText(/Capacity:/i)).not.toBeInTheDocument();
   });
 
+  it("shows a Draft pill and a Publish drive button instead of View Applicants for draft drives", async () => {
+    vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+      opportunities: [
+        {
+          id: "opp-draft",
+          name: "Unfinished Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "environment",
+          city: "Lahore",
+          online: false,
+          computedStatus: "draft",
+          description: "A work in progress",
+          capacity: 10,
+          filledCount: 0,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        },
+      ],
+      total: 1,
+      facets: { cities: [], orgs: [] },
+    });
+
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Unfinished Drive");
+    expect(screen.getByText("Draft")).toBeInTheDocument();
+    expect(screen.getByText("Not published yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Publish drive/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /View Applicants/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Edit/i })).toBeInTheDocument();
+  });
+
   it("renders Drives Noticeboard heading without uppercase class", async () => {
-    render(<YouthRepublicOpportunitiesPage />);
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Beach Cleanup");
     const heading = screen.getByRole("heading", { name: "Drives Noticeboard", level: 1 });
     expect(heading).toBeInTheDocument();
@@ -103,7 +139,7 @@ describe("YouthRepublicOpportunitiesPage", () => {
 
   it("renders borderless Back to Drives button when in create or edit mode", async () => {
     const user = userEvent.setup();
-    render(<YouthRepublicOpportunitiesPage />);
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Beach Cleanup");
     await user.click(screen.getByRole("button", { name: "Create Drive" }));
 
@@ -140,7 +176,7 @@ describe("YouthRepublicOpportunitiesPage", () => {
     });
 
     const user = userEvent.setup();
-    render(<YouthRepublicOpportunitiesPage />);
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Archived Project");
 
     const delBtn = screen.getByRole("button", { name: "Delete" });

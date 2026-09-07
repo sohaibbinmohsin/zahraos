@@ -8,6 +8,7 @@ import { updateOrganization, listChapters, type ChapterRow } from "@/lib/platfor
 import { ChaptersPanel } from "@/components/team/ChaptersPanel";
 import { isDisplayableLogo } from "@/lib/orgLogo";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import { Card } from "@/components/ui/Card";
 import { FormSkeleton } from "@/components/ui/skeletons";
 
 interface Profile {
@@ -124,7 +125,7 @@ export default function OrganizationPage() {
         </div>
       </div>
 
-      <div className="table-card" style={{ padding: "1.25rem" }}>
+      <Card>
         <h2 className="panel-title" style={{ marginBottom: ".75rem" }}>Profile</h2>
         <div className="grid-2col">
           <div className="form-group">
@@ -187,7 +188,7 @@ export default function OrganizationPage() {
         <div className="flex justify-end" style={{ marginTop: ".25rem" }}>
           <LoadingButton className="btn btn-primary btn-sm" disabled={saving} loading={saving} loadingText="Saving…" onClick={saveProfile}>Save profile</LoadingButton>
         </div>
-      </div>
+      </Card>
 
       <ChaptersPanel
         organizationId={organizationId}

@@ -255,7 +255,7 @@ export interface CreateOpportunityPayload {
   applicationOpenAt?: string;
   applicationDeadline?: string;
   activityStartAt?: string;
-  activityEndAt?: string;
+  activityEndAt?: string | null;
   about?: string;
   duties?: string[];
   eligibility?: string[];
@@ -280,7 +280,7 @@ export interface UpdateOpportunityPayload {
   applicationOpenAt?: string;
   applicationDeadline?: string;
   activityStartAt?: string;
-  activityEndAt?: string;
+  activityEndAt?: string | null;
   about?: string;
   duties?: string[];
   eligibility?: string[];

@@ -7,6 +7,7 @@ vi.mock("@/lib/staffToken", () => ({ fetchStaffToken: vi.fn().mockResolvedValue(
 vi.mock("@/components/shell/AppShell", () => ({
   useSelectedOrg: () => "org-1",
   useShellAccessToken: () => "access-token",
+  useShellStaffToken: () => "staff-token",
 }));
 
 const from = vi.fn();

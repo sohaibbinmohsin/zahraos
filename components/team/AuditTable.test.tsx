@@ -13,7 +13,8 @@ describe("AuditTable", () => {
     const user = userEvent.setup();
     render(<AuditTable rows={rows} />);
     expect(screen.getByText(/Youth Ambassador Manager/)).toBeInTheDocument();
-    await user.selectOptions(screen.getByLabelText("Action type filter"), "Access Changed");
+    await user.click(screen.getByLabelText("Action type filter"));
+    await user.click(screen.getByRole("option", { name: "Access Changed" }));
     expect(screen.queryByText(/Youth Ambassador Manager/)).not.toBeInTheDocument();
     expect(screen.getByText(/Updated access for Fatima Noor/)).toBeInTheDocument();
   });
@@ -25,7 +26,8 @@ describe("AuditTable", () => {
       { id: "4", createdAt: "2026-03-01T08:00:00Z", actorName: "Amina Malik", action: "Access Changed", summary: "Updated access for Fatima Noor", ip: "39.40.18.22", scopeLabel: "Lahore" },
     ];
     render(<AuditTable rows={chapterRows} />);
-    await user.selectOptions(screen.getByLabelText("Action type filter"), "Chapter Created");
+    await user.click(screen.getByLabelText("Action type filter"));
+    await user.click(screen.getByRole("option", { name: "Chapter Created" }));
     expect(screen.getByText(/Created chapter 'Rizq LUMS'/)).toBeInTheDocument();
     expect(screen.queryByText(/Updated access for Fatima Noor/)).not.toBeInTheDocument();
   });

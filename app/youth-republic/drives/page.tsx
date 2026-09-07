@@ -1,18 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
 import {
   listOpportunities,
   getOpportunityDetail,
   updateOpportunity,
   type OpportunitySummary,
+  type OpportunityDetail,
 } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg, useShellAccessToken } from "@/components/shell/AppShell";
+import useSWR from "swr";
+import { useSelectedOrg, useShellAccessToken, useShellStaffToken } from "@/components/shell/AppShell";
 import { CreateOpportunityForm } from "@/components/youth-republic/CreateOpportunityForm";
 import { useToast } from "@/components/shell/ToastContext";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { CardGridSkeleton } from "@/components/ui/skeletons";
 
@@ -26,7 +27,8 @@ function fmtDateRange(start: string | null, end: string | null): string | null {
   const s = start ? new Date(start).toLocaleDateString("en-GB", opts) : null;
   const e = end ? new Date(end).toLocaleDateString("en-GB", opts) : null;
   if (s && e) return `${s} – ${e}`;
-  return s ?? e;
+  if (s) return `${s} – ongoing`;
+  return e;
 }
 
 // The top-right pill is the *lifecycle / application* status; the brand-gold
@@ -39,6 +41,7 @@ function cardStatus(
   archived: boolean,
 ): { pill: { label: string; cls: string }; running: boolean } {
   if (archived) return { pill: { label: "Archived", cls: "badge-neu" }, running: false };
+  if (opp.computedStatus === "draft") return { pill: { label: "Draft", cls: "badge-draft" }, running: false };
 
   const deadlinePassed = opp.applicationDeadline
     ? new Date(opp.applicationDeadline).getTime() < Date.now()
@@ -64,41 +67,57 @@ function cardStatus(
   }
 }
 
+// A draft can only be published once Step 1 is complete and Step 2 has at
+// least one application question. Returns the list of what's still missing.
+function publishBlockers(d: OpportunityDetail): string[] {
+  const missing: string[] = [];
+  if (!d.name?.trim()) missing.push("a drive name");
+  if (!d.isOnline && !d.location?.trim()) missing.push("a city & venue");
+  if (!d.capacity || d.capacity < 1) missing.push("a volunteer capacity");
+  if (!d.applicationOpenAt) missing.push("an applications-open date");
+  if (!d.applicationDeadline) missing.push("an application deadline");
+  if (!d.activityStartAt) missing.push("a drive start date");
+  if (!d.description?.trim()) missing.push("a one-line summary");
+  if (!d.about?.trim()) missing.push("the full details");
+  if (!d.duties?.length) missing.push("at least one duty");
+  if (!d.eligibility?.length) missing.push("at least one eligibility requirement");
+  if (!d.whatToBring?.length) missing.push("at least one what-to-bring item");
+  if (!d.applicationForm?.fields?.length) missing.push("at least one application question (Step 2)");
+  return missing;
+}
+
 export default function YouthRepublicDrivesPage() {
   const organizationId = useSelectedOrg();
   const accessToken = useShellAccessToken();
   const { showToast } = useToast();
-  const [opportunities, setOpportunities] = useState<OpportunitySummary[]>([]);
-  const [staffToken, setStaffToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const confirm = useConfirm();
+  const staffToken = useShellStaffToken();
   const [busy, setBusy] = useState<{ id: string; action: "archive" | "delete" } | null>(null);
 
   const [isCreating, setIsCreating] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [openingEditorId, setOpeningEditorId] = useState<string | null>(null);
+  const [publishingId, setPublishingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!organizationId) return;
-    setLoading(true);
-    try {
-      const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-      const token = await fetchStaffToken(sessionData.session.access_token);
-      setStaffToken(token);
-      const result = await listOpportunities({ organizationId }, token);
-      setOpportunities(result.opportunities.filter((o) => o.computedStatus !== "deleted"));
-    } catch (err) {
-      console.error("Failed to load drives", err);
-      showToast(err instanceof Error ? `Could not load drives: ${err.message}` : "Could not load drives.");
-    } finally {
-      setLoading(false);
-    }
-  }, [organizationId, showToast]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Cached by org, so coming back to this tab renders the previous list
+  // immediately and revalidates underneath instead of flashing a skeleton.
+  const {
+    data: opportunities = [],
+    isLoading,
+    mutate,
+  } = useSWR(
+    organizationId && staffToken ? ["listOpportunities", organizationId] : null,
+    async () => {
+      const result = await listOpportunities({ organizationId: organizationId! }, staffToken!);
+      return result.opportunities.filter((o) => o.computedStatus !== "deleted");
+    },
+    {
+      onError: (err) =>
+        showToast(err instanceof Error ? `Could not load drives: ${err.message}` : "Could not load drives."),
+    },
+  );
+  const loading = isLoading;
+  const load = mutate;
 
   async function openEditor(oppId: string) {
     if (!staffToken) return;
@@ -137,7 +156,17 @@ export default function YouthRepublicDrivesPage() {
   async function toggleDeactivated(opp: OpportunitySummary) {
     if (!organizationId || !staffToken) return;
     const archiving = !opp.deactivatedAt;
-    if (archiving && !confirm(`Archive "${opp.name}"? It will be hidden from volunteers immediately.`)) return;
+    if (
+      archiving &&
+      !(await confirm({
+        title: "Archive drive?",
+        message: `"${opp.name}" will be hidden from volunteers immediately.`,
+        confirmLabel: "Archive",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
     setBusy({ id: opp.id, action: "archive" });
     try {
       await updateOpportunity(
@@ -156,7 +185,14 @@ export default function YouthRepublicDrivesPage() {
 
   async function handleDeleteOpportunity(opp: OpportunitySummary) {
     if (!organizationId || !staffToken) return;
-    if (!confirm(`Are you sure you want to permanently delete "${opp.name}"? This action cannot be undone.`)) {
+    if (
+      !(await confirm({
+        title: "Delete drive permanently?",
+        message: `"${opp.name}" and its data will be removed for good. This cannot be undone.`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
     setBusy({ id: opp.id, action: "delete" });
@@ -165,13 +201,44 @@ export default function YouthRepublicDrivesPage() {
         { opportunityId: opp.id, organizationId, hardDelete: true },
         staffToken,
       );
-      setOpportunities((prev) => prev.filter((o) => o.id !== opp.id));
+      await mutate();
       showToast(`Drive "${opp.name}" deleted.`);
     } catch (err) {
       console.error(err);
       showToast(err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete drive.");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function handlePublish(opp: OpportunitySummary) {
+    if (!organizationId || !staffToken) return;
+    setPublishingId(opp.id);
+    try {
+      const detail = await getOpportunityDetail({ opportunityId: opp.id }, staffToken);
+      const blockers = publishBlockers(detail);
+      if (blockers.length > 0) {
+        showToast(`Can't publish yet — still needs ${blockers[0]}. Opening the editor…`);
+        await openEditor(opp.id);
+        return;
+      }
+      const ok = await confirm({
+        title: "Publish this drive?",
+        message: `"${opp.name}" will go live on the volunteer noticeboard and start accepting applications.`,
+        confirmLabel: "Publish",
+      });
+      if (!ok) return;
+      await updateOpportunity(
+        { opportunityId: opp.id, organizationId, statusOverride: "open" },
+        staffToken,
+      );
+      showToast(`"${opp.name}" published.`);
+      await load();
+    } catch (err) {
+      console.error(err);
+      showToast(err instanceof Error ? `Failed to publish: ${err.message}` : "Failed to publish drive.");
+    } finally {
+      setPublishingId(null);
     }
   }
 
@@ -248,6 +315,7 @@ export default function YouthRepublicDrivesPage() {
             const percent = cap && cap > 0 ? Math.min(100, Math.round((filled / cap) * 100)) : 0;
             const dateRange = fmtDateRange(opp.activityStartAt, opp.activityEndAt);
             const archived = Boolean(opp.deactivatedAt);
+            const isDraft = opp.computedStatus === "draft";
             const { pill, running } = cardStatus(opp, archived);
 
             return (
@@ -293,6 +361,10 @@ export default function YouthRepublicDrivesPage() {
                 <div className="opp-footer">
                   {archived ? (
                     <div />
+                  ) : isDraft ? (
+                    <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--ink-3)" }}>
+                      Not published yet
+                    </div>
                   ) : (
                     <div>
                       <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--ink)" }}>
@@ -345,18 +417,36 @@ export default function YouthRepublicDrivesPage() {
                         <span>Edit</span>
                       </LoadingButton>
 
-                      <Link
-                        href={`/youth-republic/applications?opportunityId=${opp.id}`}
-                        className="btn btn-dark btn-xs"
-                      >
-                        <span className="icon-svg">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                        </span>
-                        <span>View Applicants</span>
-                      </Link>
+                      {isDraft ? (
+                        <LoadingButton
+                          className="btn btn-dark btn-xs"
+                          disabled={publishingId !== null || openingEditorId !== null}
+                          loading={publishingId === opp.id}
+                          loadingText="Publishing…"
+                          onClick={() => handlePublish(opp)}
+                        >
+                          <span className="icon-svg">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M22 2 11 13" />
+                              <path d="M22 2 15 22l-4-9-9-4 20-7z" />
+                            </svg>
+                          </span>
+                          <span>Publish drive</span>
+                        </LoadingButton>
+                      ) : (
+                        <Link
+                          href={`/youth-republic/applications?opportunityId=${opp.id}`}
+                          className="btn btn-dark btn-xs"
+                        >
+                          <span className="icon-svg">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                          </span>
+                          <span>View Applicants</span>
+                        </Link>
+                      )}
                     </div>
                   )}
                 </div>

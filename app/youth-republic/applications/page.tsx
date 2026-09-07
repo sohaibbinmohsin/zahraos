@@ -1,18 +1,18 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
 import {
   listApplications,
   decideApplication,
   type ApplicationListRow,
   type DecideApplicationPayload,
 } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg } from "@/components/shell/AppShell";
+import useSWR from "swr";
+import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { ApplicationReviewDrawer } from "@/components/youth-republic/ApplicationReviewDrawer";
 import { useToast } from "@/components/shell/ToastContext";
+import { Select } from "@/components/ui/Select";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 // Statuses that still need a triage decision. The backend now emits a single
@@ -83,9 +83,7 @@ function ApplicationsContent() {
   const searchParams = useSearchParams();
   const opportunityIdParam = searchParams.get("opportunityId");
   const { showToast } = useToast();
-  const [applications, setApplications] = useState<ApplicationListRow[]>([]);
-  const [staffToken, setStaffToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const staffToken = useShellStaffToken();
 
   // Drawer state
   const [selectedApp, setSelectedApp] = useState<ApplicationListRow | null>(null);
@@ -104,30 +102,22 @@ function ApplicationsContent() {
   const [statusFilter, setStatusFilter] = useState("pending_review");
   const [driveFilter, setDriveFilter] = useState(opportunityIdParam ?? "all");
 
-  const load = useCallback(async () => {
-    if (!organizationId) return;
-    setLoading(true);
-    try {
-      const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-      const token = await fetchStaffToken(sessionData.session.access_token);
-      setStaffToken(token);
-      // Always load the org's full set — the drive filter is applied
-      // client-side so switching it needs no refetch.
-      const result = await listApplications({ organizationId }, token);
-      setApplications(result.applications);
-    } catch (err) {
-      console.error("Failed to load applications", err);
-      showToast(err instanceof Error ? `Could not load applications: ${err.message}` : "Could not load applications.");
-    } finally {
-      setLoading(false);
-    }
-  }, [organizationId, showToast]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Cached per org; the drive/status filters are applied client-side so
+  // switching them never refetches.
+  const {
+    data: applications = [],
+    isLoading: loading,
+    mutate: load,
+  } = useSWR(
+    organizationId && staffToken ? ["listApplications", organizationId] : null,
+    async () => (await listApplications({ organizationId: organizationId! }, staffToken!)).applications,
+    {
+      onError: (err) =>
+        showToast(
+          err instanceof Error ? `Could not load applications: ${err.message}` : "Could not load applications.",
+        ),
+    },
+  );
 
   // Throws on failure so the review drawer can keep itself open; the table
   // rows call it through `void`, relying on the toast for the error.
@@ -205,29 +195,27 @@ function ApplicationsContent() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <select
-            className="filter-select"
-            value={driveFilter}
-            onChange={(e) => setDriveFilter(e.target.value)}
+          <Select
             aria-label="Filter by drive"
-          >
-            <option value="all">All Drives</option>
-            {driveOptions.map(([id, nm]) => (
-              <option key={id} value={id}>{nm}</option>
-            ))}
-          </select>
-          <select
-            className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={driveFilter}
+            onChange={setDriveFilter}
+            options={[
+              { value: "all", label: "All Drives" },
+              ...driveOptions.map(([id, nm]) => ({ value: id, label: nm })),
+            ]}
+          />
+          <Select
             aria-label="Filter by status"
-          >
-            <option value="all">All Application Statuses</option>
-            <option value="pending_review">Pending Review</option>
-            <option value="selected">Selected</option>
-            <option value="waitlisted">Waitlisted</option>
-            <option value="rejected">Rejected</option>
-          </select>
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: "All Application Statuses" },
+              { value: "pending_review", label: "Pending Review" },
+              { value: "selected", label: "Selected" },
+              { value: "waitlisted", label: "Waitlisted" },
+              { value: "rejected", label: "Rejected" },
+            ]}
+          />
         </div>
       </div>
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useCenterActiveTab } from "@/components/shell/useCenterActiveTab";
 
 const TABS = [
   {
@@ -64,10 +65,11 @@ const TABS = [
 
 export function GovernanceTabs() {
   const pathname = usePathname() ?? "";
+  const { wrapRef, onTabClick } = useCenterActiveTab(pathname);
 
   return (
-    <nav className="module-nav-bar mb-6 -mx-8 -mt-7 border-b border-[var(--line)] bg-white">
-      <div className="module-nav-wrap">
+    <nav className="module-nav-bar">
+      <div className="module-nav-wrap" ref={wrapRef}>
         {TABS.map((tab) =>
           tab.comingSoon ? (
             <span key={tab.label} className="module-tab opacity-50 cursor-not-allowed">
@@ -79,6 +81,7 @@ export function GovernanceTabs() {
             <Link
               key={tab.href}
               href={tab.href}
+              onClick={onTabClick}
               className={`module-tab ${pathname === tab.href ? "active" : ""}`}
             >
               <span className="icon-svg" aria-hidden="true">{tab.icon}</span>

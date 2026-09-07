@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithSwr } from "@/tests/renderWithSwr";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import YouthRepublicHoursPage from "./page";
@@ -12,12 +13,13 @@ vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
-  return { ...actual, useSelectedOrg: vi.fn() };
+  return { ...actual, useSelectedOrg: vi.fn(), useShellStaffToken: vi.fn() };
 });
 
 describe("YouthRepublicHoursPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
+    vi.mocked(shell.useShellStaffToken).mockReturnValue("staff-jwt");
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
@@ -47,7 +49,7 @@ describe("YouthRepublicHoursPage", () => {
     vi.mocked(youthRepublicFunctions.verifyHours).mockResolvedValue({ activityHoursId: "ah-1" });
     const user = userEvent.setup();
 
-    render(<YouthRepublicHoursPage />);
+    renderWithSwr(<YouthRepublicHoursPage />);
 
     expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Verify" }));
@@ -61,10 +63,10 @@ describe("YouthRepublicHoursPage", () => {
   });
 
   it("opens with the status filter on Pending Review and still shows a 'recorded' shift log", async () => {
-    render(<YouthRepublicHoursPage />);
+    renderWithSwr(<YouthRepublicHoursPage />);
 
     const filter = await screen.findByRole("combobox", { name: "Filter by status" });
-    expect(filter).toHaveValue("pending");
+    expect(filter).toHaveTextContent("Pending Review");
     // ah-1's verificationStatus is "recorded" — the Pending Review filter
     // must treat that as pending (regression: it previously matched only the
     // exact "recorded"/"pending" string and hid the row).
@@ -72,7 +74,7 @@ describe("YouthRepublicHoursPage", () => {
   });
 
   it("keeps the bulk-assign form hidden until its button is clicked, then shows it in a modal", async () => {
-    render(<YouthRepublicHoursPage />);
+    renderWithSwr(<YouthRepublicHoursPage />);
     await screen.findByText("Aisha Khan");
 
     expect(screen.queryByLabelText("Opportunity / drive")).not.toBeInTheDocument();
@@ -91,7 +93,7 @@ describe("YouthRepublicHoursPage", () => {
     );
     const user = userEvent.setup();
 
-    render(<YouthRepublicHoursPage />);
+    renderWithSwr(<YouthRepublicHoursPage />);
     await screen.findByText("Aisha Khan");
     await user.click(screen.getByRole("button", { name: "Verify" }));
 
@@ -103,7 +105,7 @@ describe("YouthRepublicHoursPage", () => {
   });
 
   it("loads participants for the selected opportunity so bulk-assign can offer them", async () => {
-    render(<YouthRepublicHoursPage />);
+    renderWithSwr(<YouthRepublicHoursPage />);
 
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Bulk-Assign Hours/ }));

@@ -7,6 +7,7 @@ import { VolunteerApplyPreview } from "@/components/youth-republic/VolunteerAppl
 import { CityCombobox } from "@/components/youth-republic/CityCombobox";
 import type { FormDefinition, FieldDef, FieldType } from "@/lib/forms";
 import { useToast } from "@/components/shell/ToastContext";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { useStaffClaims } from "@/components/shell/AppShell";
 
@@ -93,6 +94,7 @@ export function CreateOpportunityForm({
   initialOpportunity,
 }: CreateOpportunityFormProps) {
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const claims = useStaffClaims();
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
@@ -277,7 +279,15 @@ export function CreateOpportunityForm({
   async function handleToggleArchive() {
     if (!initialOpportunity?.id) return;
     const archiving = !initialOpportunity.deactivatedAt;
-    if (archiving && !confirm(`Archive "${name}"? It will be hidden from volunteers immediately.`)) {
+    if (
+      archiving &&
+      !(await confirm({
+        title: "Archive drive?",
+        message: `"${name}" will be hidden from volunteers immediately.`,
+        confirmLabel: "Archive",
+        tone: "danger",
+      }))
+    ) {
       return;
     }
     setSubmitting(true);
@@ -324,6 +334,31 @@ export function CreateOpportunityForm({
       return;
     }
 
+    // Publishing — creating a live drive or taking a draft live (not editing
+    // an already-live one, not saving a draft) — requires a complete Step 1
+    // and at least one Step 2 question.
+    if (!isDraft && !isLive) {
+      const lineCount = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean).length;
+      const step1Incomplete =
+        !name.trim() ||
+        (!isOnline && !location.trim()) ||
+        !capacity || Number(capacity) < 1 ||
+        !applicationOpenAt || !applicationDeadline || !activityStartAt ||
+        !description.trim() || !about.trim() ||
+        lineCount(dutiesStr) === 0 || lineCount(eligibilityStr) === 0 || lineCount(whatToBringStr) === 0;
+      if (step1Incomplete) {
+        setShowStep1Errors(true);
+        setError("Complete every field in Step 1 before publishing.");
+        setCurrentStep(1);
+        return;
+      }
+      if (fields.length === 0) {
+        setError("Add at least one application question in Step 2 before publishing.");
+        setCurrentStep(2);
+        return;
+      }
+    }
+
     setSubmitting(true);
     setBusyAction("save");
     try {
@@ -340,7 +375,8 @@ export function CreateOpportunityForm({
         applicationOpenAt: isoOrUndef(applicationOpenAt),
         applicationDeadline: isoOrUndef(applicationDeadline),
         activityStartAt: isoOrUndef(activityStartAt),
-        activityEndAt: isoOrUndef(activityEndAt),
+        // null (not undefined) so clearing the end date on an edit persists.
+        activityEndAt: activityEndAt ? new Date(activityEndAt).toISOString() : null,
         about: about.trim() || undefined,
         duties: duties.length > 0 ? duties : undefined,
         eligibility: eligibility.length > 0 ? eligibility : undefined,
@@ -394,7 +430,7 @@ export function CreateOpportunityForm({
   if (!applicationOpenAt) step1Errors.applicationOpenAt = "Pick a date.";
   if (!applicationDeadline) step1Errors.applicationDeadline = "Pick a date.";
   if (!activityStartAt) step1Errors.activityStartAt = "Pick a date.";
-  if (!activityEndAt) step1Errors.activityEndAt = "Pick a date.";
+  // End date is optional — a drive can run open-ended / "ongoing".
   if (!description.trim()) step1Errors.description = "Add a one-line summary.";
   if (!about.trim()) step1Errors.about = "Add the full details.";
   if (nonEmptyLines(dutiesStr) === 0) step1Errors.duties = "List at least one duty.";
@@ -656,7 +692,7 @@ export function CreateOpportunityForm({
               {fieldError("activityStartAt")}
             </div>
             <div className="form-group">
-              <label htmlFor="oppDriveEnd" className="form-label">Drive End Date</label>
+              <label htmlFor="oppDriveEnd" className="form-label">Drive End Date <span className="font-normal text-[var(--ink-3)]">(optional — leave blank for an ongoing drive)</span></label>
               <input
                 id="oppDriveEnd"
                 type="date"

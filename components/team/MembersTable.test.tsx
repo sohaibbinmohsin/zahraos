@@ -39,7 +39,8 @@ describe("MembersTable", () => {
   it("filters by status", async () => {
     const user = userEvent.setup();
     render(<MembersTable members={members} roles={roles} chapters={chapters} onEdit={vi.fn()} />);
-    await user.selectOptions(screen.getByLabelText("Status filter"), "invited");
+    await user.click(screen.getByLabelText("Status filter"));
+    await user.click(screen.getByRole("option", { name: "Pending Invitation" }));
     expect(screen.queryByText("Amina Malik")).not.toBeInTheDocument();
     expect(screen.getByText("Usman Ghani")).toBeInTheDocument();
   });

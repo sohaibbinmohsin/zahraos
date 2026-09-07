@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/shell/AppShell";
+import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
+import { SwrProvider } from "@/components/providers/SwrProvider";
+import { resolveInitialShell } from "@/lib/shellData.server";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -16,7 +19,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const { shell, selectedOrgId } = await resolveInitialShell();
+
   return (
     <html lang="en">
       <head>
@@ -32,7 +37,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <AppShell>{children}</AppShell>
+        <SwrProvider>
+          <ConfirmProvider>
+            <AppShell initialShell={shell} initialSelectedOrgId={selectedOrgId}>
+              {children}
+            </AppShell>
+          </ConfirmProvider>
+        </SwrProvider>
       </body>
     </html>
   );

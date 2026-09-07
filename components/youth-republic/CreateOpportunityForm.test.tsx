@@ -28,9 +28,11 @@ async function fillStep1(user: ReturnType<typeof userEvent.setup>) {
   const cap = screen.getByLabelText("Target Volunteer Capacity");
   await user.clear(cap);
   await user.type(cap, "25");
-  for (const label of ["Applications Open", "Application Deadline", "Drive Start Date", "Drive End Date"]) {
+  for (const label of ["Applications Open", "Application Deadline", "Drive Start Date"]) {
     await user.type(screen.getByLabelText(label), "2026-06-01");
   }
+  // End date is optional; fill it so edit/preview tests still exercise it.
+  await user.type(screen.getByLabelText(/Drive End Date/i), "2026-06-01");
   await user.type(screen.getByPlaceholderText(/Pack and distribute ration hampers/i), "One-line summary of the drive");
   await user.type(screen.getByPlaceholderText(/Shift times, meeting point/i), "Full details about the drive");
   await user.type(screen.getByLabelText(/Key Volunteer Duties/i), "Pack hampers");
@@ -76,6 +78,8 @@ describe("CreateOpportunityForm", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "environment");
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+    // Publishing requires at least one Step 2 question.
+    await user.click(screen.getByRole("button", { name: /\+ Add Question/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
     await user.click(screen.getByRole("button", { name: "Create drive" }));
 
@@ -393,6 +397,8 @@ describe("CreateOpportunityForm", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "health");
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+    // Publishing requires at least one Step 2 question.
+    await user.click(screen.getByRole("button", { name: /\+ Add Question/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
     await user.click(screen.getByRole("button", { name: "Create drive" }));
 
@@ -438,6 +444,8 @@ describe("CreateOpportunityForm", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "environment");
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+    // Publishing requires at least one Step 2 question.
+    await user.click(screen.getByRole("button", { name: /\+ Add Question/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
     await user.click(screen.getByRole("button", { name: "Create drive" }));
 

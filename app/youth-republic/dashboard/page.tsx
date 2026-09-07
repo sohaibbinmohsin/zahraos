@@ -1,20 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import useSWR from "swr";
 import Link from "next/link";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
 import {
   getKpiSummary,
   listOpportunities,
   listApplications,
   listActivityHours,
-  type KpiSummary,
   type OpportunitySummary,
   type ApplicationListRow,
   type ActivityListRow,
 } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg } from "@/components/shell/AppShell";
+import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { useToast } from "@/components/shell/ToastContext";
 import { DashboardSkeleton } from "@/components/ui/skeletons";
 
@@ -46,43 +43,37 @@ function timeAgo(iso: string): string {
 
 export default function YouthRepublicDashboardPage() {
   const organizationId = useSelectedOrg();
+  const staffToken = useShellStaffToken();
   const { showToast } = useToast();
-  const [kpis, setKpis] = useState<KpiSummary | null>(null);
-  const [opps, setOpps] = useState<OpportunitySummary[]>([]);
-  const [apps, setApps] = useState<ApplicationListRow[]>([]);
-  const [hours, setHours] = useState<ActivityListRow[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const loadData = useCallback(async () => {
-    if (!organizationId) return;
-    setLoading(true);
-    try {
-      const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-      const staffToken = await fetchStaffToken(sessionData.session.access_token);
-
+  const {
+    data,
+    isLoading: loading,
+    mutate: loadData,
+  } = useSWR(
+    organizationId && staffToken ? ["dashboard", organizationId] : null,
+    async () => {
       const [kpiRes, oppRes, appRes, hourRes] = await Promise.all([
-        getKpiSummary({ organizationId }, staffToken),
-        listOpportunities({ organizationId, limit: 100 }, staffToken),
-        listApplications({ organizationId, limit: 100 }, staffToken),
-        listActivityHours({ organizationId, limit: 100 }, staffToken),
+        getKpiSummary({ organizationId: organizationId! }, staffToken!),
+        listOpportunities({ organizationId: organizationId!, limit: 100 }, staffToken!),
+        listApplications({ organizationId: organizationId!, limit: 100 }, staffToken!),
+        listActivityHours({ organizationId: organizationId!, limit: 100 }, staffToken!),
       ]);
-      setKpis(kpiRes);
-      setOpps(oppRes.opportunities);
-      setApps(appRes.applications);
-      setHours(hourRes.activity);
-    } catch (err) {
-      console.error("Failed to load dashboard", err);
-      showToast(err instanceof Error ? `Dashboard load failed: ${err.message}` : "Dashboard load failed.");
-    } finally {
-      setLoading(false);
-    }
-  }, [organizationId, showToast]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+      return {
+        kpis: kpiRes,
+        opps: oppRes.opportunities,
+        apps: appRes.applications,
+        hours: hourRes.activity,
+      };
+    },
+    {
+      onError: (err) =>
+        showToast(err instanceof Error ? `Dashboard load failed: ${err.message}` : "Dashboard load failed."),
+    },
+  );
+  const kpis = data?.kpis ?? null;
+  const opps: OpportunitySummary[] = data?.opps ?? [];
+  const apps: ApplicationListRow[] = data?.apps ?? [];
+  const hours: ActivityListRow[] = data?.hours ?? [];
 
   if (!organizationId) {
     return (
@@ -178,9 +169,9 @@ export default function YouthRepublicDashboardPage() {
             ) : (
               capacityRows.map((r) => (
                 <div key={r.name}>
-                  <div className="flex justify-between text-[var(--text-sm)]">
-                    <span className="font-medium text-[var(--ink)]">{r.name}</span>
-                    <b className="font-mono text-xs">{r.filled} / {r.cap} ({r.percent}%)</b>
+                  <div className="flex justify-between items-baseline gap-2 text-[var(--text-sm)]">
+                    <span className="font-medium text-[var(--ink)] truncate min-w-0">{r.name}</span>
+                    <b className="font-mono text-xs shrink-0 whitespace-nowrap">{r.filled} / {r.cap} ({r.percent}%)</b>
                   </div>
                   <div className="meter-bar">
                     <div className="meter-fill" style={{ width: `${r.percent}%` }} />
@@ -205,9 +196,9 @@ export default function YouthRepublicDashboardPage() {
               recentApps.map((a) => (
                 <div
                   key={a.id}
-                  className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--bg-page)] border border-[var(--line-subtle)]"
+                  className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--bg-page)] border border-[var(--line-subtle)] flex-wrap"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="font-semibold text-[var(--text-sm)] text-[var(--ink)] truncate">
                       {a.applicantName ?? a.volunteerName}
                     </div>

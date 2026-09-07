@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { removeStaffMember, updateStaffAccess } from "@/lib/platformFunctions";
 import { effectivePermissionTags } from "@/lib/capabilityMap";
 import { RoleScopeRepeater, rowsToAssignmentPayload, type RoleScopeRow } from "./RoleScopeRepeater";
@@ -15,6 +16,7 @@ function initials(name: string) {
 export function EditMemberDrawer({ memberId, onClose }: { memberId: string | null; onClose: () => void }) {
   const { organizationId, accessToken, roles, chapters, members, refresh } = useTeamAccess();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const member = members.find((m) => m.id === memberId) ?? null;
   const [rows, setRows] = useState<RoleScopeRow[]>([]);
   const [status, setStatus] = useState<"active" | "invited" | "deactivated">("active");
@@ -62,7 +64,13 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
 
   async function remove() {
     if (!member || !organizationId || !accessToken) return;
-    if (!window.confirm(`Remove ${member.fullName} from the team?`)) return;
+    const ok = await confirm({
+      title: "Remove team member?",
+      message: `${member.fullName} will lose access to this organization's console.`,
+      confirmLabel: "Remove",
+      tone: "danger",
+    });
+    if (!ok) return;
     setBusy("remove");
     try {
       await removeStaffMember({ staffId: member.id, organizationId }, accessToken);

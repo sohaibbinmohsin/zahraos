@@ -109,10 +109,18 @@ function mockSupabase(options: {
 }
 
 describe("AppShell", () => {
+  // Sign-out leaves via window.location, which jsdom does not implement.
+  const assignSpy = vi.fn();
+
   beforeEach(() => {
     vi.mocked(fetchStaffToken).mockReset();
     routerPush.mockReset();
     routerRefresh.mockReset();
+    assignSpy.mockReset();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { ...window.location, pathname: "/youth-republic/dashboard", assign: assignSpy },
+    });
   });
 
   it("renders children, the staff's name, and an Organizations link for a platform_owner", async () => {
@@ -283,7 +291,7 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Organization" })).toBeInTheDocument();
   });
 
-  it("signs the staff out, clears the shell's claims, and redirects to login", async () => {
+  it("signs the staff out and leaves for /login via a document navigation", async () => {
     const supabaseClient = mockSupabase({
       staffRow: { full_name: "Owner Person", platform_owner: true },
       orgTierRows: [],
@@ -306,13 +314,18 @@ describe("AppShell", () => {
 
     // The separate header button is removed; signing out happens via the user profile dropdown
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+    // Sign-out now asks for confirmation; without a ConfirmProvider the hook
+    // falls back to window.confirm.
+    window.confirm = vi.fn().mockReturnValue(true);
     await user.click(screen.getByLabelText("User Profile Menu"));
     await user.click(screen.getByRole("button", { name: "Sign Out" }));
 
-    expect(supabaseClient.auth.signOut).toHaveBeenCalled();
-    await waitFor(() => expect(screen.queryByText("Owner Person")).not.toBeInTheDocument());
-    expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
-    expect(routerPush).toHaveBeenCalledWith("/login");
+    await waitFor(() => expect(supabaseClient.auth.signOut).toHaveBeenCalled());
+    // The shell deliberately does NOT clear its state in place — doing so
+    // repainted the current page with no org for a beat. It leaves via the
+    // browser instead, which tears the whole document (and caches) down.
+    await waitFor(() => expect(assignSpy).toHaveBeenCalledWith("/login"));
+    expect(routerPush).not.toHaveBeenCalledWith("/login");
   });
 
   it("displays the user's email instead of staff ID in the profile dropdown menu", async () => {

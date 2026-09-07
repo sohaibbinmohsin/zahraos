@@ -6,21 +6,19 @@ import { useRouter, usePathname } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "@/lib/staffToken";
 import {
-  resolveOrgSwitcherOptions,
   pickInitialOrgId,
   readStoredOrgId,
   writeStoredOrgId,
-  readStoredNavHint,
-  writeStoredNavHint,
-  readStoredBrandHint,
-  writeStoredBrandHint,
+  clearStoredOrgId,
 } from "@/lib/selectedOrg";
+import { loadShellData, type ShellData, type ShellSession } from "@/lib/shellData";
 import { MODULE_REGISTRY } from "@/registry/modules";
 import { isDisplayableLogo } from "@/lib/orgLogo";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
 import { ChangePasswordModal } from "./ChangePasswordModal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { ShellContentSkeleton } from "@/components/ui/skeletons";
 
 type ShellLoadStatus = "loading" | "ready" | "error";
@@ -33,6 +31,9 @@ interface ShellContextValue {
   orgTier: string | null;
   isOrgAdminOrAbove: boolean;
   accessToken: string | null;
+  /** Staff JWT for the youth-republic edge functions. Resolved with the
+   *  shell, so pages don't each re-mint one before their first fetch. */
+  staffToken: string | null;
   loading: boolean;
 }
 
@@ -42,6 +43,7 @@ const ShellContext = createContext<ShellContextValue>({
   orgTier: null,
   isOrgAdminOrAbove: false,
   accessToken: null,
+  staffToken: null,
   loading: true,
 });
 
@@ -61,12 +63,29 @@ export function useIsOrgAdminOrAbove() {
   return useContext(ShellContext).isOrgAdminOrAbove;
 }
 
+export function useShellStaffToken() {
+  return useContext(ShellContext).staffToken;
+}
+
 export function useShellAccessToken() {
   return useContext(ShellContext).accessToken;
 }
 
 export function useShellLoading() {
   return useContext(ShellContext).loading;
+}
+
+/**
+ * Sign-out leaves via a document navigation rather than the router. Tearing
+ * the page down means no component ever renders against half-cleared shell
+ * state, and the SWR cache dies with it. Guarded so a stray SIGNED_OUT while
+ * already on an auth page can't turn into a reload loop.
+ */
+function leaveForLogin() {
+  if (typeof window === "undefined") return;
+  const { pathname } = window.location;
+  if (pathname.startsWith("/login") || pathname.startsWith("/set-password")) return;
+  window.location.assign("/login");
 }
 
 export function getRoleRank(roleName: string): number {
@@ -90,8 +109,22 @@ export function formatRoleTitle(roleName: string): string {
     .join(" ");
 }
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  initialShell = null,
+  initialSelectedOrgId = null,
+}: {
+  children: React.ReactNode;
+  /**
+   * Shell resolved by the root layout during SSR. When present the shell
+   * paints complete on the very first frame and skips its own initial load —
+   * no blank sidebar or header while five round-trips resolve.
+   */
+  initialShell?: ShellData | null;
+  initialSelectedOrgId?: string | null;
+}) {
   const router = useRouter();
+  const confirm = useConfirm();
   let pathname = "";
   try {
     pathname = usePathname() ?? "";
@@ -100,26 +133,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
   const isGovernanceArea = pathname.startsWith("/team") || pathname.startsWith("/organization");
 
-  const [fullName, setFullName] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
-  const [platformOwner, setPlatformOwner] = useState(false);
-  const [claims, setClaims] = useState<StaffTokenClaims | null>(null);
-  const [orgNames, setOrgNames] = useState<Record<string, string>>({});
-  const [orgBrands, setOrgBrands] = useState<Record<string, { logoUrl: string | null; brandColor: string | null }>>({});
-  const [orgTiers, setOrgTiers] = useState<Record<string, string>>({});
-  const [assignedRolesByOrg, setAssignedRolesByOrg] = useState<Record<string, string[]>>({});
-  const [availableOrgIds, setAvailableOrgIds] = useState<string[]>([]);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
-  const [status, setStatus] = useState<ShellLoadStatus>("loading");
+  const [fullName, setFullName] = useState<string | null>(initialShell?.fullName ?? null);
+  const [email, setEmail] = useState<string | null>(initialShell?.email ?? null);
+  const [platformOwner, setPlatformOwner] = useState(initialShell?.platformOwner ?? false);
+  const [claims, setClaims] = useState<StaffTokenClaims | null>(initialShell?.claims ?? null);
+  const [orgNames, setOrgNames] = useState<Record<string, string>>(initialShell?.orgNames ?? {});
+  const [orgBrands, setOrgBrands] = useState<Record<string, { logoUrl: string | null; brandColor: string | null }>>(
+    initialShell?.orgBrands ?? {},
+  );
+  const [orgTiers, setOrgTiers] = useState<Record<string, string>>(initialShell?.orgTiers ?? {});
+  const [assignedRolesByOrg, setAssignedRolesByOrg] = useState<Record<string, string[]>>(
+    initialShell?.assignedRolesByOrg ?? {},
+  );
+  const [availableOrgIds, setAvailableOrgIds] = useState<string[]>(initialShell?.availableOrgIds ?? []);
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(
+    initialShell ? pickInitialOrgId(initialShell.availableOrgIds, initialSelectedOrgId) : null,
+  );
+  const [status, setStatus] = useState<ShellLoadStatus>(initialShell ? "ready" : "loading");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [accessToken, setAccessToken] = useState<string | null>(null);
-
-  // Read once at mount from the last ready session, so the sidebar's
-  // governance groups stay fixed across a reload instead of vanishing until
-  // claims re-resolve. Only consulted while status !== "ready".
-  const [navHint] = useState(() => readStoredNavHint());
-  const [brandHint] = useState(() => readStoredBrandHint());
+  const [staffToken, setStaffToken] = useState<string | null>(initialShell?.staffToken ?? null);
 
   // UI states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -132,6 +166,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [pendingHoursCount, setPendingHoursCount] = useState<number | null>(null);
   const [activeTeamCount, setActiveTeamCount] = useState<number | null>(null);
 
+  function applyShellData(shell: ShellData) {
+    setStaffToken(shell.staffToken);
+    setClaims(shell.claims);
+    setPlatformOwner(shell.platformOwner);
+    setFullName(shell.fullName);
+    setEmail(shell.email);
+    setOrgTiers(shell.orgTiers);
+    setAssignedRolesByOrg(shell.assignedRolesByOrg);
+    setAvailableOrgIds(shell.availableOrgIds);
+    setOrgNames(shell.orgNames);
+    setOrgBrands(shell.orgBrands);
+    setSelectedOrgId((current) => pickInitialOrgId(shell.availableOrgIds, current ?? readStoredOrgId()));
+  }
+
   function resetShellState() {
     setFullName(null);
     setEmail(null);
@@ -143,8 +191,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setAvailableOrgIds([]);
     setSelectedOrgId(null);
     setAccessToken(null);
-    writeStoredNavHint({ governance: false, platform: false });
-    writeStoredBrandHint({ label: null, logoUrl: null, brandColor: null });
+    setStaffToken(null);
+    clearStoredOrgId();
     setUserDropdownOpen(false);
     setPendingApplicationsCount(null);
     setPendingHoursCount(null);
@@ -154,119 +202,42 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = getBrowserSupabaseClient();
     let cancelled = false;
+    // The root layout already resolved this session server-side, so the first
+    // session we see needs no work. Later auth changes reload normally.
+    let skipFirst = Boolean(initialShell) && reloadToken === 0;
+    // init() and onAuthStateChange's INITIAL_SESSION both hand us the same
+    // session; resolving once per access token keeps that to one fetch.
+    let loadedForToken: string | null = null;
 
     function clearClaims() {
       if (cancelled) return;
       resetShellState();
     }
 
-    async function loadFromSession(session: { access_token: string; user?: { id?: string; email?: string } } | null) {
+    async function loadFromSession(session: ShellSession | null) {
       if (!session) {
         clearClaims();
         if (!cancelled) setStatus("ready");
         return;
       }
 
+      // getSession() is a local cookie read, so this is free and lets pages
+      // start their own fetches without waiting on the shell.
+      if (!cancelled) setAccessToken(session.access_token);
+
+      if (skipFirst) {
+        skipFirst = false;
+        loadedForToken = session.access_token;
+        return;
+      }
+      if (loadedForToken === session.access_token) return;
+      loadedForToken = session.access_token;
+
       try {
-        const authUserId = session.user?.id;
-        const userEmail = session.user?.email ?? null;
-
-        const staffToken = await fetchStaffToken(session.access_token);
-        const decoded = decodeStaffTokenClaims(staffToken);
+        const shell = await loadShellData(supabase, session);
         if (cancelled) return;
-        setClaims(decoded);
-        setPlatformOwner(decoded.platformOwner);
-
-        const { data: staffRow, error: staffError } = await supabase
-          .from("staff")
-          .select("full_name, platform_owner, email")
-          .eq("auth_user_id", authUserId)
-          .single();
-        if (staffError) throw staffError;
-        if (cancelled) return;
-        if (staffRow) {
-          setFullName(staffRow.full_name);
-          setEmail(staffRow.email ?? userEmail);
-        } else {
-          setEmail(userEmail);
-        }
-
-        const { data: orgTierRows, error: orgTierError } = await supabase
-          .from("staff_org_roles")
-          .select("organization_id, org_tier")
-          .eq("staff_id", decoded.staffId);
-        if (orgTierError) throw orgTierError;
-        if (cancelled) return;
-        const tiersByOrg: Record<string, string> = {};
-        for (const row of orgTierRows ?? []) {
-          tiersByOrg[row.organization_id] = row.org_tier;
-        }
-        setOrgTiers(tiersByOrg);
-
-        try {
-          const { data: userAssignments } = await supabase
-            .from("staff_role_assignments")
-            .select("organization_id, roles(name)")
-            .eq("staff_id", decoded.staffId);
-          if (userAssignments && !cancelled) {
-            const map: Record<string, string[]> = {};
-            for (const a of userAssignments as any[]) {
-              const rName = Array.isArray(a.roles) ? a.roles[0]?.name : a.roles?.name;
-              if (rName && a.organization_id) {
-                const list = map[a.organization_id] ?? [];
-                if (!list.includes(rName)) list.push(rName);
-                map[a.organization_id] = list;
-              }
-            }
-            setAssignedRolesByOrg(map);
-          }
-        } catch {
-          // Gracefully continue if role assignments join is not mock-configured
-        }
-
-        let orgIds: string[];
-        if (decoded.platformOwner) {
-          const { data: allOrgs, error: allOrgsError } = await supabase
-            .from("organizations")
-            .select("id, name, logo_url, brand_color");
-          if (allOrgsError) throw allOrgsError;
-          if (cancelled) return;
-          orgIds = (allOrgs ?? []).map((org) => org.id as string);
-          const names: Record<string, string> = {};
-          const brands: Record<string, { logoUrl: string | null; brandColor: string | null }> = {};
-          for (const org of allOrgs ?? []) {
-            names[org.id] = org.name;
-            brands[org.id] = { logoUrl: (org.logo_url as string) ?? null, brandColor: (org.brand_color as string) ?? null };
-          }
-          setOrgNames(names);
-          setOrgBrands(brands);
-        } else {
-          orgIds = resolveOrgSwitcherOptions(decoded.orgRoles, decoded.moduleAccess);
-          if (orgIds.length > 0) {
-            const { data: organizations, error: organizationsError } = await supabase
-              .from("organizations")
-              .select("id, name, logo_url, brand_color")
-              .in("id", orgIds);
-            if (organizationsError) throw organizationsError;
-            if (cancelled) return;
-            const names: Record<string, string> = {};
-            const brands: Record<string, { logoUrl: string | null; brandColor: string | null }> = {};
-            for (const org of organizations ?? []) {
-              names[org.id] = org.name;
-              brands[org.id] = { logoUrl: (org.logo_url as string) ?? null, brandColor: (org.brand_color as string) ?? null };
-            }
-            setOrgNames(names);
-            setOrgBrands(brands);
-          }
-        }
-        setAvailableOrgIds(orgIds);
-        const initialOrgId = pickInitialOrgId(orgIds, readStoredOrgId());
-        setSelectedOrgId(initialOrgId);
-
-        if (!cancelled) {
-          setStatus("ready");
-          setAccessToken(session.access_token);
-        }
+        applyShellData(shell);
+        setStatus("ready");
       } catch (err) {
         if (cancelled) return;
         setLoadError(err instanceof Error ? err.message : "Unknown error");
@@ -291,8 +262,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT") {
-        clearClaims();
-        setStatus("ready");
+        // Covers this tab and a sign-out in another one. Same reasoning as
+        // handleSignOut: navigate out rather than render a half-cleared shell.
+        leaveForLogin();
         return;
       }
       if (session) {
@@ -313,9 +285,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     const intervalId = setInterval(async () => {
       try {
-        const staffToken = await fetchStaffToken(accessToken);
-        const decoded = decodeStaffTokenClaims(staffToken);
+        const refreshed = await fetchStaffToken(accessToken);
+        const decoded = decodeStaffTokenClaims(refreshed);
         if (cancelled) return;
+        setStaffToken(refreshed);
         setClaims(decoded);
         setPlatformOwner(decoded.platformOwner);
       } catch (err) {
@@ -438,11 +411,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   async function handleSignOut() {
+    const ok = await confirm({
+      title: "Sign out?",
+      message: "You'll need to sign in again to get back into the console.",
+      confirmLabel: "Sign out",
+    });
+    if (!ok) return;
     const supabase = getBrowserSupabaseClient();
-    await supabase.auth.signOut();
-    resetShellState();
-    router.push("/login");
-    router.refresh();
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      // Leave via the browser, not the router. Clearing shell state in place
+      // would repaint the current page with no org ("Select an organization…")
+      // and a stripped sidebar for a beat before the route changed. A document
+      // navigation skips that entirely and drops every in-memory cache with it.
+      leaveForLogin();
+    }
   }
 
   function handleRetry() {
@@ -453,28 +437,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
 
-  // While the shell is still resolving, fall back to the brand remembered
-  // from the last ready session so the sidebar logo/title don't blink out
-  // and get replaced by the generic "Rizq" mark on every reload.
-  const brandFallback = status === "ready" ? null : brandHint;
-
-  const brandLabel =
-    (selectedOrgId ? orgNames[selectedOrgId] : null) || brandFallback?.label || "Rizq";
-  const rawBrandLogoUrl =
-    (selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null) ?? brandFallback?.logoUrl ?? null;
+  // Resolved server-side, so these are correct on the very first render —
+  // no fallback-then-swap flicker on the sidebar logo/title.
+  const brandLabel = (selectedOrgId ? orgNames[selectedOrgId] : null) || "Rizq";
+  const rawBrandLogoUrl = selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null;
   const brandLogoUrl = isDisplayableLogo(rawBrandLogoUrl) ? rawBrandLogoUrl : null;
-  const brandColor =
-    (selectedOrgId ? orgBrands[selectedOrgId]?.brandColor : null) || brandFallback?.brandColor || "#1F2430";
+  const brandColor = (selectedOrgId ? orgBrands[selectedOrgId]?.brandColor : null) || "#1F2430";
   const brandInitials = brandLabel.trim().split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase() || "R";
-
-  useEffect(() => {
-    if (status !== "ready" || !selectedOrgId) return;
-    writeStoredBrandHint({
-      label: orgNames[selectedOrgId] ?? null,
-      logoUrl: orgBrands[selectedOrgId]?.logoUrl ?? null,
-      brandColor: orgBrands[selectedOrgId]?.brandColor ?? null,
-    });
-  }, [status, selectedOrgId, orgNames, orgBrands]);
 
   const userRoles = useMemo(() => {
     const rawRoles: string[] = [];
@@ -526,23 +495,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ? MODULE_REGISTRY.filter((m) => claims?.moduleAccess.some((a) => a.organizationId === selectedOrgId && a.module === m.key))
     : [];
 
-  // Sidebar governance groups: once the account is ready these follow the real
-  // claims; while it's still loading they fall back to the remembered value so
-  // the sidebar's item set stays fixed across a reload.
-  const isReady = status === "ready";
-  const showGovernanceNav = isReady ? (Boolean(claims) && isOrgAdminOrAbove) : navHint.governance;
-  const showOrganizationsNav = isReady ? (Boolean(claims) && platformOwner) : navHint.platform;
+  // Claims arrive with the server-rendered HTML, so these are already correct
+  // on the first paint — no remembered-value fallback needed.
+  const showGovernanceNav = Boolean(claims) && isOrgAdminOrAbove;
+  const showOrganizationsNav = Boolean(claims) && platformOwner;
 
-  useEffect(() => {
-    if (status !== "ready") return;
-    writeStoredNavHint({
-      governance: Boolean(claims) && isOrgAdminOrAbove,
-      platform: Boolean(claims) && platformOwner,
-    });
-  }, [status, claims, isOrgAdminOrAbove, platformOwner]);
+  const displayName = fullName;
+  const displayRole = primaryRole;
 
-  const initials = fullName
-    ? fullName
+  const initials = displayName
+    ? displayName
         .split(" ")
         .map((p) => p[0])
         .join("")
@@ -554,14 +516,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (isAuthPage) {
     return (
-      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, loading: status === "loading" }}>
+      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, staffToken, loading: status === "loading" }}>
         <ToastProvider>{children}</ToastProvider>
       </ShellContext.Provider>
     );
   }
 
   return (
-    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, loading: status === "loading" }}>
+    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, staffToken, loading: status === "loading" }}>
       <ToastProvider>
         <div className="app-shell">
           <div
@@ -582,7 +544,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               }
             }}
           >
-            <div>
+            <div className="sidebar-scroll-region">
               <div className="sidebar-header">
                 <div
                   className="sidebar-brand-left"
@@ -651,7 +613,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   className="sidebar-toggle-btn"
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  onClick={() => {
+                    // On mobile the sidebar is a drawer — the toggle dismisses
+                    // it. On desktop it collapses to the icon rail.
+                    const isMobile =
+                      typeof window !== "undefined" &&
+                      typeof window.matchMedia === "function" &&
+                      window.matchMedia("(max-width: 992px)").matches;
+                    if (isMobile) {
+                      setMobileSidebarOpen(false);
+                    } else {
+                      setSidebarCollapsed((v) => !v);
+                    }
+                  }}
                   title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                   aria-label="Toggle Sidebar"
                 >
@@ -840,6 +814,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     src="/assets/mohsin-project-white-bird.png"
                     alt="The Mohsin Project"
                     className="mohsin-white-bird-img"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               </div>
@@ -858,13 +834,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     className="mobile-menu-btn"
-                    onClick={() => setMobileSidebarOpen(true)}
+                    onClick={() => {
+                      setSidebarCollapsed(false);
+                      setMobileSidebarOpen(true);
+                    }}
                     aria-label="Open navigation menu"
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="3" y1="12" x2="21" y2="12" />
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <line x1="3" y1="18" x2="21" y2="18" />
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect width="18" height="18" x="3" y="3" rx="3" />
+                      <path d="M9 3v18" />
                     </svg>
                   </button>
 
@@ -906,9 +894,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   >
                     <div className="avatar">{initials}</div>
                     <div className="user-text-info">
-                      {fullName && <div style={{ fontWeight: 600, lineHeight: 1.1 }}>{fullName}</div>}
+                      {displayName && <div style={{ fontWeight: 600, lineHeight: 1.1 }}>{displayName}</div>}
                       <div style={{ fontSize: "var(--text-2xs)", color: "var(--ink-2)", fontWeight: 500 }}>
-                        {primaryRole}
+                        {displayRole}
                       </div>
                     </div>
                   </div>
@@ -923,7 +911,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         <div className="avatar-large">{initials}</div>
                         <div style={{ overflow: "hidden" }}>
                           <div style={{ fontWeight: 600, fontSize: "var(--text-base)", color: "var(--ink)", lineHeight: 1.2 }}>
-                            {fullName ?? "Admin Staff"}
+                            {displayName ?? "Admin Staff"}
                           </div>
                           {email && (
                             <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
