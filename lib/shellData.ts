@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "./staffToken";
-import { resolveOrgSwitcherOptions } from "./selectedOrg";
+import { resolveOrgSwitcherOptions, pickInitialOrgId } from "./selectedOrg";
+import { MODULE_REGISTRY } from "@/registry/modules";
 
 export interface OrgBrand {
   logoUrl: string | null;
@@ -115,4 +116,23 @@ export async function loadShellData(
     orgNames: names,
     orgBrands: brands,
   };
+}
+
+/**
+ * Where `/` should send an authenticated user: the Youth Republic dashboard
+ * when that module is enabled for their active org, otherwise the
+ * Organization page under Team & Governance. `null` means "no landing" —
+ * the staff has no org/module access at all, so `/` shows its own message.
+ */
+export function landingPathFor(shell: ShellData | null, cookieOrgId: string | null): string | null {
+  if (!shell || shell.availableOrgIds.length === 0) return null;
+  const orgId = pickInitialOrgId(shell.availableOrgIds, cookieOrgId);
+  const hasYouthRepublic = shell.claims.moduleAccess.some(
+    (m) => m.organizationId === orgId && m.module === "youth-republic",
+  );
+  if (hasYouthRepublic) {
+    const yr = MODULE_REGISTRY.find((m) => m.key === "youth-republic");
+    return `${yr?.route ?? "/youth-republic"}/dashboard`;
+  }
+  return "/organization";
 }
