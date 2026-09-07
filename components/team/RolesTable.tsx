@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CAPABILITY_KEYS, CAPABILITY_META, permissionKeysToGrid, type CapabilityLevel } from "@/lib/capabilityMap";
 import type { TeamRole } from "./TeamAccessProvider";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 function levelBadge(level: CapabilityLevel) {
   if (level === "granted") return <span className="badge badge-pos">Granted</span>;
@@ -11,7 +12,7 @@ function levelBadge(level: CapabilityLevel) {
 }
 
 export function RolesTable({
-  roles, assignmentCountByRoleId, onView, onEdit, onClone, onDelete,
+  roles, assignmentCountByRoleId, onView, onEdit, onClone, onDelete, deletingRoleId = null,
 }: {
   roles: TeamRole[];
   assignmentCountByRoleId: Map<string, number>;
@@ -19,6 +20,7 @@ export function RolesTable({
   onEdit: (roleId: string) => void;
   onClone: (roleId: string) => void;
   onDelete: (roleId: string) => void;
+  deletingRoleId?: string | null;
 }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -85,15 +87,16 @@ export function RolesTable({
                           <>
                             <button type="button" className="btn btn-secondary btn-xs" onClick={() => onEdit(r.id)}>Edit</button>
                             <button type="button" className="btn btn-secondary btn-xs" onClick={() => onClone(r.id)}>Clone</button>
-                            <button
-                              type="button"
+                            <LoadingButton
                               className="btn btn-danger btn-xs"
-                              disabled={count > 0}
+                              disabled={count > 0 || deletingRoleId !== null}
+                              loading={deletingRoleId === r.id}
+                              loadingText="Deleting…"
                               title={count > 0 ? "Reassign staff before deleting this role" : undefined}
                               onClick={() => onDelete(r.id)}
                             >
                               Delete
-                            </button>
+                            </LoadingButton>
                           </>
                         )}
                       </div>

@@ -5,6 +5,7 @@ import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { inviteStaffMember } from "@/lib/platformFunctions";
 import { RoleScopeRepeater, makeRoleScopeRow, rowsToAssignmentPayload, type RoleScopeRow } from "./RoleScopeRepeater";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { organizationId, accessToken, roles, chapters, refresh } = useTeamAccess();
@@ -119,10 +120,10 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
         </div>
 
         <div className="drawer-footer">
-          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={submit}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={busy}>Cancel</button>
+          <LoadingButton className="btn btn-primary btn-sm" disabled={busy} loading={busy} loadingText="Sending invitation…" onClick={submit}>
             Send Official Invitation →
-          </button>
+          </LoadingButton>
         </div>
       </div>
     </>

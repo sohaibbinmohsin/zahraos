@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useToast } from "@/components/shell/ToastContext";
 import { createChapter, updateChapter, type ChapterRow } from "@/lib/platformFunctions";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export function ChaptersPanel({
   organizationId, accessToken, chapters, onChanged,
@@ -15,7 +16,7 @@ export function ChaptersPanel({
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"add" | string | null>(null);
 
   function closeForm() {
     setShowForm(false);
@@ -24,8 +25,8 @@ export function ChaptersPanel({
   }
 
   async function add() {
-    if (!name.trim() || busy) return;
-    setBusy(true);
+    if (!name.trim() || busy !== null) return;
+    setBusy("add");
     try {
       await createChapter({ organizationId, name: name.trim(), ...(city.trim() ? { city: city.trim() } : {}) }, accessToken);
       showToast(`Added chapter "${name.trim()}".`);
@@ -34,18 +35,18 @@ export function ChaptersPanel({
     } catch (err) {
       showToast(err instanceof Error && err.message === "chapter_name_taken"
         ? "A chapter with that name already exists." : "Failed to add chapter.");
-    } finally { setBusy(false); }
+    } finally { setBusy(null); }
   }
 
   async function toggle(chapterId: string, current: string) {
-    if (busy) return;
-    setBusy(true);
+    if (busy !== null) return;
+    setBusy(chapterId);
     try {
       await updateChapter({ chapterId, status: current === "active" ? "inactive" : "active" }, accessToken);
       onChanged();
     } catch (err) {
       showToast(err instanceof Error ? err.message : "Failed to update chapter.");
-    } finally { setBusy(false); }
+    } finally { setBusy(null); }
   }
 
   return (
@@ -76,8 +77,8 @@ export function ChaptersPanel({
             <input id="chapter-city" aria-label="City" className="form-input" placeholder="Lahore"
               value={city} onChange={(e) => setCity(e.target.value)} />
           </div>
-          <button type="button" className="btn btn-primary btn-sm" disabled={busy || !name.trim()} onClick={add}>Add</button>
-          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={closeForm}>Cancel</button>
+          <LoadingButton className="btn btn-primary btn-sm" disabled={busy !== null || !name.trim()} loading={busy === "add"} loadingText="Adding…" onClick={add}>Add</LoadingButton>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy !== null} onClick={closeForm}>Cancel</button>
         </div>
       )}
 
@@ -93,9 +94,9 @@ export function ChaptersPanel({
                 <td>{c.city ?? "—"}</td>
                 <td><span className={`badge ${c.status === "active" ? "badge-pos" : "badge-neg"}`}>{c.status === "active" ? "Active" : "Inactive"}</span></td>
                 <td style={{ textAlign: "right" }}>
-                  <button type="button" className="btn btn-secondary btn-xs" disabled={busy} onClick={() => toggle(c.id, c.status)}>
+                  <LoadingButton className="btn btn-secondary btn-xs" disabled={busy !== null} loading={busy === c.id} loadingText={c.status === "active" ? "Deactivating…" : "Reactivating…"} onClick={() => toggle(c.id, c.status)}>
                     {c.status === "active" ? "Deactivate" : "Reactivate"}
-                  </button>
+                  </LoadingButton>
                 </td>
               </tr>
             ))}

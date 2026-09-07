@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTeamAccess } from "@/components/team/TeamAccessProvider";
 import { useTeamHeader } from "@/components/team/teamHeader";
 import { useTeamDrawers } from "@/components/team/TeamDrawers";
@@ -14,6 +14,7 @@ export default function TeamRolesPage() {
   const { setAction } = useTeamHeader();
   const { openCreateRole, openEditRole, openCloneRole } = useTeamDrawers();
   const { showToast } = useToast();
+  const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
 
   useEffect(() => {
     setAction({ label: "Create Custom Role", onClick: openCreateRole, variant: "primary" });
@@ -34,6 +35,7 @@ export default function TeamRolesPage() {
     if (!accessToken) return;
     const role = roles.find((r) => r.id === roleId);
     if (!role || !window.confirm(`Permanently delete custom role "${role.name}"?`)) return;
+    setDeletingRoleId(roleId);
     try {
       await deleteCustomRole({ roleId }, accessToken);
       await refresh();
@@ -42,6 +44,8 @@ export default function TeamRolesPage() {
       showToast(err instanceof Error && err.message === "role_in_use"
         ? `Cannot delete "${role.name}" — it is still assigned. Reassign those members first.`
         : "Failed to delete role.");
+    } finally {
+      setDeletingRoleId(null);
     }
   }
 
@@ -64,6 +68,7 @@ export default function TeamRolesPage() {
         onEdit={(id) => openEditRole(id, false)}
         onClone={openCloneRole}
         onDelete={onDelete}
+        deletingRoleId={deletingRoleId}
       />
     </div>
   );

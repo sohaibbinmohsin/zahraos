@@ -13,6 +13,7 @@ import {
 import { useSelectedOrg, useShellAccessToken } from "@/components/shell/AppShell";
 import { CreateOpportunityForm } from "@/components/youth-republic/CreateOpportunityForm";
 import { useToast } from "@/components/shell/ToastContext";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 type EditTarget = NonNullable<
   React.ComponentProps<typeof CreateOpportunityForm>["initialOpportunity"]
@@ -42,11 +43,11 @@ export default function YouthRepublicOpportunitiesPage() {
   const [opportunities, setOpportunities] = useState<OpportunitySummary[]>([]);
   const [staffToken, setStaffToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busy, setBusy] = useState<{ id: string; action: "archive" | "delete" } | null>(null);
 
   const [isCreating, setIsCreating] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
-  const [loadingEdit, setLoadingEdit] = useState(false);
+  const [openingEditorId, setOpeningEditorId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!organizationId) return;
@@ -73,7 +74,7 @@ export default function YouthRepublicOpportunitiesPage() {
 
   async function openEditor(oppId: string) {
     if (!staffToken) return;
-    setLoadingEdit(true);
+    setOpeningEditorId(oppId);
     try {
       const d = await getOpportunityDetail({ opportunityId: oppId }, staffToken);
       const summary = opportunities.find((o) => o.id === oppId);
@@ -101,7 +102,7 @@ export default function YouthRepublicOpportunitiesPage() {
       console.error(err);
       showToast(err instanceof Error ? `Could not open opportunity: ${err.message}` : "Could not open opportunity.");
     } finally {
-      setLoadingEdit(false);
+      setOpeningEditorId(null);
     }
   }
 
@@ -109,7 +110,7 @@ export default function YouthRepublicOpportunitiesPage() {
     if (!organizationId || !staffToken) return;
     const archiving = !opp.deactivatedAt;
     if (archiving && !confirm(`Archive "${opp.name}"? It will be hidden from volunteers immediately.`)) return;
-    setBusyId(opp.id);
+    setBusy({ id: opp.id, action: "archive" });
     try {
       await updateOpportunity(
         { opportunityId: opp.id, organizationId, deactivatedAt: archiving ? new Date().toISOString() : null },
@@ -121,7 +122,7 @@ export default function YouthRepublicOpportunitiesPage() {
       console.error(err);
       showToast(err instanceof Error ? `Failed: ${err.message}` : "Action failed.");
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   }
 
@@ -130,7 +131,7 @@ export default function YouthRepublicOpportunitiesPage() {
     if (!confirm(`Are you sure you want to permanently delete "${opp.name}"? This action cannot be undone.`)) {
       return;
     }
-    setBusyId(opp.id);
+    setBusy({ id: opp.id, action: "delete" });
     try {
       await updateOpportunity(
         { opportunityId: opp.id, organizationId, hardDelete: true },
@@ -142,7 +143,7 @@ export default function YouthRepublicOpportunitiesPage() {
       console.error(err);
       showToast(err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete opportunity.");
     } finally {
-      setBusyId(null);
+      setBusy(null);
     }
   }
 
@@ -274,29 +275,32 @@ export default function YouthRepublicOpportunitiesPage() {
 
                   {archived ? (
                     <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
-                      <button
-                        type="button"
+                      <LoadingButton
                         className="btn btn-secondary btn-xs"
-                        disabled={busyId === opp.id}
+                        disabled={busy?.id === opp.id}
+                        loading={busy?.id === opp.id && busy.action === "archive"}
+                        loadingText="Restoring…"
                         onClick={() => toggleDeactivated(opp)}
                       >
-                        {busyId === opp.id ? "…" : "Restore"}
-                      </button>
-                      <button
-                        type="button"
+                        Restore
+                      </LoadingButton>
+                      <LoadingButton
                         className="btn btn-danger btn-xs"
-                        disabled={busyId === opp.id}
+                        disabled={busy?.id === opp.id}
+                        loading={busy?.id === opp.id && busy.action === "delete"}
+                        loadingText="Deleting…"
                         onClick={() => handleDeleteOpportunity(opp)}
                       >
                         Delete
-                      </button>
+                      </LoadingButton>
                     </div>
                   ) : (
                     <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
-                      <button
-                        type="button"
+                      <LoadingButton
                         className="btn btn-secondary btn-xs"
-                        disabled={loadingEdit}
+                        disabled={openingEditorId !== null}
+                        loading={openingEditorId === opp.id}
+                        loadingText="Opening…"
                         onClick={() => openEditor(opp.id)}
                       >
                         <span className="icon-svg">
@@ -306,7 +310,7 @@ export default function YouthRepublicOpportunitiesPage() {
                           </svg>
                         </span>
                         <span>Edit</span>
-                      </button>
+                      </LoadingButton>
 
                       <Link
                         href={`/youth-republic/applications?opportunityId=${opp.id}`}

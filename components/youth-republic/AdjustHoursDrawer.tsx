@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import type { ActivityListRow, VerifyHoursPayload } from "@/lib/youthRepublicFunctions";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 interface AdjustHoursDrawerProps {
   activityRow: ActivityListRow | null;
@@ -280,18 +281,14 @@ export function AdjustHoursDrawer({
             Cancel
           </button>
 
-          <button
-            type="button"
+          <LoadingButton
             className={`btn btn-sm ${decision === "verified" ? "btn-primary" : "btn-danger"}`}
             onClick={handleConfirm}
-            disabled={submitting}
+            loading={submitting}
+            loadingText={decision === "verified" ? "Accrediting…" : "Rejecting…"}
           >
-            {submitting
-              ? "Recording..."
-              : decision === "verified"
-              ? "Approve & Accredit Hours"
-              : "Reject Shift"}
-          </button>
+            {decision === "verified" ? "Approve & Accredit Hours" : "Reject Shift"}
+          </LoadingButton>
         </div>
       </div>
     </>

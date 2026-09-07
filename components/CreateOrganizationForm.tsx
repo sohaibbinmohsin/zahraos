@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createOrganization } from "@/lib/platformFunctions";
+import { LoadingButton } from "@/components/ui/LoadingButton";
 
 function slugify(name: string): string {
   return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -33,9 +34,9 @@ export function CreateOrganizationForm({ accessToken, onCreated }: { accessToken
         <label htmlFor="orgName" className="block text-sm">Organization name</label>
         <input id="orgName" className="mt-1 w-full rounded border px-3 py-2" value={name} onChange={(e) => setName(e.target.value)} />
       </div>
-      <button type="submit" disabled={submitting} className="rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50">
+      <LoadingButton type="submit" loading={submitting} loadingText="Creating…" className="inline-flex items-center gap-2 rounded bg-gray-900 px-4 py-2 text-white disabled:opacity-50">
         Create organization
-      </button>
+      </LoadingButton>
       {error && <p className="text-sm text-red-600">{error}</p>}
     </form>
   );
