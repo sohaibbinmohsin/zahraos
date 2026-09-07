@@ -72,12 +72,12 @@ export default function YouthRepublicVolunteersPage() {
   }
 
   if (loading && volunteers.length === 0) {
-    return <ListPageSkeleton columns={5} rows={6} />;
+    return <ListPageSkeleton columns={5} rows={6} filterBar={false} toolbarItems={2} />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Page Header — search lives inline with the title */}
       <div className="page-header">
         <div>
           <h1 className="page-title">Volunteers Directory</h1>
@@ -85,32 +85,20 @@ export default function YouthRepublicVolunteersPage() {
             Search student volunteers, verify CNIC credentials, and inspect verified service portfolios across Pakistan.
           </div>
         </div>
-        <div className="page-toolbar">
-        </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-[var(--line)] rounded-xl">
-        <form onSubmit={handleSearch} className="flex flex-wrap items-center gap-2 flex-1">
-          <div className="flex-1 min-w-[240px]">
-            <label htmlFor="volunteerSearch" className="sr-only">Search</label>
-            <input
-              id="volunteerSearch"
-              type="text"
-              className="search-input w-full"
-              placeholder="Search by student name, CNIC, or institution..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+        <form onSubmit={handleSearch} className="page-toolbar">
+          <label htmlFor="volunteerSearch" className="sr-only">Search</label>
+          <input
+            id="volunteerSearch"
+            type="text"
+            className="search-input"
+            placeholder="Search by student name, CNIC, or institution..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <button type="submit" className="btn btn-primary btn-sm">
             Search
           </button>
         </form>
-
-        <span className="text-xs font-semibold text-[var(--ink-2)]">
-          Total Registered: {volunteers.length} volunteers
-        </span>
       </div>
 
       {/* Data Table */}

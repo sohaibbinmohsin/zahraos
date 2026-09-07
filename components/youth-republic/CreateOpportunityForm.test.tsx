@@ -15,6 +15,29 @@ vi.mock("@/components/shell/AppShell", () => ({
   useStaffClaims: vi.fn(),
 }));
 
+// Every Step 1 field is now mandatory before the form lets you advance.
+// This fills the ones a test doesn't set explicitly so it can reach Step 2.
+async function fillStep1(user: ReturnType<typeof userEvent.setup>) {
+  const nameInput = screen.getByLabelText("Name") as HTMLInputElement;
+  if (!nameInput.value) await user.type(nameInput, "Test Opportunity");
+  const cityInput = screen.getByLabelText("City & Venue");
+  if (!(cityInput as HTMLInputElement).value) {
+    await user.type(cityInput, "Karachi");
+    await user.click(await screen.findByRole("option", { name: /^Karachi/ }));
+  }
+  const cap = screen.getByLabelText("Target Volunteer Capacity");
+  await user.clear(cap);
+  await user.type(cap, "25");
+  for (const label of ["Applications Open", "Application Deadline", "Drive Start Date", "Drive End Date"]) {
+    await user.type(screen.getByLabelText(label), "2026-06-01");
+  }
+  await user.type(screen.getByPlaceholderText(/Pack and distribute ration hampers/i), "One-line summary of the drive");
+  await user.type(screen.getByPlaceholderText(/Shift times, meeting point/i), "Full details about the drive");
+  await user.type(screen.getByLabelText(/Key Volunteer Duties/i), "Pack hampers");
+  await user.type(screen.getByLabelText(/Eligibility & Requirements/i), "18 or older");
+  await user.type(screen.getByLabelText(/What Volunteers Should Bring/i), "CNIC");
+}
+
 function makeClaims(chapterScopes?: Record<string, string[]>): StaffTokenClaims {
   return {
     actorType: "staff",
@@ -51,6 +74,7 @@ describe("CreateOpportunityForm", () => {
 
     await user.type(screen.getByLabelText("Name"), "Beach Cleanup");
     await user.selectOptions(screen.getByLabelText("Type"), "environment");
+    await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
     await user.click(screen.getByRole("button", { name: "Create opportunity" }));
@@ -62,6 +86,24 @@ describe("CreateOpportunityForm", () => {
       );
       expect(onCreated).toHaveBeenCalled();
     });
+  });
+
+  it("blocks Step 2 until every Step 1 field is filled, then surfaces per-field hints", async () => {
+    const user = userEvent.setup();
+    render(<CreateOpportunityForm organizationId="org-1" staffToken="staff-jwt" accessToken={null} onCreated={vi.fn()} />);
+
+    await user.type(screen.getByLabelText("Name"), "Half-filled Drive");
+    await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+
+    // Still on Step 1 — no form-builder controls, and a blocking message shows.
+    expect(screen.queryByRole("button", { name: /\+ Add Question/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/Complete every field in Step 1/i)).toBeInTheDocument();
+    expect(screen.getAllByText("Pick a date.").length).toBeGreaterThan(0);
+    expect(screen.getByText("Add a one-line summary.")).toBeInTheDocument();
+
+    await fillStep1(user);
+    await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+    expect(await screen.findByRole("button", { name: /\+ Add Question/i })).toBeInTheDocument();
   });
 
   it("saves as draft when clicking Save draft on a new opportunity", async () => {
@@ -192,6 +234,7 @@ describe("CreateOpportunityForm", () => {
       />,
     );
 
+    await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
 
     expect(screen.getByRole("button", { name: /Back to Specifications/i })).toBeInTheDocument();
@@ -268,6 +311,7 @@ describe("CreateOpportunityForm", () => {
     );
 
     // Go to Step 2 Form Builder
+    await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
 
     // Add two questions
@@ -350,6 +394,7 @@ describe("CreateOpportunityForm", () => {
 
     await user.type(screen.getByLabelText("Name"), "LUMS Blood Drive");
     await user.selectOptions(screen.getByLabelText("Type"), "health");
+    await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
     await user.click(screen.getByRole("button", { name: "Create opportunity" }));
@@ -394,6 +439,7 @@ describe("CreateOpportunityForm", () => {
 
     await user.type(screen.getByLabelText("Name"), "National Tree Plantation");
     await user.selectOptions(screen.getByLabelText("Type"), "environment");
+    await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
     await user.click(screen.getByRole("button", { name: "Create opportunity" }));
