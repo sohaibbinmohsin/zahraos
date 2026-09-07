@@ -49,5 +49,25 @@ describe("decodeStaffTokenClaims", () => {
     expect(claims.platformOwner).toBe(false);
     expect(claims.orgRoles).toEqual([{ organizationId: "org-1" }]);
     expect(claims.moduleAccess).toEqual([{ organizationId: "org-1", module: "youth-republic", permissions: ["applications:read"] }]);
+    expect(claims.moduleAccess[0].chapterScopes).toBeUndefined();
+  });
+
+  it("decodes per-key chapter_scopes into chapterScopes", () => {
+    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+    const payload = btoa(JSON.stringify({
+      actor_type: "staff",
+      staff_id: "staff-1",
+      platform_owner: false,
+      org_roles: [{ organization_id: "org-1" }],
+      module_access: [{
+        organization_id: "org-1",
+        module: "youth-republic",
+        permissions: ["opportunities:read", "opportunities:write"],
+        chapter_scopes: { "opportunities:write": ["c1", "c2"] },
+      }],
+    }));
+    const claims = decodeStaffTokenClaims(`${header}.${payload}.fakesignature`);
+
+    expect(claims.moduleAccess[0].chapterScopes).toEqual({ "opportunities:write": ["c1", "c2"] });
   });
 });
