@@ -7,6 +7,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
+import { useCenterActiveTab } from "@/components/shell/useCenterActiveTab";
 
 type Badges = { applications: number; hours: number };
 
@@ -76,6 +77,7 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
   const pathname = usePathname();
   const organizationId = useSelectedOrg();
   const [badges, setBadges] = useState<Badges | null>(null);
+  const { wrapRef, onTabClick } = useCenterActiveTab(pathname);
 
   useEffect(() => {
     let cancelled = false;
@@ -119,8 +121,8 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
   return (
     <div>
       {/* Contextual Sub-Nav Bar (Changes per Active Module — not sticky) */}
-      <nav className="module-nav-bar mb-6 -mx-8 -mt-7 border-b border-[var(--line)] bg-white">
-        <div className="module-nav-wrap">
+      <nav className="module-nav-bar">
+        <div className="module-nav-wrap" ref={wrapRef}>
           {TAB_META.map((tab) => {
             const isActive = pathname?.startsWith(tab.href);
             const badge = badgeFor(tab.key);
@@ -129,6 +131,7 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
                 key={tab.href}
                 href={tab.href}
                 aria-label={tab.label}
+                onClick={onTabClick}
                 className={`module-tab ${isActive ? "active" : ""}`}
               >
                 <span className="icon-svg" aria-hidden="true">{tab.icon}</span>

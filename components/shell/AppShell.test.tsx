@@ -306,10 +306,13 @@ describe("AppShell", () => {
 
     // The separate header button is removed; signing out happens via the user profile dropdown
     expect(screen.queryByRole("button", { name: "Sign out" })).not.toBeInTheDocument();
+    // Sign-out now asks for confirmation; without a ConfirmProvider the hook
+    // falls back to window.confirm.
+    window.confirm = vi.fn().mockReturnValue(true);
     await user.click(screen.getByLabelText("User Profile Menu"));
     await user.click(screen.getByRole("button", { name: "Sign Out" }));
 
-    expect(supabaseClient.auth.signOut).toHaveBeenCalled();
+    await waitFor(() => expect(supabaseClient.auth.signOut).toHaveBeenCalled());
     await waitFor(() => expect(screen.queryByText("Owner Person")).not.toBeInTheDocument());
     expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
     expect(routerPush).toHaveBeenCalledWith("/login");

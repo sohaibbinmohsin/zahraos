@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
@@ -14,6 +14,8 @@ import {
   writeStoredNavHint,
   readStoredBrandHint,
   writeStoredBrandHint,
+  type NavHint,
+  type BrandHint,
 } from "@/lib/selectedOrg";
 import { MODULE_REGISTRY } from "@/registry/modules";
 import { isDisplayableLogo } from "@/lib/orgLogo";
@@ -21,6 +23,7 @@ import { listApplications, listActivityHours } from "@/lib/youthRepublicFunction
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
 import { ChangePasswordModal } from "./ChangePasswordModal";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { ShellContentSkeleton } from "@/components/ui/skeletons";
 
 type ShellLoadStatus = "loading" | "ready" | "error";
@@ -90,8 +93,39 @@ export function formatRoleTitle(roleName: string): string {
     .join(" ");
 }
 
+// --- Persisted shell hints (last ready session), read without tripping
+// hydration. useSyncExternalStore hands the server + first client render the
+// empty snapshot that matches the SSR HTML, then swaps to the localStorage
+// value immediately after hydration — no mismatch, no setState-in-effect.
+const EMPTY_NAV_HINT: NavHint = { governance: false, platform: false };
+const EMPTY_BRAND_HINT: BrandHint = { label: null, logoUrl: null, brandColor: null };
+let navHintSnapshot: NavHint | null = null;
+let brandHintSnapshot: BrandHint | null = null;
+
+function subscribeShellHints(onChange: () => void) {
+  if (typeof window === "undefined") return () => {};
+  const handler = (e: StorageEvent) => {
+    if (e.key === null || e.key === "platform.navHint" || e.key === "platform.brandHint") {
+      navHintSnapshot = null;
+      brandHintSnapshot = null;
+      onChange();
+    }
+  };
+  window.addEventListener("storage", handler);
+  return () => window.removeEventListener("storage", handler);
+}
+function getNavHintSnapshot(): NavHint {
+  if (!navHintSnapshot) navHintSnapshot = readStoredNavHint();
+  return navHintSnapshot;
+}
+function getBrandHintSnapshot(): BrandHint {
+  if (!brandHintSnapshot) brandHintSnapshot = readStoredBrandHint();
+  return brandHintSnapshot;
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const confirm = useConfirm();
   let pathname = "";
   try {
     pathname = usePathname() ?? "";
@@ -115,11 +149,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [reloadToken, setReloadToken] = useState(0);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
-  // Read once at mount from the last ready session, so the sidebar's
-  // governance groups stay fixed across a reload instead of vanishing until
-  // claims re-resolve. Only consulted while status !== "ready".
-  const [navHint] = useState(() => readStoredNavHint());
-  const [brandHint] = useState(() => readStoredBrandHint());
+  // Last ready session's nav/brand shape, so the sidebar's governance groups
+  // and brand mark stay fixed across a reload instead of vanishing until
+  // claims/org data re-resolve. Only consulted while status !== "ready".
+  const navHint = useSyncExternalStore(subscribeShellHints, getNavHintSnapshot, () => EMPTY_NAV_HINT);
+  const brandHint = useSyncExternalStore(subscribeShellHints, getBrandHintSnapshot, () => EMPTY_BRAND_HINT);
 
   // UI states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -438,6 +472,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   async function handleSignOut() {
+    const ok = await confirm({
+      title: "Sign out?",
+      message: "You'll need to sign in again to get back into the console.",
+      confirmLabel: "Sign out",
+    });
+    if (!ok) return;
     const supabase = getBrowserSupabaseClient();
     await supabase.auth.signOut();
     resetShellState();
@@ -582,7 +622,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               }
             }}
           >
-            <div>
+            <div className="sidebar-scroll-region">
               <div className="sidebar-header">
                 <div
                   className="sidebar-brand-left"
@@ -651,7 +691,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   className="sidebar-toggle-btn"
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  onClick={() => {
+                    // On mobile the sidebar is a drawer — the toggle dismisses
+                    // it. On desktop it collapses to the icon rail.
+                    const isMobile =
+                      typeof window !== "undefined" &&
+                      typeof window.matchMedia === "function" &&
+                      window.matchMedia("(max-width: 992px)").matches;
+                    if (isMobile) {
+                      setMobileSidebarOpen(false);
+                    } else {
+                      setSidebarCollapsed((v) => !v);
+                    }
+                  }}
                   title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
                   aria-label="Toggle Sidebar"
                 >
@@ -840,6 +892,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     src="/assets/mohsin-project-white-bird.png"
                     alt="The Mohsin Project"
                     className="mohsin-white-bird-img"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </div>
               </div>
@@ -858,13 +912,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     className="mobile-menu-btn"
-                    onClick={() => setMobileSidebarOpen(true)}
+                    onClick={() => {
+                      setSidebarCollapsed(false);
+                      setMobileSidebarOpen(true);
+                    }}
                     aria-label="Open navigation menu"
                   >
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <line x1="3" y1="12" x2="21" y2="12" />
-                      <line x1="3" y1="6" x2="21" y2="6" />
-                      <line x1="3" y1="18" x2="21" y2="18" />
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect width="18" height="18" x="3" y="3" rx="3" />
+                      <path d="M9 3v18" />
                     </svg>
                   </button>
 

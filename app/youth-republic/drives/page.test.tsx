@@ -93,6 +93,40 @@ describe("YouthRepublicOpportunitiesPage", () => {
     expect(screen.queryByText(/Capacity:/i)).not.toBeInTheDocument();
   });
 
+  it("shows a Draft pill and a Publish drive button instead of View Applicants for draft drives", async () => {
+    vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+      opportunities: [
+        {
+          id: "opp-draft",
+          name: "Unfinished Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "environment",
+          city: "Lahore",
+          online: false,
+          computedStatus: "draft",
+          description: "A work in progress",
+          capacity: 10,
+          filledCount: 0,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        },
+      ],
+      total: 1,
+      facets: { cities: [], orgs: [] },
+    });
+
+    render(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Unfinished Drive");
+    expect(screen.getByText("Draft")).toBeInTheDocument();
+    expect(screen.getByText("Not published yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Publish drive/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /View Applicants/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Edit/i })).toBeInTheDocument();
+  });
+
   it("renders Drives Noticeboard heading without uppercase class", async () => {
     render(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Beach Cleanup");

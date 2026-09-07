@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useToast } from "@/components/shell/ToastContext";
 import { createChapter, updateChapter, type ChapterRow } from "@/lib/platformFunctions";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import { Card } from "@/components/ui/Card";
 
 export function ChaptersPanel({
   organizationId, accessToken, chapters, onChanged,
@@ -50,7 +51,7 @@ export function ChaptersPanel({
   }
 
   return (
-    <div className="table-card" style={{ padding: "1rem 1.25rem" }}>
+    <Card>
       <div className="flex items-start justify-between gap-3" style={{ marginBottom: ".75rem" }}>
         <div>
           <h2 className="panel-title">Chapters</h2>
@@ -103,6 +104,6 @@ export function ChaptersPanel({
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   );
 }

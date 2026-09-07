@@ -8,6 +8,7 @@ import { RolesTable } from "@/components/team/RolesTable";
 import { StatCard } from "@/components/team/StatCard";
 import { StatGridSkeleton, TableSkeleton } from "@/components/ui/skeletons";
 import { useToast } from "@/components/shell/ToastContext";
+import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { deleteCustomRole } from "@/lib/platformFunctions";
 
 export default function TeamRolesPage() {
@@ -15,6 +16,7 @@ export default function TeamRolesPage() {
   const { setAction } = useTeamHeader();
   const { openCreateRole, openEditRole, openCloneRole } = useTeamDrawers();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -35,7 +37,14 @@ export default function TeamRolesPage() {
   async function onDelete(roleId: string) {
     if (!accessToken) return;
     const role = roles.find((r) => r.id === roleId);
-    if (!role || !window.confirm(`Permanently delete custom role "${role.name}"?`)) return;
+    if (!role) return;
+    const ok = await confirm({
+      title: "Delete custom role?",
+      message: `"${role.name}" will be permanently removed.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
     setDeletingRoleId(roleId);
     try {
       await deleteCustomRole({ roleId }, accessToken);

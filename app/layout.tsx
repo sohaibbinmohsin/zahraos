@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/shell/AppShell";
+import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <AppShell>{children}</AppShell>
+        <ConfirmProvider>
+          <AppShell>{children}</AppShell>
+        </ConfirmProvider>
       </body>
     </html>
   );

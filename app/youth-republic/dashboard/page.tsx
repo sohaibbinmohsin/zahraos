@@ -178,9 +178,9 @@ export default function YouthRepublicDashboardPage() {
             ) : (
               capacityRows.map((r) => (
                 <div key={r.name}>
-                  <div className="flex justify-between text-[var(--text-sm)]">
-                    <span className="font-medium text-[var(--ink)]">{r.name}</span>
-                    <b className="font-mono text-xs">{r.filled} / {r.cap} ({r.percent}%)</b>
+                  <div className="flex justify-between items-baseline gap-2 text-[var(--text-sm)]">
+                    <span className="font-medium text-[var(--ink)] truncate min-w-0">{r.name}</span>
+                    <b className="font-mono text-xs shrink-0 whitespace-nowrap">{r.filled} / {r.cap} ({r.percent}%)</b>
                   </div>
                   <div className="meter-bar">
                     <div className="meter-fill" style={{ width: `${r.percent}%` }} />
@@ -205,9 +205,9 @@ export default function YouthRepublicDashboardPage() {
               recentApps.map((a) => (
                 <div
                   key={a.id}
-                  className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--bg-page)] border border-[var(--line-subtle)]"
+                  className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--bg-page)] border border-[var(--line-subtle)] flex-wrap"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="font-semibold text-[var(--text-sm)] text-[var(--ink)] truncate">
                       {a.applicantName ?? a.volunteerName}
                     </div>

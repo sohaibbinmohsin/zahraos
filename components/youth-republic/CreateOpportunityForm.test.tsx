@@ -76,6 +76,8 @@ describe("CreateOpportunityForm", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "environment");
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+    // Publishing requires at least one Step 2 question.
+    await user.click(screen.getByRole("button", { name: /\+ Add Question/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
     await user.click(screen.getByRole("button", { name: "Create drive" }));
 
@@ -393,6 +395,8 @@ describe("CreateOpportunityForm", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "health");
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+    // Publishing requires at least one Step 2 question.
+    await user.click(screen.getByRole("button", { name: /\+ Add Question/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
     await user.click(screen.getByRole("button", { name: "Create drive" }));
 
@@ -438,6 +442,8 @@ describe("CreateOpportunityForm", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "environment");
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+    // Publishing requires at least one Step 2 question.
+    await user.click(screen.getByRole("button", { name: /\+ Add Question/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
     await user.click(screen.getByRole("button", { name: "Create drive" }));
 
