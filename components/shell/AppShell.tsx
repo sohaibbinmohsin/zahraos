@@ -31,6 +31,9 @@ interface ShellContextValue {
   orgTier: string | null;
   isOrgAdminOrAbove: boolean;
   accessToken: string | null;
+  /** Staff JWT for the youth-republic edge functions. Resolved with the
+   *  shell, so pages don't each re-mint one before their first fetch. */
+  staffToken: string | null;
   loading: boolean;
 }
 
@@ -40,6 +43,7 @@ const ShellContext = createContext<ShellContextValue>({
   orgTier: null,
   isOrgAdminOrAbove: false,
   accessToken: null,
+  staffToken: null,
   loading: true,
 });
 
@@ -57,6 +61,10 @@ export function useOrgTier() {
 
 export function useIsOrgAdminOrAbove() {
   return useContext(ShellContext).isOrgAdminOrAbove;
+}
+
+export function useShellStaffToken() {
+  return useContext(ShellContext).staffToken;
 }
 
 export function useShellAccessToken() {
@@ -132,6 +140,7 @@ export function AppShell({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [staffToken, setStaffToken] = useState<string | null>(initialShell?.staffToken ?? null);
 
   // UI states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -145,6 +154,7 @@ export function AppShell({
   const [activeTeamCount, setActiveTeamCount] = useState<number | null>(null);
 
   function applyShellData(shell: ShellData) {
+    setStaffToken(shell.staffToken);
     setClaims(shell.claims);
     setPlatformOwner(shell.platformOwner);
     setFullName(shell.fullName);
@@ -168,6 +178,7 @@ export function AppShell({
     setAvailableOrgIds([]);
     setSelectedOrgId(null);
     setAccessToken(null);
+    setStaffToken(null);
     clearStoredOrgId();
     setUserDropdownOpen(false);
     setPendingApplicationsCount(null);
@@ -260,9 +271,10 @@ export function AppShell({
 
     const intervalId = setInterval(async () => {
       try {
-        const staffToken = await fetchStaffToken(accessToken);
-        const decoded = decodeStaffTokenClaims(staffToken);
+        const refreshed = await fetchStaffToken(accessToken);
+        const decoded = decodeStaffTokenClaims(refreshed);
         if (cancelled) return;
+        setStaffToken(refreshed);
         setClaims(decoded);
         setPlatformOwner(decoded.platformOwner);
       } catch (err) {
@@ -485,14 +497,14 @@ export function AppShell({
 
   if (isAuthPage) {
     return (
-      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, loading: status === "loading" }}>
+      <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, staffToken, loading: status === "loading" }}>
         <ToastProvider>{children}</ToastProvider>
       </ShellContext.Provider>
     );
   }
 
   return (
-    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, loading: status === "loading" }}>
+    <ShellContext.Provider value={{ selectedOrgId, staffClaims: claims, orgTier, isOrgAdminOrAbove, accessToken, staffToken, loading: status === "loading" }}>
       <ToastProvider>
         <div className="app-shell">
           <div

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { AppShell } from "@/components/shell/AppShell";
 import { ConfirmProvider } from "@/components/ui/ConfirmDialog";
+import { SwrProvider } from "@/components/providers/SwrProvider";
 import { getServerSupabaseClient } from "@/lib/supabase/serverClient";
 import { loadShellData, type ShellData } from "@/lib/shellData";
 import { SELECTED_ORG_COOKIE } from "@/lib/selectedOrg";
@@ -65,11 +66,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <ConfirmProvider>
-          <AppShell initialShell={shell} initialSelectedOrgId={selectedOrgId}>
-            {children}
-          </AppShell>
-        </ConfirmProvider>
+        <SwrProvider>
+          <ConfirmProvider>
+            <AppShell initialShell={shell} initialSelectedOrgId={selectedOrgId}>
+              {children}
+            </AppShell>
+          </ConfirmProvider>
+        </SwrProvider>
       </body>
     </html>
   );

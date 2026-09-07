@@ -1,54 +1,48 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
 import {
   listVolunteers,
   getVolunteerDetail,
-  type VolunteerSummary,
   type VolunteerDetail,
 } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg } from "@/components/shell/AppShell";
+import useSWR from "swr";
+import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { VolunteerProfileDrawer } from "@/components/youth-republic/VolunteerProfileDrawer";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 export default function YouthRepublicVolunteersPage() {
   const organizationId = useSelectedOrg();
-  const [volunteers, setVolunteers] = useState<VolunteerSummary[]>([]);
+  const staffToken = useShellStaffToken();
   const [search, setSearch] = useState("");
-  const [staffToken, setStaffToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Drawer state
   const [selectedVolunteer, setSelectedVolunteer] = useState<VolunteerDetail | null>(null);
 
-  const load = useCallback(async (searchTerm: string) => {
-    if (!organizationId) return;
-    setLoading(true);
-    try {
-      const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-      const token = await fetchStaffToken(sessionData.session.access_token);
-      setStaffToken(token);
-      const result = await listVolunteers({ organizationId, search: searchTerm || undefined }, token);
-      setVolunteers(result.volunteers);
-    } catch (err) {
-      console.error("Failed to load volunteers", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [organizationId]);
+  // The search term is part of the cache key, so re-running a previous
+  // search shows its results instantly.
+  const {
+    data: volunteers = [],
+    isLoading: loading,
+  } = useSWR(
+    organizationId && staffToken ? ["listVolunteers", organizationId, debouncedSearch] : null,
+    async () =>
+      (
+        await listVolunteers(
+          { organizationId: organizationId!, search: debouncedSearch || undefined },
+          staffToken!,
+        )
+      ).volunteers,
+    { onError: (err) => console.error("Failed to load volunteers", err) },
+  );
 
   // Live search — debounced so we don't fire a request per keystroke.
   useEffect(() => {
-    const t = setTimeout(() => {
-      load(search);
-    }, 300);
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(t);
-  }, [search, load]);
+  }, [search]);
 
   async function handleOpenProfile(volunteerId: string) {
     if (!organizationId || !staffToken) return;

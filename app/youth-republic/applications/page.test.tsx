@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithSwr } from "@/tests/renderWithSwr";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import YouthRepublicApplicationsPage from "./page";
@@ -15,12 +16,13 @@ vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
-  return { ...actual, useSelectedOrg: vi.fn() };
+  return { ...actual, useSelectedOrg: vi.fn(), useShellStaffToken: vi.fn() };
 });
 
 describe("YouthRepublicApplicationsPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
+    vi.mocked(shell.useShellStaffToken).mockReturnValue("staff-jwt");
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
@@ -41,7 +43,7 @@ describe("YouthRepublicApplicationsPage", () => {
     vi.mocked(youthRepublicFunctions.decideApplication).mockResolvedValue({ applicationId: "app-1", participationId: "p-1" });
     const user = userEvent.setup();
 
-    render(<YouthRepublicApplicationsPage />);
+    renderWithSwr(<YouthRepublicApplicationsPage />);
 
     expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Select" }));
@@ -67,7 +69,7 @@ describe("YouthRepublicApplicationsPage", () => {
     vi.mocked(youthRepublicFunctions.decideApplication).mockResolvedValue({ applicationId: "app-2", participationId: null });
     const user = userEvent.setup();
 
-    render(<YouthRepublicApplicationsPage />);
+    renderWithSwr(<YouthRepublicApplicationsPage />);
 
     // The queue opens on Pending Review by default; widen it to see the
     // already-decided (waitlisted) row.
@@ -96,7 +98,7 @@ describe("YouthRepublicApplicationsPage", () => {
   });
 
   it("opens with the status filter defaulted to Pending Review", async () => {
-    render(<YouthRepublicApplicationsPage />);
+    renderWithSwr(<YouthRepublicApplicationsPage />);
 
     const filter = await screen.findByRole("combobox", { name: "Filter by status" });
     expect(filter).toHaveTextContent("Pending Review");
@@ -109,7 +111,7 @@ describe("YouthRepublicApplicationsPage", () => {
     );
     const user = userEvent.setup();
 
-    render(<YouthRepublicApplicationsPage />);
+    renderWithSwr(<YouthRepublicApplicationsPage />);
 
     expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Select" }));

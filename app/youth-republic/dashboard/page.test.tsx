@@ -1,4 +1,5 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
+import { renderWithSwr } from "@/tests/renderWithSwr";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import YouthRepublicDashboardPage from "./page";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
@@ -11,7 +12,7 @@ vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
-  return { ...actual, useSelectedOrg: vi.fn() };
+  return { ...actual, useSelectedOrg: vi.fn(), useShellStaffToken: vi.fn() };
 });
 
 const opp = (over: Partial<youthRepublicFunctions.OpportunitySummary>): youthRepublicFunctions.OpportunitySummary => ({
@@ -33,6 +34,7 @@ const hour = (over: Partial<youthRepublicFunctions.ActivityListRow>): youthRepub
 describe("YouthRepublicDashboardPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
+    vi.mocked(shell.useShellStaffToken).mockReturnValue("staff-jwt");
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
@@ -71,7 +73,7 @@ describe("YouthRepublicDashboardPage", () => {
   });
 
   it("derives the tiles from live data across all four endpoints", async () => {
-    render(<YouthRepublicDashboardPage />);
+    renderWithSwr(<YouthRepublicDashboardPage />);
 
     // "Active drives" = live opps in an active status -> just "Open Drive" -> 1
     await waitFor(() => expect(screen.getByText("Active drives")).toBeInTheDocument());

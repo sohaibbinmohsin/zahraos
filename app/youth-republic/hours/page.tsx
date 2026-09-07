@@ -1,18 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
 import {
   listActivityHours,
   verifyHours,
   listOpportunities,
   listParticipationForOpportunity,
   type ActivityListRow,
-  type OpportunitySummary,
   type VerifyHoursPayload,
 } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg } from "@/components/shell/AppShell";
+import useSWR from "swr";
+import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { BulkAssignHoursForm, type ParticipantOption } from "@/components/youth-republic/BulkAssignHoursForm";
 import { AdjustHoursDrawer } from "@/components/youth-republic/AdjustHoursDrawer";
 import { useToast } from "@/components/shell/ToastContext";
@@ -36,12 +34,9 @@ const HOURS_STATUS_LABEL: Record<string, string> = {
 export default function YouthRepublicHoursPage() {
   const organizationId = useSelectedOrg();
   const { showToast } = useToast();
-  const [activity, setActivity] = useState<ActivityListRow[]>([]);
-  const [opportunities, setOpportunities] = useState<OpportunitySummary[]>([]);
+  const staffToken = useShellStaffToken();
   const [selectedOpportunityId, setSelectedOpportunityId] = useState("");
   const [participants, setParticipants] = useState<ParticipantOption[]>([]);
-  const [staffToken, setStaffToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Drawer & Filter states
   const [adjustingRow, setAdjustingRow] = useState<ActivityListRow | null>(null);
@@ -56,31 +51,23 @@ export default function YouthRepublicHoursPage() {
     setSelectedOpportunityId("");
   }, []);
 
-  const load = useCallback(async () => {
-    if (!organizationId) return;
-    setLoading(true);
-    try {
-      const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-      const token = await fetchStaffToken(sessionData.session.access_token);
-      setStaffToken(token);
+  const {
+    data: hoursData,
+    isLoading: loading,
+    mutate: load,
+  } = useSWR(
+    organizationId && staffToken ? ["hoursPage", organizationId] : null,
+    async () => {
       const [hoursResult, opportunitiesResult] = await Promise.all([
-        listActivityHours({ organizationId }, token),
-        listOpportunities({ organizationId }, token),
+        listActivityHours({ organizationId: organizationId! }, staffToken!),
+        listOpportunities({ organizationId: organizationId! }, staffToken!),
       ]);
-      setActivity(hoursResult.activity);
-      setOpportunities(opportunitiesResult.opportunities);
-    } catch (err) {
-      console.error("Failed to load activity hours", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [organizationId]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+      return { activity: hoursResult.activity, opportunities: opportunitiesResult.opportunities };
+    },
+    { onError: (err) => console.error("Failed to load activity hours", err) },
+  );
+  const activity = hoursData?.activity ?? [];
+  const opportunities = hoursData?.opportunities ?? [];
 
   useEffect(() => {
     async function loadParticipants() {

@@ -3,10 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg } from "@/components/shell/AppShell";
+import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { useCenterActiveTab } from "@/components/shell/useCenterActiveTab";
 
 type Badges = { applications: number; hours: number };
@@ -76,21 +74,19 @@ const TAB_META = [
 export default function YouthRepublicModuleLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const organizationId = useSelectedOrg();
+  const staffToken = useShellStaffToken();
   const [badges, setBadges] = useState<Badges | null>(null);
   const { wrapRef, onTabClick } = useCenterActiveTab(pathname);
 
   useEffect(() => {
     let cancelled = false;
-    if (!organizationId) {
+    if (!organizationId || !staffToken) {
       setBadges(null);
       return;
     }
     (async () => {
       try {
-        const supabase = getBrowserSupabaseClient();
-        const { data: sessionData } = await supabase.auth.getSession();
-        if (!sessionData.session) return;
-        const token = await fetchStaffToken(sessionData.session.access_token);
+        const token = staffToken;
         const [apps, hours] = await Promise.all([
           listApplications({ organizationId, limit: 100 }, token),
           listActivityHours({ organizationId, limit: 100 }, token),
@@ -109,7 +105,7 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
     return () => {
       cancelled = true;
     };
-  }, [organizationId]);
+  }, [organizationId, staffToken]);
 
   function badgeFor(key: string | null): string | null {
     if (!key || !badges) return null;

@@ -2,29 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
 import { getVolunteerDetail, type VolunteerDetail } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg } from "@/components/shell/AppShell";
+import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { DetailSkeleton } from "@/components/ui/skeletons";
 
 export default function YouthRepublicVolunteerDetailPage() {
   const organizationId = useSelectedOrg();
+  const staffToken = useShellStaffToken();
   const { id } = useParams<{ id: string }>();
   const [detail, setDetail] = useState<VolunteerDetail | null>(null);
 
   useEffect(() => {
     async function load() {
-      if (!organizationId) return;
-      const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-      const staffToken = await fetchStaffToken(sessionData.session.access_token);
+      if (!organizationId || !staffToken) return;
       const result = await getVolunteerDetail({ organizationId, volunteerId: id }, staffToken);
       setDetail(result);
     }
     load();
-  }, [organizationId, id]);
+  }, [organizationId, staffToken, id]);
 
   if (!organizationId) return <p>Select an organization to see this volunteer.</p>;
   if (!detail) return <DetailSkeleton />;

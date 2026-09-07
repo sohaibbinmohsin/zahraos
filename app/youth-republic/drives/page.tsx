@@ -1,9 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
-import { fetchStaffToken } from "@/lib/staffToken";
 import {
   listOpportunities,
   getOpportunityDetail,
@@ -11,7 +9,8 @@ import {
   type OpportunitySummary,
   type OpportunityDetail,
 } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg, useShellAccessToken } from "@/components/shell/AppShell";
+import useSWR from "swr";
+import { useSelectedOrg, useShellAccessToken, useShellStaffToken } from "@/components/shell/AppShell";
 import { CreateOpportunityForm } from "@/components/youth-republic/CreateOpportunityForm";
 import { useToast } from "@/components/shell/ToastContext";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -92,9 +91,7 @@ export default function YouthRepublicDrivesPage() {
   const accessToken = useShellAccessToken();
   const { showToast } = useToast();
   const confirm = useConfirm();
-  const [opportunities, setOpportunities] = useState<OpportunitySummary[]>([]);
-  const [staffToken, setStaffToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const staffToken = useShellStaffToken();
   const [busy, setBusy] = useState<{ id: string; action: "archive" | "delete" } | null>(null);
 
   const [isCreating, setIsCreating] = useState(false);
@@ -102,28 +99,25 @@ export default function YouthRepublicDrivesPage() {
   const [openingEditorId, setOpeningEditorId] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!organizationId) return;
-    setLoading(true);
-    try {
-      const supabase = getBrowserSupabaseClient();
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) return;
-      const token = await fetchStaffToken(sessionData.session.access_token);
-      setStaffToken(token);
-      const result = await listOpportunities({ organizationId }, token);
-      setOpportunities(result.opportunities.filter((o) => o.computedStatus !== "deleted"));
-    } catch (err) {
-      console.error("Failed to load drives", err);
-      showToast(err instanceof Error ? `Could not load drives: ${err.message}` : "Could not load drives.");
-    } finally {
-      setLoading(false);
-    }
-  }, [organizationId, showToast]);
-
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Cached by org, so coming back to this tab renders the previous list
+  // immediately and revalidates underneath instead of flashing a skeleton.
+  const {
+    data: opportunities = [],
+    isLoading,
+    mutate,
+  } = useSWR(
+    organizationId && staffToken ? ["listOpportunities", organizationId] : null,
+    async () => {
+      const result = await listOpportunities({ organizationId: organizationId! }, staffToken!);
+      return result.opportunities.filter((o) => o.computedStatus !== "deleted");
+    },
+    {
+      onError: (err) =>
+        showToast(err instanceof Error ? `Could not load drives: ${err.message}` : "Could not load drives."),
+    },
+  );
+  const loading = isLoading;
+  const load = mutate;
 
   async function openEditor(oppId: string) {
     if (!staffToken) return;
@@ -207,7 +201,7 @@ export default function YouthRepublicDrivesPage() {
         { opportunityId: opp.id, organizationId, hardDelete: true },
         staffToken,
       );
-      setOpportunities((prev) => prev.filter((o) => o.id !== opp.id));
+      await mutate();
       showToast(`Drive "${opp.name}" deleted.`);
     } catch (err) {
       console.error(err);

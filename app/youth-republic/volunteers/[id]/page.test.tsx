@@ -11,7 +11,7 @@ vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
-  return { ...actual, useSelectedOrg: vi.fn() };
+  return { ...actual, useSelectedOrg: vi.fn(), useShellStaffToken: vi.fn() };
 });
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "vol-1" }),
@@ -20,6 +20,7 @@ vi.mock("next/navigation", () => ({
 describe("YouthRepublicVolunteerDetailPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
+    vi.mocked(shell.useShellStaffToken).mockReturnValue("staff-jwt");
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
