@@ -89,6 +89,8 @@ describe("YouthRepublicOpportunitiesPage", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Edit/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /View Applicants/i })).not.toBeInTheDocument();
+    // Capacity is hidden on archived cards.
+    expect(screen.queryByText(/Capacity:/i)).not.toBeInTheDocument();
   });
 
   it("renders Opportunities Noticeboard heading without uppercase class", async () => {

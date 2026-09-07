@@ -11,7 +11,7 @@ const DECISION_META: Record<Decision, { label: string; loadingLabel: string; var
   selected: { label: "Select", loadingLabel: "Selecting…", variant: "btn-primary" },
   waitlisted: { label: "Waitlist", loadingLabel: "Waitlisting…", variant: "btn-secondary" },
   rejected: { label: "Reject", loadingLabel: "Rejecting…", variant: "btn-danger" },
-  pending_review: { label: "Reconsider", loadingLabel: "Moving to review…", variant: "btn-secondary" },
+  pending_review: { label: "Reconsider", loadingLabel: "Moving to review…", variant: "btn-primary" },
 };
 
 interface ApplicationReviewDrawerProps {

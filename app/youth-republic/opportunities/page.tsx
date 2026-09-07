@@ -261,16 +261,20 @@ export default function YouthRepublicOpportunitiesPage() {
                 </div>
 
                 <div className="opp-footer">
-                  <div>
-                    <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--ink)" }}>
-                      Capacity: {cap == null ? `${filled} confirmed` : `${filled} / ${cap}`}
-                    </div>
-                    {cap != null && (
-                      <div style={{ width: "90px", height: "5px", background: "var(--bg-page)", borderRadius: "99px", border: "1px solid var(--line)", marginTop: "3px", overflow: "hidden" }}>
-                        <div style={{ width: `${percent}%`, height: "100%", background: "var(--brand)" }} />
+                  {archived ? (
+                    <div />
+                  ) : (
+                    <div>
+                      <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--ink)" }}>
+                        Capacity: {cap == null ? `${filled} confirmed` : `${filled} / ${cap}`}
                       </div>
-                    )}
-                  </div>
+                      {cap != null && (
+                        <div style={{ width: "90px", height: "5px", background: "var(--bg-page)", borderRadius: "99px", border: "1px solid var(--line)", marginTop: "3px", overflow: "hidden" }}>
+                          <div style={{ width: `${percent}%`, height: "100%", background: "var(--brand)" }} />
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {archived ? (
                     <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>

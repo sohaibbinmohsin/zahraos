@@ -12,6 +12,8 @@ import {
   writeStoredOrgId,
   readStoredNavHint,
   writeStoredNavHint,
+  readStoredBrandHint,
+  writeStoredBrandHint,
 } from "@/lib/selectedOrg";
 import { MODULE_REGISTRY } from "@/registry/modules";
 import { isDisplayableLogo } from "@/lib/orgLogo";
@@ -117,6 +119,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // governance groups stay fixed across a reload instead of vanishing until
   // claims re-resolve. Only consulted while status !== "ready".
   const [navHint] = useState(() => readStoredNavHint());
+  const [brandHint] = useState(() => readStoredBrandHint());
 
   // UI states
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -141,6 +144,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setSelectedOrgId(null);
     setAccessToken(null);
     writeStoredNavHint({ governance: false, platform: false });
+    writeStoredBrandHint({ label: null, logoUrl: null, brandColor: null });
     setUserDropdownOpen(false);
     setPendingApplicationsCount(null);
     setPendingHoursCount(null);
@@ -449,11 +453,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
 
-  const brandLabel = (selectedOrgId ? orgNames[selectedOrgId] : null) || "Rizq";
-  const rawBrandLogoUrl = selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null;
+  // While the shell is still resolving, fall back to the brand remembered
+  // from the last ready session so the sidebar logo/title don't blink out
+  // and get replaced by the generic "Rizq" mark on every reload.
+  const brandFallback = status === "ready" ? null : brandHint;
+
+  const brandLabel =
+    (selectedOrgId ? orgNames[selectedOrgId] : null) || brandFallback?.label || "Rizq";
+  const rawBrandLogoUrl =
+    (selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null) ?? brandFallback?.logoUrl ?? null;
   const brandLogoUrl = isDisplayableLogo(rawBrandLogoUrl) ? rawBrandLogoUrl : null;
-  const brandColor = (selectedOrgId ? orgBrands[selectedOrgId]?.brandColor : null) || "#1F2430";
+  const brandColor =
+    (selectedOrgId ? orgBrands[selectedOrgId]?.brandColor : null) || brandFallback?.brandColor || "#1F2430";
   const brandInitials = brandLabel.trim().split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase() || "R";
+
+  useEffect(() => {
+    if (status !== "ready" || !selectedOrgId) return;
+    writeStoredBrandHint({
+      label: orgNames[selectedOrgId] ?? null,
+      logoUrl: orgBrands[selectedOrgId]?.logoUrl ?? null,
+      brandColor: orgBrands[selectedOrgId]?.brandColor ?? null,
+    });
+  }, [status, selectedOrgId, orgNames, orgBrands]);
 
   const userRoles = useMemo(() => {
     const rawRoles: string[] = [];

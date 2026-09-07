@@ -20,6 +20,18 @@ import { Modal } from "@/components/ui/Modal";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
+// Two verification-status values mean "awaiting review" — a shift the
+// volunteer logged (`recorded`) and one carried over from older data
+// (`pending`). The "Pending Review" filter matches either.
+const PENDING_HOURS_STATUSES = ["recorded", "pending"];
+
+const HOURS_STATUS_LABEL: Record<string, string> = {
+  recorded: "pending review",
+  pending: "pending review",
+  verified: "verified",
+  rejected: "rejected",
+};
+
 export default function YouthRepublicHoursPage() {
   const organizationId = useSelectedOrg();
   const { showToast } = useToast();
@@ -33,7 +45,7 @@ export default function YouthRepublicHoursPage() {
   // Drawer & Filter states
   const [adjustingRow, setAdjustingRow] = useState<ActivityListRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("all");
+  const [selectedStatus, setSelectedStatus] = useState("pending");
   const [showBulkAssign, setShowBulkAssign] = useState(false);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
@@ -119,7 +131,7 @@ export default function YouthRepublicHoursPage() {
   }
 
   if (loading && activity.length === 0) {
-    return <ListPageSkeleton columns={7} rows={6} />;
+    return <ListPageSkeleton columns={7} rows={6} filterBar={false} toolbarItems={3} />;
   }
 
   const filtered = activity.filter((a) => {
@@ -127,7 +139,10 @@ export default function YouthRepublicHoursPage() {
       !searchQuery ||
       a.volunteerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       a.opportunityName.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = selectedStatus === "all" || a.verificationStatus === selectedStatus;
+    const matchesStatus =
+      selectedStatus === "all" ||
+      a.verificationStatus === selectedStatus ||
+      (selectedStatus === "pending" && PENDING_HOURS_STATUSES.includes(a.verificationStatus));
     return matchesSearch && matchesStatus;
   });
 
@@ -142,6 +157,23 @@ export default function YouthRepublicHoursPage() {
           </div>
         </div>
         <div className="page-toolbar">
+          <input
+            type="text"
+            className="search-input"
+            placeholder="Search volunteer or drive name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <select
+            className="filter-select"
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+          >
+            <option value="all">All Verification Statuses</option>
+            <option value="pending">Pending Review</option>
+            <option value="verified">Verified &amp; Accredited</option>
+            <option value="rejected">Rejected</option>
+          </select>
           <button
             type="button"
             className="btn btn-primary btn-sm"
@@ -154,34 +186,6 @@ export default function YouthRepublicHoursPage() {
             <span>Bulk-Assign Hours</span>
           </button>
         </div>
-      </div>
-
-      {/* Filter & Search Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white border border-[var(--line)] rounded-xl">
-        <div className="flex flex-wrap items-center gap-2 flex-1">
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search volunteer or drive name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-
-          <select
-            className="filter-select"
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-          >
-            <option value="all">All Verification Statuses</option>
-            <option value="recorded">Pending Review (Recorded)</option>
-            <option value="verified">Verified &amp; Accredited</option>
-            <option value="rejected">Rejected</option>
-          </select>
-        </div>
-
-        <span className="text-xs font-semibold text-[var(--ink-2)]">
-          Showing {filtered.length} of {activity.length} shift logs
-        </span>
       </div>
 
       {/* Data Table */}
@@ -239,7 +243,7 @@ export default function YouthRepublicHoursPage() {
                             : "badge-pend"
                         }`}
                       >
-                        {a.verificationStatus}
+                        {HOURS_STATUS_LABEL[a.verificationStatus] ?? a.verificationStatus}
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>

@@ -68,3 +68,40 @@ export function writeStoredNavHint(hint: NavHint): void {
     // Non-fatal — the sidebar still reconciles once claims load.
   }
 }
+
+// Remembers the selected org's branding (name, logo, colour) so a reload
+// paints the sidebar's logo and title immediately instead of blinking to
+// the generic "Rizq" mark until the org data re-loads.
+const BRAND_HINT_KEY = "platform.brandHint";
+
+export interface BrandHint {
+  label: string | null;
+  logoUrl: string | null;
+  brandColor: string | null;
+}
+
+export function readStoredBrandHint(): BrandHint {
+  const empty: BrandHint = { label: null, logoUrl: null, brandColor: null };
+  if (typeof window === "undefined") return empty;
+  try {
+    const raw = window.localStorage.getItem(BRAND_HINT_KEY);
+    if (!raw) return empty;
+    const parsed = JSON.parse(raw) as Partial<BrandHint>;
+    return {
+      label: parsed.label ?? null,
+      logoUrl: parsed.logoUrl ?? null,
+      brandColor: parsed.brandColor ?? null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+export function writeStoredBrandHint(hint: BrandHint): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(BRAND_HINT_KEY, JSON.stringify(hint));
+  } catch {
+    // Non-fatal — the sidebar still reconciles once org data loads.
+  }
+}
