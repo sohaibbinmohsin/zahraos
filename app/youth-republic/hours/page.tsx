@@ -46,6 +46,7 @@ export default function YouthRepublicHoursPage() {
   const [adjustingRow, setAdjustingRow] = useState<ActivityListRow | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("pending");
+  const [selectedDrive, setSelectedDrive] = useState("all");
   const [showBulkAssign, setShowBulkAssign] = useState(false);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
 
@@ -131,8 +132,10 @@ export default function YouthRepublicHoursPage() {
   }
 
   if (loading && activity.length === 0) {
-    return <ListPageSkeleton columns={7} rows={6} filterBar={false} toolbarItems={3} />;
+    return <ListPageSkeleton columns={7} rows={6} filterBar={false} toolbarItems={4} />;
   }
+
+  const driveNames = [...new Set(activity.map((a) => a.opportunityName).filter(Boolean))].sort();
 
   const filtered = activity.filter((a) => {
     const matchesSearch =
@@ -143,7 +146,8 @@ export default function YouthRepublicHoursPage() {
       selectedStatus === "all" ||
       a.verificationStatus === selectedStatus ||
       (selectedStatus === "pending" && PENDING_HOURS_STATUSES.includes(a.verificationStatus));
-    return matchesSearch && matchesStatus;
+    const matchesDrive = selectedDrive === "all" || a.opportunityName === selectedDrive;
+    return matchesSearch && matchesStatus && matchesDrive;
   });
 
   return (
@@ -166,8 +170,20 @@ export default function YouthRepublicHoursPage() {
           />
           <select
             className="filter-select"
+            value={selectedDrive}
+            onChange={(e) => setSelectedDrive(e.target.value)}
+            aria-label="Filter by drive"
+          >
+            <option value="all">All Drives</option>
+            {driveNames.map((nm) => (
+              <option key={nm} value={nm}>{nm}</option>
+            ))}
+          </select>
+          <select
+            className="filter-select"
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
+            aria-label="Filter by status"
           >
             <option value="all">All Verification Statuses</option>
             <option value="pending">Pending Review</option>
@@ -309,7 +325,7 @@ export default function YouthRepublicHoursPage() {
               value={selectedOpportunityId}
               onChange={(e) => setSelectedOpportunityId(e.target.value)}
             >
-              <option value="">Select an opportunity</option>
+              <option value="">Select a drive</option>
               {opportunities.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.name}
@@ -333,7 +349,7 @@ export default function YouthRepublicHoursPage() {
             />
           ) : (
             <p className="text-xs text-[var(--ink-2)]">
-              Pick an opportunity to choose participants and assign hours.
+              Pick a drive to choose participants and assign hours.
             </p>
           )}
         </div>

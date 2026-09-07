@@ -63,7 +63,7 @@ describe("YouthRepublicHoursPage", () => {
   it("opens with the status filter on Pending Review and still shows a 'recorded' shift log", async () => {
     render(<YouthRepublicHoursPage />);
 
-    const filter = await screen.findByRole("combobox");
+    const filter = await screen.findByRole("combobox", { name: "Filter by status" });
     expect(filter).toHaveValue("pending");
     // ah-1's verificationStatus is "recorded" — the Pending Review filter
     // must treat that as pending (regression: it previously matched only the
@@ -108,7 +108,7 @@ describe("YouthRepublicHoursPage", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Bulk-Assign Hours/ }));
 
-    await screen.findByText("Beach Cleanup", { selector: "option" });
+    await screen.findAllByText("Beach Cleanup", { selector: "option" });
     await user.selectOptions(screen.getByLabelText("Opportunity / drive"), "opp-1");
 
     await waitFor(() => {

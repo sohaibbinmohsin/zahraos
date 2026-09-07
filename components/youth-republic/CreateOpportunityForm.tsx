@@ -291,7 +291,7 @@ export function CreateOpportunityForm({
         },
         staffToken,
       );
-      showToast(archiving ? "Opportunity archived." : "Opportunity restored.");
+      showToast(archiving ? "Drive archived." : "Drive restored.");
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update archive status");
@@ -304,12 +304,12 @@ export function CreateOpportunityForm({
   async function handleSave(isDraft: boolean = false) {
     setError(null);
     if (!name.trim()) {
-      setError("Opportunity name is required");
+      setError("Drive name is required");
       setCurrentStep(1);
       return;
     }
     if (name.trim().length > 80) {
-      setError("Opportunity name cannot exceed 80 characters");
+      setError("Drive name cannot exceed 80 characters");
       setCurrentStep(1);
       return;
     }
@@ -359,7 +359,7 @@ export function CreateOpportunityForm({
           },
           staffToken,
         );
-        showToast(isDraft ? (isLive ? "Opportunity draft updated." : "Opportunity draft updated.") : "Opportunity updated successfully.");
+        showToast(isDraft ? "Drive draft updated." : "Drive updated successfully.");
       } else {
         const payload: CreateOpportunityPayload = {
           organizationId,
@@ -372,11 +372,11 @@ export function CreateOpportunityForm({
           ...(isDraft ? { statusOverride: "draft" } : {}),
         };
         await createOpportunity(payload, staffToken);
-        showToast(isDraft ? "Opportunity draft saved." : "Opportunity published to Noticeboard.");
+        showToast(isDraft ? "Drive draft saved." : "Drive published to Noticeboard.");
       }
       onCreated();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save opportunity");
+      setError(err instanceof Error ? err.message : "Failed to save drive");
     } finally {
       setSubmitting(false);
       setBusyAction(null);
@@ -387,7 +387,7 @@ export function CreateOpportunityForm({
 
   // Every Step 1 field is mandatory before the user can move on.
   const step1Errors: Record<string, string> = {};
-  if (!name.trim()) step1Errors.name = "Give the opportunity a name.";
+  if (!name.trim()) step1Errors.name = "Give the drive a name.";
   if (isChapterScoped && !chapterId) step1Errors.chapter = "Select a chapter.";
   if (!isOnline && !location.trim()) step1Errors.location = "Add the city & venue for an on-site drive.";
   if (!capacity || Number(capacity) < 1) step1Errors.capacity = "Set a volunteer capacity of 1 or more.";
@@ -425,7 +425,7 @@ export function CreateOpportunityForm({
       <div className="page-header">
         <div>
           <h1 className="page-title">
-            {initialOpportunity?.id ? "Edit Opportunity" : "Create New Opportunity"}
+            {initialOpportunity?.id ? "Edit Drive" : "Create New Drive"}
           </h1>
           <div className="page-subtitle">Full specifications &amp; built-in application form builder</div>
         </div>
@@ -469,7 +469,7 @@ export function CreateOpportunityForm({
           onClick={() => setCurrentStep(1)}
         >
           <span className="step-num">1</span>
-          <span>Opportunity Specifications &amp; Overview</span>
+          <span>Drive Specifications &amp; Overview</span>
         </button>
         <span className="step-dot" aria-hidden="true">•</span>
         <button
@@ -690,7 +690,7 @@ export function CreateOpportunityForm({
           </div>
 
           <div className="form-group">
-            <label htmlFor="oppAbout" className="form-label">Full Details <span className="text-[var(--ink-3)] font-normal">— shown on the opportunity page below the summary</span></label>
+            <label htmlFor="oppAbout" className="form-label">Full Details <span className="text-[var(--ink-3)] font-normal">— shown on the drive page below the summary</span></label>
             <textarea
               id="oppAbout"
               rows={4}
@@ -1003,7 +1003,7 @@ export function CreateOpportunityForm({
               loading={busyAction === "save"}
               loadingText="Publishing…"
             >
-              {isLive ? "Update changes" : "Create opportunity"}
+              {isLive ? "Update changes" : "Create drive"}
             </LoadingButton>
           </div>
         </div>

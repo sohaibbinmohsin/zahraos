@@ -64,7 +64,7 @@ function cardStatus(
   }
 }
 
-export default function YouthRepublicOpportunitiesPage() {
+export default function YouthRepublicDrivesPage() {
   const organizationId = useSelectedOrg();
   const accessToken = useShellAccessToken();
   const { showToast } = useToast();
@@ -89,8 +89,8 @@ export default function YouthRepublicOpportunitiesPage() {
       const result = await listOpportunities({ organizationId }, token);
       setOpportunities(result.opportunities.filter((o) => o.computedStatus !== "deleted"));
     } catch (err) {
-      console.error("Failed to load opportunities", err);
-      showToast(err instanceof Error ? `Could not load opportunities: ${err.message}` : "Could not load opportunities.");
+      console.error("Failed to load drives", err);
+      showToast(err instanceof Error ? `Could not load drives: ${err.message}` : "Could not load drives.");
     } finally {
       setLoading(false);
     }
@@ -128,7 +128,7 @@ export default function YouthRepublicOpportunitiesPage() {
       });
     } catch (err) {
       console.error(err);
-      showToast(err instanceof Error ? `Could not open opportunity: ${err.message}` : "Could not open opportunity.");
+      showToast(err instanceof Error ? `Could not open drive: ${err.message}` : "Could not open drive.");
     } finally {
       setOpeningEditorId(null);
     }
@@ -144,7 +144,7 @@ export default function YouthRepublicOpportunitiesPage() {
         { opportunityId: opp.id, organizationId, deactivatedAt: archiving ? new Date().toISOString() : null },
         staffToken,
       );
-      showToast(archiving ? "Opportunity archived." : "Opportunity restored.");
+      showToast(archiving ? "Drive archived." : "Drive restored.");
       await load();
     } catch (err) {
       console.error(err);
@@ -166,10 +166,10 @@ export default function YouthRepublicOpportunitiesPage() {
         staffToken,
       );
       setOpportunities((prev) => prev.filter((o) => o.id !== opp.id));
-      showToast(`Opportunity "${opp.name}" deleted.`);
+      showToast(`Drive "${opp.name}" deleted.`);
     } catch (err) {
       console.error(err);
-      showToast(err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete opportunity.");
+      showToast(err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete drive.");
     } finally {
       setBusy(null);
     }
@@ -178,7 +178,7 @@ export default function YouthRepublicOpportunitiesPage() {
   if (!organizationId) {
     return (
       <div className="panel p-8 text-center">
-        <p className="text-[var(--ink-2)] font-medium">Select an organization to see its opportunities.</p>
+        <p className="text-[var(--ink-2)] font-medium">Select an organization to see its drives.</p>
       </div>
     );
   }
@@ -194,7 +194,7 @@ export default function YouthRepublicOpportunitiesPage() {
             setEditTarget(null);
           }}
         >
-          &larr; Back to Opportunities
+          &larr; Back to Drives
         </button>
 
         {staffToken && (
@@ -222,7 +222,7 @@ export default function YouthRepublicOpportunitiesPage() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Opportunities Noticeboard</h1>
+          <h1 className="page-title">Drives Noticeboard</h1>
           <div className="page-subtitle">
             Manage active drives, customize multi-field application forms, and track volunteer capacity.
           </div>
@@ -233,7 +233,7 @@ export default function YouthRepublicOpportunitiesPage() {
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            <span>Create Opportunity</span>
+            <span>Create Drive</span>
           </button>
         </div>
       </div>
@@ -369,7 +369,7 @@ export default function YouthRepublicOpportunitiesPage() {
       {!loading && opportunities.length === 0 && (
         <div className="panel p-8 text-center">
           <p className="text-sm text-[var(--ink-2)]">
-            No opportunities yet. Use “Create Opportunity” to add one — it will appear on the volunteer noticeboard immediately.
+            No drives yet. Use “Create Drive” to add one — it will appear on the volunteer noticeboard immediately.
           </p>
         </div>
       )}

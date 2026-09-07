@@ -49,7 +49,7 @@ describe("YouthRepublicModuleLayout", () => {
 
     expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Volunteers" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Opportunities" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Drives" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Applications" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Hours" })).toBeInTheDocument();
     expect(screen.getByText("screen content")).toBeInTheDocument();
@@ -63,7 +63,7 @@ describe("YouthRepublicModuleLayout", () => {
       </YouthRepublicModuleLayout>,
     );
 
-    const oppsLink = screen.getByRole("link", { name: "Opportunities" });
+    const oppsLink = screen.getByRole("link", { name: "Drives" });
     const appsLink = screen.getByRole("link", { name: "Applications" });
     const hoursLink = screen.getByRole("link", { name: "Hours" });
 

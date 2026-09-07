@@ -77,7 +77,7 @@ describe("CreateOpportunityForm", () => {
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
-    await user.click(screen.getByRole("button", { name: "Create opportunity" }));
+    await user.click(screen.getByRole("button", { name: "Create drive" }));
 
     await waitFor(() => {
       expect(youthRepublicFunctions.createOpportunity).toHaveBeenCalledWith(
@@ -154,7 +154,7 @@ describe("CreateOpportunityForm", () => {
     expect(archiveBtn.className).toContain("btn-danger");
     expect(screen.queryByRole("button", { name: "Cancel" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save draft" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Create opportunity" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Create drive" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Update changes" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Proceed to Application Form Builder/i })).toBeInTheDocument();
 
@@ -394,7 +394,7 @@ describe("CreateOpportunityForm", () => {
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
-    await user.click(screen.getByRole("button", { name: "Create opportunity" }));
+    await user.click(screen.getByRole("button", { name: "Create drive" }));
 
     await waitFor(() => {
       expect(youthRepublicFunctions.createOpportunity).toHaveBeenCalledWith(
@@ -439,7 +439,7 @@ describe("CreateOpportunityForm", () => {
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
     await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
-    await user.click(screen.getByRole("button", { name: "Create opportunity" }));
+    await user.click(screen.getByRole("button", { name: "Create drive" }));
 
     await waitFor(() => {
       expect(youthRepublicFunctions.createOpportunity).toHaveBeenCalledWith(

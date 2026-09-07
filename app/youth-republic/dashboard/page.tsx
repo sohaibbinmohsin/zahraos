@@ -143,7 +143,7 @@ export default function YouthRepublicDashboardPage() {
 
       <div className="stat-grid">
         <div className="stat-card">
-          <div className="stat-label">Active opportunities</div>
+          <div className="stat-label">Active drives</div>
           <div className="stat-value">{activeOpps.length}</div>
           <div className="stat-sub">{liveOpps.length} live · {opps.length - liveOpps.length} archived</div>
         </div>
@@ -168,13 +168,13 @@ export default function YouthRepublicDashboardPage() {
         <div className="panel">
           <div className="panel-head">
             <span className="panel-title">Volunteer capacity</span>
-            <Link href="/youth-republic/opportunities" className="text-xs font-semibold text-[var(--ink)] hover:underline">
+            <Link href="/youth-republic/drives" className="text-xs font-semibold text-[var(--ink)] hover:underline">
               View all &rarr;
             </Link>
           </div>
           <div className="flex flex-col gap-3.5">
             {capacityRows.length === 0 ? (
-              <p className="text-xs text-[var(--ink-3)]">No opportunities with a capacity quota yet.</p>
+              <p className="text-xs text-[var(--ink-3)]">No drives with a capacity quota yet.</p>
             ) : (
               capacityRows.map((r) => (
                 <div key={r.name}>

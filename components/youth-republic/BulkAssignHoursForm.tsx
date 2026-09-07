@@ -107,7 +107,7 @@ export function BulkAssignHoursForm({
 
         {participants.length === 0 ? (
           <p className="text-xs text-[var(--ink-2)] mt-1">
-            No confirmed participants for this opportunity yet.
+            No confirmed participants for this drive yet.
           </p>
         ) : (
           <div className="mt-2 max-h-56 overflow-y-auto rounded-lg border border-[var(--line)] divide-y divide-[var(--line-subtle)]">
