@@ -16,124 +16,51 @@ export function pickInitialOrgId(availableOrgIds: string[], storedOrgId: string 
   return availableOrgIds[0] ?? null;
 }
 
-const STORAGE_KEY = "platform.selectedOrgId";
+/**
+ * The selected org lives in a cookie, not localStorage, because the root
+ * layout resolves the shell (including that org's name, logo and colour)
+ * during SSR — and the server can only see cookies. localStorage is written
+ * alongside it purely so an existing session keeps its choice on the first
+ * load after this change.
+ */
+export const SELECTED_ORG_COOKIE = "platform.selectedOrgId";
+
+const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
+
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name.replace(/\./g, "\\.")}=([^;]*)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 export function readStoredOrgId(): string | null {
   if (typeof window === "undefined") return null;
+  const fromCookie = readCookie(SELECTED_ORG_COOKIE);
+  if (fromCookie) return fromCookie;
   try {
-    return window.localStorage.getItem(STORAGE_KEY);
+    return window.localStorage.getItem(SELECTED_ORG_COOKIE);
   } catch {
     return null;
   }
 }
 
 export function writeStoredOrgId(orgId: string): void {
-  if (typeof window === "undefined") return;
+  if (typeof document === "undefined") return;
+  document.cookie = `${SELECTED_ORG_COOKIE}=${encodeURIComponent(orgId)}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
   try {
-    window.localStorage.setItem(STORAGE_KEY, orgId);
+    window.localStorage.setItem(SELECTED_ORG_COOKIE, orgId);
   } catch {
-    // Storage can be unavailable (private browsing, quota); the org
-    // switcher still works for the current session either way.
+    // Storage can be unavailable (private browsing, quota); the cookie above
+    // is what actually matters.
   }
 }
 
-// Remembers which governance nav groups the signed-in user can see, so a
-// reload paints the sidebar with the same fixed set of items immediately
-// instead of hiding them until claims re-resolve.
-const NAV_HINT_KEY = "platform.navHint";
-
-export interface NavHint {
-  governance: boolean;
-  platform: boolean;
-}
-
-export function readStoredNavHint(): NavHint {
-  const empty: NavHint = { governance: false, platform: false };
-  if (typeof window === "undefined") return empty;
+export function clearStoredOrgId(): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${SELECTED_ORG_COOKIE}=; path=/; max-age=0; samesite=lax`;
   try {
-    const raw = window.localStorage.getItem(NAV_HINT_KEY);
-    if (!raw) return empty;
-    const parsed = JSON.parse(raw) as Partial<NavHint>;
-    return { governance: Boolean(parsed.governance), platform: Boolean(parsed.platform) };
+    window.localStorage.removeItem(SELECTED_ORG_COOKIE);
   } catch {
-    return empty;
-  }
-}
-
-export function writeStoredNavHint(hint: NavHint): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(NAV_HINT_KEY, JSON.stringify(hint));
-  } catch {
-    // Non-fatal — the sidebar still reconciles once claims load.
-  }
-}
-
-// Remembers the selected org's branding (name, logo, colour) so a reload
-// paints the sidebar's logo and title immediately instead of blinking to
-// the generic "Rizq" mark until the org data re-loads.
-const BRAND_HINT_KEY = "platform.brandHint";
-
-export interface BrandHint {
-  label: string | null;
-  logoUrl: string | null;
-  brandColor: string | null;
-}
-
-export function readStoredBrandHint(): BrandHint {
-  const empty: BrandHint = { label: null, logoUrl: null, brandColor: null };
-  if (typeof window === "undefined") return empty;
-  try {
-    const raw = window.localStorage.getItem(BRAND_HINT_KEY);
-    if (!raw) return empty;
-    const parsed = JSON.parse(raw) as Partial<BrandHint>;
-    return {
-      label: parsed.label ?? null,
-      logoUrl: parsed.logoUrl ?? null,
-      brandColor: parsed.brandColor ?? null,
-    };
-  } catch {
-    return empty;
-  }
-}
-
-export function writeStoredBrandHint(hint: BrandHint): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(BRAND_HINT_KEY, JSON.stringify(hint));
-  } catch {
-    // Non-fatal — the sidebar still reconciles once org data loads.
-  }
-}
-
-// Remembers the signed-in user's display name + role so the header pill
-// keeps showing them on a reload instead of blanking until the staff row
-// and claims re-resolve.
-const USER_HINT_KEY = "platform.userHint";
-
-export interface UserHint {
-  fullName: string | null;
-  role: string | null;
-}
-
-export function readStoredUserHint(): UserHint {
-  const empty: UserHint = { fullName: null, role: null };
-  if (typeof window === "undefined") return empty;
-  try {
-    const raw = window.localStorage.getItem(USER_HINT_KEY);
-    if (!raw) return empty;
-    const parsed = JSON.parse(raw) as Partial<UserHint>;
-    return { fullName: parsed.fullName ?? null, role: parsed.role ?? null };
-  } catch {
-    return empty;
-  }
-}
-
-export function writeStoredUserHint(hint: UserHint): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(USER_HINT_KEY, JSON.stringify(hint));
-  } catch {
-    // Non-fatal — the pill still reconciles once the account loads.
+    // Non-fatal.
   }
 }
