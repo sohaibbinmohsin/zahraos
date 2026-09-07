@@ -139,13 +139,6 @@ export default function YouthRepublicDashboardPage() {
             </svg>
             <span>Refresh</span>
           </button>
-          <Link href="/modules/youth-republic/opportunities" className="btn btn-primary btn-sm">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>New Opportunity</span>
-          </Link>
         </div>
       </div>
 
@@ -176,7 +169,7 @@ export default function YouthRepublicDashboardPage() {
         <div className="panel">
           <div className="panel-head">
             <span className="panel-title">Volunteer capacity</span>
-            <Link href="/modules/youth-republic/opportunities" className="text-xs font-semibold text-[var(--ink)] hover:underline">
+            <Link href="/youth-republic/opportunities" className="text-xs font-semibold text-[var(--ink)] hover:underline">
               View all &rarr;
             </Link>
           </div>
@@ -202,7 +195,7 @@ export default function YouthRepublicDashboardPage() {
         <div className="panel">
           <div className="panel-head">
             <span className="panel-title">Recent applications</span>
-            <Link href="/modules/youth-republic/applications" className="text-xs font-semibold text-[var(--ink)] hover:underline">
+            <Link href="/youth-republic/applications" className="text-xs font-semibold text-[var(--ink)] hover:underline">
               Triage all &rarr;
             </Link>
           </div>
@@ -228,7 +221,7 @@ export default function YouthRepublicDashboardPage() {
                       {APP_STATUS_LABEL[a.status] ?? a.status}
                     </span>
                     <Link
-                      href={`/modules/youth-republic/applications?opportunityId=${a.opportunityId}`}
+                      href={`/youth-republic/applications?opportunityId=${a.opportunityId}`}
                       className="btn btn-secondary btn-xs"
                     >
                       Review

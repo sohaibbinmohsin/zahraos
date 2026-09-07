@@ -8,6 +8,7 @@ export interface UpdateStaffAccessInput {
   organizationId: string;
   roles: RoleAssignmentInput[];
   status: "active" | "invited" | "deactivated";
+  expiresAt?: string | null;
 }
 
 export async function updateStaffAccess(
@@ -44,7 +45,7 @@ export async function updateStaffAccess(
   if (insertError) throw insertError;
 
   const { error: statusError } = await supabase.from("staff")
-    .update({ status: input.status }).eq("id", input.staffId);
+    .update({ status: input.status, expires_at: input.expiresAt ?? null }).eq("id", input.staffId);
   if (statusError) throw statusError;
 
   const { data: target } = await supabase.from("staff").select("full_name").eq("id", input.staffId).single();

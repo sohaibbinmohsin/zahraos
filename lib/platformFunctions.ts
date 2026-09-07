@@ -50,6 +50,10 @@ export function createOrganization(payload: CreateOrganizationPayload, accessTok
 export interface UpdateOrganizationPayload {
   organizationId: string;
   name: string;
+  brandColor?: string | null;
+  logoUrl?: string | null;
+  faviconUrl?: string | null;
+  about?: string | null;
 }
 export interface UpdateOrganizationResponse {
   enabledModuleKeys: string[];
@@ -96,6 +100,7 @@ export interface InviteStaffMemberPayload {
   roles: RoleAssignmentPayload[];
   sendActivationEmail: boolean;
   enforce2fa: boolean;
+  expiresAt?: string | null;
 }
 export interface InviteStaffMemberResponse { staffId: string; invitationId: string }
 export function inviteStaffMember(payload: InviteStaffMemberPayload, accessToken: string) {
@@ -107,6 +112,7 @@ export interface UpdateStaffAccessPayload {
   organizationId: string;
   roles: RoleAssignmentPayload[];
   status: "active" | "invited" | "deactivated";
+  expiresAt?: string | null;
 }
 export interface UpdateStaffAccessResponse { staffId: string }
 export function updateStaffAccess(payload: UpdateStaffAccessPayload, accessToken: string) {
@@ -156,4 +162,26 @@ export interface DeactivateStaffResponse {
 }
 export function deactivateStaff(payload: DeactivateStaffPayload, accessToken: string) {
   return callFunction<DeactivateStaffResponse>("deactivate-staff", payload, accessToken);
+}
+
+export interface ChapterRow {
+  id: string;
+  name: string;
+  city: string | null;
+  status: string;
+}
+export function listChapters(payload: { organizationId: string }, accessToken: string) {
+  return callFunction<{ chapters: ChapterRow[] }>("list-chapters", payload, accessToken);
+}
+export function createChapter(
+  payload: { organizationId: string; name: string; city?: string },
+  accessToken: string,
+) {
+  return callFunction<{ chapterId: string }>("create-chapter", payload, accessToken);
+}
+export function updateChapter(
+  payload: { chapterId: string; name?: string; city?: string | null; status?: "active" | "inactive" },
+  accessToken: string,
+) {
+  return callFunction<{ chapterId: string }>("update-chapter", payload, accessToken);
 }

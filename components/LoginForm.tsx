@@ -24,7 +24,7 @@ export function LoginForm() {
         setLoading(false);
         return;
       }
-      router.push("/modules/youth-republic/dashboard");
+      router.push("/youth-republic/dashboard");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "login_failed");

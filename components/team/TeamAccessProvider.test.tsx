@@ -2,7 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const chaptersMock = vi.fn();
-vi.mock("@/lib/youthRepublicFunctions", () => ({ listChapters: (...a: unknown[]) => chaptersMock(...a) }));
+vi.mock("@/lib/platformFunctions", () => ({ listChapters: (...a: unknown[]) => chaptersMock(...a) }));
 vi.mock("@/lib/staffToken", () => ({ fetchStaffToken: vi.fn().mockResolvedValue("staff-token") }));
 vi.mock("@/components/shell/AppShell", () => ({
   useSelectedOrg: () => "org-1",

@@ -16,6 +16,7 @@ export interface InviteStaffMemberInput {
   roles: RoleAssignmentInput[];
   sendActivationEmail: boolean;
   enforce2fa: boolean;
+  expiresAt?: string | null;
 }
 
 async function assertCallerIsOrgAdmin(
@@ -65,7 +66,7 @@ export async function inviteStaffMember(
 
   const { data: staff, error: staffError } = await supabase.from("staff").insert({
     auth_user_id: authUser.user.id, full_name: input.fullName, email: input.email,
-    status: "invited", must_change_password: true,
+    status: "invited", must_change_password: true, expires_at: input.expiresAt ?? null,
   }).select("id").single();
   if (staffError) throw staffError;
 

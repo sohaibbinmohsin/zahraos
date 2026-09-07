@@ -15,7 +15,7 @@ export async function verifyPlatformStaffSession(
 
   const { data: staff, error: staffError } = await supabase
     .from("staff")
-    .select("id, platform_owner, status")
+    .select("id, platform_owner, status, expires_at")
     .eq("auth_user_id", userData.user.id)
     .single();
   if (staffError || !staff) {
@@ -26,7 +26,11 @@ export async function verifyPlatformStaffSession(
   // valid (until it naturally expires, or briefly even after an admin ban —
   // see deactivateStaff) and keep working against every platform Edge
   // Function this gate protects, including minting a brand new Youth Republic token.
-  if (staff.status !== "active") {
+  // The expires_at check does the same for time-boxed staff accounts.
+  if (
+    staff.status !== "active" ||
+    (staff.expires_at && new Date(staff.expires_at as string).getTime() < Date.now())
+  ) {
     throw new Error("unauthorized");
   }
 

@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import { useSelectedOrg, useShellAccessToken } from "@/components/shell/AppShell";
-import { listChapters } from "@/lib/youthRepublicFunctions";
+import { listChapters, type ChapterRow } from "@/lib/platformFunctions";
 
 export interface MemberAssignment {
   id: string;
@@ -150,7 +150,7 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
       if (st) {
         try {
           const res = await listChapters({ organizationId }, st);
-          setChapters(res.chapters.map((c) => ({ id: c.id, name: c.name, city: c.city, status: c.status })));
+          setChapters(res.chapters.map((c: ChapterRow) => ({ id: c.id, name: c.name, city: c.city, status: c.status })));
         } catch {
           setChapters([]);
         }

@@ -43,6 +43,31 @@ describe("updateOrganization", () => {
     const result = await updateOrganization({ organizationId: "org-1", name: "Rizq Renamed" }, "session-token");
     expect(result.enabledModuleKeys).toEqual(["youth-republic"]);
   });
+
+  it("sends branding fields in the POST body", async () => {
+    mockOk({ enabledModuleKeys: ["youth-republic"] });
+    await updateOrganization(
+      {
+        organizationId: "org-1",
+        name: "Rizq Renamed",
+        brandColor: "#0f172a",
+        logoUrl: "https://cdn.example.com/logo.png",
+        faviconUrl: "https://cdn.example.com/favicon.ico",
+        about: "A food-security nonprofit.",
+      },
+      "session-token",
+    );
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe(`${FUNCTIONS_URL}/update-organization`);
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      organizationId: "org-1",
+      name: "Rizq Renamed",
+      brandColor: "#0f172a",
+      logoUrl: "https://cdn.example.com/logo.png",
+      faviconUrl: "https://cdn.example.com/favicon.ico",
+      about: "A food-security nonprofit.",
+    });
+  });
 });
 
 describe("enableModule", () => {

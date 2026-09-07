@@ -5,7 +5,6 @@ import { useTeamAccess } from "@/components/team/TeamAccessProvider";
 import { useTeamHeader } from "@/components/team/teamHeader";
 import { useTeamDrawers } from "@/components/team/TeamDrawers";
 import { RolesTable } from "@/components/team/RolesTable";
-import { ChaptersPanel } from "@/components/team/ChaptersPanel";
 import { StatCard } from "@/components/team/StatCard";
 import { useToast } from "@/components/shell/ToastContext";
 import { deleteCustomRole } from "@/lib/platformFunctions";
@@ -66,8 +65,6 @@ export default function TeamRolesPage() {
         onClone={openCloneRole}
         onDelete={onDelete}
       />
-
-      <ChaptersPanel />
     </div>
   );
 }

@@ -8,7 +8,16 @@ export function functionsUrlForModule(moduleKey: string): string | null {
 export async function pushOrganizationSync(
   moduleKey: string,
   staffToken: string,
-  organization: { id: string; name: string; slug: string; deactivatedAt: string | null },
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    deactivatedAt: string | null;
+    brandColor?: string | null;
+    logoUrl?: string | null;
+    faviconUrl?: string | null;
+    about?: string | null;
+  },
 ): Promise<void> {
   const baseUrl = functionsUrlForModule(moduleKey);
   if (!baseUrl) return;
@@ -24,6 +33,10 @@ export async function pushOrganizationSync(
       name: organization.name,
       slug: organization.slug,
       deactivatedAt: organization.deactivatedAt,
+      brandColor: organization.brandColor ?? null,
+      logoUrl: organization.logoUrl ?? null,
+      faviconUrl: organization.faviconUrl ?? null,
+      about: organization.about ?? null,
     }),
   });
 }

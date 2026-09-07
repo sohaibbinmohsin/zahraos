@@ -6,7 +6,7 @@ import { fetchStaffToken } from "@/lib/staffToken";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/modules/youth-republic/dashboard",
+  usePathname: () => "/youth-republic/dashboard",
 }));
 vi.mock("@/components/shell/AppShell", () => ({
   useSelectedOrg: () => "org-1",

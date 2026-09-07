@@ -62,6 +62,6 @@ describe("YouthRepublicVolunteersPage", () => {
     render(<YouthRepublicVolunteersPage />);
 
     const link = await screen.findByRole("link", { name: "Aisha Khan" });
-    expect(link).toHaveAttribute("href", "/modules/youth-republic/volunteers/vol-1");
+    expect(link).toHaveAttribute("href", "/youth-republic/volunteers/vol-1");
   });
 });

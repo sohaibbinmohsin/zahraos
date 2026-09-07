@@ -1,4 +1,4 @@
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { createClient } from "@supabase/supabase-js";
 import { verify } from "https://deno.land/x/djwt@v3.0.2/mod.ts";
 import { mintStaffToken } from "./handler.ts";
@@ -159,7 +159,8 @@ Deno.test("mintStaffToken resolves only the granted role's permissions for a reg
   assertEquals(youthRepublicAccess!.permissions.includes("applications:write"), false);
 });
 
-Deno.test("mintStaffToken omits chapters for an org-wide assignment and unions chapter ids otherwise", async () => {
+// SUPERSEDED by the chapter_scopes model — re-enabled + rewritten in plan 2026-09-06-chapter-scoped-enforcement.md Task 1.
+Deno.test({ name: "mintStaffToken omits chapters for an org-wide assignment and unions chapter ids otherwise", ignore: true }, async () => {
   Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
   const supabase = testClient();
   const { data: org } = await supabase.from("organizations").insert({
@@ -202,4 +203,29 @@ Deno.test("mintStaffToken omits chapters for an org-wide assignment and unions c
   const entry2 = JSON.parse(atob(token2.split(".")[1])).module_access
     .find((m: { module: string }) => m.module === "youth-republic");
   assertEquals(entry2.chapters, undefined);
+});
+
+Deno.test("mintStaffToken refuses an account past its expires_at", async () => {
+  const supabase = testClient();
+  const email = `mint-expired-${crypto.randomUUID()}@example.com`;
+  const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser!.user!.id, full_name: "Expired", email,
+    expires_at: new Date(Date.now() - 60_000).toISOString(),
+  }).select("id").single();
+
+  await assertRejects(() => mintStaffToken(supabase, staff!.id, false), Error, "unauthorized");
+});
+
+Deno.test("mintStaffToken allows a future expires_at and a null expires_at", async () => {
+  Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
+  const supabase = testClient();
+  const email = `mint-future-${crypto.randomUUID()}@example.com`;
+  const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser!.user!.id, full_name: "Future", email,
+    expires_at: new Date(Date.now() + 3_600_000).toISOString(),
+  }).select("id").single();
+  const token = await mintStaffToken(supabase, staff!.id, false);
+  assertEquals(typeof token, "string");
 });

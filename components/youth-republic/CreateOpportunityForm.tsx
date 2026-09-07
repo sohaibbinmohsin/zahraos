@@ -28,6 +28,8 @@ interface CreateOpportunityFormProps {
     eligibility?: string[];
     whatToBring?: string[];
     applicationForm?: FormDefinition;
+    computedStatus?: string;
+    deactivatedAt?: string | null;
   };
 }
 
@@ -156,6 +158,33 @@ export function CreateOpportunityForm({
     handleFieldChange(fieldIndex, { options: opts });
   }
 
+  const isLive = Boolean(initialOpportunity?.id && initialOpportunity.computedStatus !== "draft");
+
+  async function handleToggleArchive() {
+    if (!initialOpportunity?.id) return;
+    const archiving = !initialOpportunity.deactivatedAt;
+    if (archiving && !confirm(`Archive "${name}"? It will be hidden from volunteers immediately.`)) {
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await updateOpportunity(
+        {
+          opportunityId: initialOpportunity.id,
+          organizationId,
+          deactivatedAt: archiving ? new Date().toISOString() : null,
+        },
+        staffToken,
+      );
+      showToast(archiving ? "Opportunity archived." : "Opportunity restored.");
+      onCreated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update archive status");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSave(isDraft: boolean = false) {
     setError(null);
     if (!name.trim()) {
@@ -189,10 +218,16 @@ export function CreateOpportunityForm({
 
       if (initialOpportunity?.id) {
         await updateOpportunity(
-          { opportunityId: initialOpportunity.id, organizationId, name: name.trim(), ...common },
+          {
+            opportunityId: initialOpportunity.id,
+            organizationId,
+            name: name.trim(),
+            ...(initialOpportunity.computedStatus === "draft" && !isDraft ? { statusOverride: "open" } : {}),
+            ...common,
+          },
           staffToken,
         );
-        showToast("Opportunity updated successfully.");
+        showToast(isDraft ? (isLive ? "Opportunity draft updated." : "Opportunity draft updated.") : "Opportunity updated successfully.");
       } else {
         const payload: CreateOpportunityPayload = {
           organizationId,
@@ -200,7 +235,13 @@ export function CreateOpportunityForm({
           type,
           ...common,
         };
-        await createOpportunity(payload, staffToken);
+        const created = await createOpportunity(payload, staffToken);
+        if (isDraft) {
+          await updateOpportunity(
+            { opportunityId: created.opportunityId, organizationId, statusOverride: "draft" },
+            staffToken,
+          );
+        }
         showToast(isDraft ? "Opportunity draft saved." : "Opportunity published to Noticeboard.");
       }
       onCreated();
@@ -222,14 +263,26 @@ export function CreateOpportunityForm({
           <div className="page-subtitle">Full specifications &amp; built-in application form builder</div>
         </div>
         <div className="page-toolbar">
-          <button
-            type="button"
-            className="btn btn-secondary btn-sm"
-            onClick={() => handleSave(true)}
-            disabled={submitting}
-          >
-            {submitting ? "Saving..." : "Save Draft"}
-          </button>
+          {initialOpportunity?.id && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={handleToggleArchive}
+              disabled={submitting}
+            >
+              {initialOpportunity.deactivatedAt ? "Restore" : "Archive"}
+            </button>
+          )}
+          {!initialOpportunity?.id && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              onClick={() => handleSave(true)}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : "Save Draft"}
+            </button>
+          )}
           {onCancel && (
             <button
               type="button"
@@ -278,7 +331,8 @@ export function CreateOpportunityForm({
 
       {/* STEP 1: Specifications & Overview */}
       {currentStep === 1 && (
-        <div className="builder-pane-card">
+        <div className="space-y-4">
+          <div className="builder-pane-card">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-group">
               <label htmlFor="oppName" className="form-label">
@@ -440,26 +494,29 @@ export function CreateOpportunityForm({
               />
             </div>
           </div>
+        </div>
 
-          <div className="step-actions-row">
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                className="btn btn-primary"
-                onClick={() => handleSave(false)}
-                disabled={submitting}
-              >
-                {submitting ? "Saving..." : "Create opportunity"}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setCurrentStep(2)}
-              >
-                Proceed to Application Form Builder &rarr;
-              </button>
-            </div>
-          </div>
+        <div className="step-actions-row">
+          {!initialOpportunity?.id ? (
+            <button
+              type="submit"
+              className="btn btn-primary"
+              onClick={() => handleSave(false)}
+              disabled={submitting}
+            >
+              {submitting ? "Saving..." : "Create opportunity"}
+            </button>
+          ) : (
+            <div />
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => setCurrentStep(2)}
+          >
+            Proceed to Application Form Builder &rarr;
+          </button>
+        </div>
         </div>
       )}
 
@@ -596,26 +653,28 @@ export function CreateOpportunityForm({
 
       {/* STEP 3: Live Volunteer Experience Preview — the real volunteer apply UI */}
       {currentStep === 3 && (
-        <div className="builder-pane-card space-y-4">
-          <p className="text-xs font-semibold text-[var(--ink-2)]">
-            Exactly how a volunteer sees this opportunity and its application form
-          </p>
+        <div className="space-y-4">
+          <div className="builder-pane-card space-y-4">
+            <p className="text-xs font-semibold text-[var(--ink-2)]">
+              Exactly how a volunteer sees this opportunity and its application form
+            </p>
 
-          <VolunteerApplyPreview
-            opportunity={{
-              name,
-              type,
-              city: location || undefined,
-              isOnline,
-              description: description || undefined,
-              about: about || undefined,
-              capacity: capacity ? Number(capacity) : undefined,
-              applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : undefined,
-              activityStartAt: activityStartAt ? new Date(activityStartAt).toISOString() : undefined,
-              activityEndAt: activityEndAt ? new Date(activityEndAt).toISOString() : undefined,
-            }}
-            form={{ version: 1, fields }}
-          />
+            <VolunteerApplyPreview
+              opportunity={{
+                name,
+                type,
+                city: location || undefined,
+                isOnline,
+                description: description || undefined,
+                about: about || undefined,
+                capacity: capacity ? Number(capacity) : undefined,
+                applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : undefined,
+                activityStartAt: activityStartAt ? new Date(activityStartAt).toISOString() : undefined,
+                activityEndAt: activityEndAt ? new Date(activityEndAt).toISOString() : undefined,
+              }}
+              form={{ version: 1, fields }}
+            />
+          </div>
 
           <div className="step-actions-row">
             <button

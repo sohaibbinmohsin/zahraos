@@ -524,7 +524,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     if (sidebarCollapsed) {
                       setSidebarCollapsed(false);
                     } else {
-                      router.push("/modules/youth-republic/dashboard");
+                      router.push("/youth-republic/dashboard");
                       setMobileSidebarOpen(false);
                     }
                   }}
@@ -593,7 +593,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div className="nav-group-label">Youth Republic</div>
 
                 <Link
-                  href="/modules/youth-republic/dashboard"
+                  href="/youth-republic/dashboard"
                   aria-label="Dashboard"
                   className={`sidebar-nav-item ${pathname?.includes("/dashboard") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -608,7 +608,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
-                  href="/modules/youth-republic/opportunities"
+                  href="/youth-republic/opportunities"
                   aria-label="Opportunities"
                   className={`sidebar-nav-item ${pathname?.includes("/opportunities") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -621,7 +621,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
-                  href="/modules/youth-republic/applications"
+                  href="/youth-republic/applications"
                   aria-label="Applications"
                   className={`sidebar-nav-item ${pathname?.includes("/applications") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -637,7 +637,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
-                  href="/modules/youth-republic/hours"
+                  href="/youth-republic/hours"
                   aria-label="Hours"
                   className={`sidebar-nav-item ${pathname?.includes("/hours") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -653,7 +653,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
-                  href="/modules/youth-republic/volunteers"
+                  href="/youth-republic/volunteers"
                   aria-label="Volunteers"
                   className={`sidebar-nav-item ${pathname?.includes("/volunteers") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
@@ -666,6 +666,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   </svg>
                   <span className="nav-label">Volunteers</span>
                 </Link>
+
+                {claims && isOrgAdminOrAbove && (
+                  <Link
+                    href="/organization"
+                    aria-label="Organization"
+                    className={`sidebar-nav-item ${pathname === "/organization" ? "active" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                      <path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" />
+                      <path d="M9 9v.01" /><path d="M9 12v.01" /><path d="M9 15v.01" /><path d="M9 18v.01" />
+                    </svg>
+                    <span className="nav-label">Organization</span>
+                  </Link>
+                )}
 
                 <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
                 <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
@@ -775,7 +790,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                   <div
                     className="brand-name-lockup"
-                    onClick={() => router.push(pathname?.startsWith("/team") ? "/team/members" : "/modules/youth-republic/dashboard")}
+                    onClick={() => router.push(pathname?.startsWith("/team") ? "/team/members" : "/youth-republic/dashboard")}
                   >
                     <span className="brand-title">
                       {pathname?.startsWith("/team") ? "Team & Governance" : "Youth Republic"}

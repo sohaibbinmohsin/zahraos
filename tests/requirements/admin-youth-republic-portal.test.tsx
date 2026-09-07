@@ -48,42 +48,42 @@ describe("§4/§6 Youth Republic admin module — mount point", () => {
 });
 
 describe("§8 Admin Dashboard — core KPIs", () => {
-  // All 10 verified in one test: app/modules/youth-republic/dashboard/page.test.tsx
+  // All 10 verified in one test: app/youth-republic/dashboard/page.test.tsx
   // → "shows all 10 KPI figures once loaded".
-  it("[8] Total Registered Volunteers — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Total Registered Volunteers — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Active Volunteers — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Active Volunteers — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Completed Participations — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Completed Participations — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Applications Received — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Applications Received — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Selected Volunteers — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Selected Volunteers — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Total Verified Volunteer Hours — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Total Verified Volunteer Hours — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Volunteers by City — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Volunteers by City — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Volunteers by Province — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Volunteers by Province — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Volunteers by Institution — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Volunteers by Institution — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[8] Participation by Opportunity / Activity Type — see app/modules/youth-republic/dashboard/page.test.tsx", () => {
+  it("[8] Participation by Opportunity / Activity Type — see app/youth-republic/dashboard/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
 });
 
 describe("§8/§5F Volunteers list — search, filter, view, export", () => {
-  it("[8] search volunteers by name, email, or phone — see app/modules/youth-republic/volunteers/page.test.tsx", () => {
+  it("[8] search volunteers by name, email, or phone — see app/youth-republic/volunteers/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
   // GAP — list-volunteers (the backend endpoint) already accepts city/
@@ -94,7 +94,7 @@ describe("§8/§5F Volunteers list — search, filter, view, export", () => {
   it.todo("[8] filter by Province");
   it.todo("[8] filter by Institution");
   it.todo("[8] filter by Volunteer Status (Pending Verification / Active / Inactive)");
-  it("[5F] open a volunteer to see every application, activity, role and verified hour (§7 bidirectional nav) — see app/modules/youth-republic/volunteers/[id]/page.test.tsx", () => {
+  it("[5F] open a volunteer to see every application, activity, role and verified hour (§7 bidirectional nav) — see app/youth-republic/volunteers/[id]/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
   // GAP — the Export CSV button exists and calls the real exportYouthRepublicCsv
@@ -127,10 +127,10 @@ describe("§5D admin — Applications: review & decide", () => {
   // GAP — the list itself renders; opportunity/status filter UI does not
   // exist (same shape as the Volunteers/Opportunities filter gaps above).
   it.todo("[5D] list applications, filter by Opportunity and Application Status");
-  it("[5D] decide an application: selected / waitlisted / rejected / under_review (calls decideApplication) — see app/modules/youth-republic/applications/page.test.tsx (only the 'selected' path is click-tested; Waitlist/Reject buttons render and call the same decideApplication wrapper but aren't individually exercised)", () => {
+  it("[5D] decide an application: selected / waitlisted / rejected / under_review (calls decideApplication) — see app/youth-republic/applications/page.test.tsx (only the 'selected' path is click-tested; Waitlist/Reject buttons render and call the same decideApplication wrapper but aren't individually exercised)", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[5D] promote a waitlisted application to selected when a spot opens (manual — no auto-promotion) — see app/modules/youth-republic/applications/page.test.tsx", () => {
+  it("[5D] promote a waitlisted application to selected when a spot opens (manual — no auto-promotion) — see app/youth-republic/applications/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
   // GAP — decideApplication's real error surface was never verified for
@@ -143,7 +143,7 @@ describe("§5E admin — Activities & Hours: record, verify, bulk-assign", () =>
   // GAP — no "record hours for a participant" form exists; only verify
   // (for already-recorded rows) and bulk-assign.
   it.todo("[5E] record an activity / hours for a participant");
-  it("[5E] verify hours — approve, or adjust hours_verified, or reject with a reason (calls verifyHours) — see app/modules/youth-republic/hours/page.test.tsx (only the approve path is click-tested; there is no reject-with-reason control in the UI yet, only Verify)", () => {
+  it("[5E] verify hours — approve, or adjust hours_verified, or reject with a reason (calls verifyHours) — see app/youth-republic/hours/page.test.tsx (only the approve path is click-tested; there is no reject-with-reason control in the UI yet, only Verify)", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
   it("[5E] bulk-assign standard hours to all participants of a fixed-duration activity (calls bulkAssignHours) — see components/youth-republic/BulkAssignHoursForm.test.tsx (the built form lets the admin choose which participants via checkboxes, a superset of 'all')", () => {
