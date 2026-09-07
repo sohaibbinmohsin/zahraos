@@ -124,9 +124,13 @@ export function MembersTable({
                     </td>
                     <td><span style={{ fontSize: "var(--text-sm)", color: "var(--ink-2)" }}>{m.lastActiveLabel}</span></td>
                     <td>
-                      <span className={`badge ${m.status === "active" ? "badge-pos" : m.status === "invited" ? "badge-pend" : "badge-neg"}`}>
-                        {m.status === "active" ? "Active" : m.status === "invited" ? "Pending Invite" : "Suspended"}
-                      </span>
+                      {m.expiresAt && new Date(m.expiresAt).getTime() < Date.now() ? (
+                        <span className="badge badge-neg">Expired</span>
+                      ) : (
+                        <span className={`badge ${m.status === "active" ? "badge-pos" : m.status === "invited" ? "badge-pend" : "badge-neg"}`}>
+                          {m.status === "active" ? "Active" : m.status === "invited" ? "Pending Invite" : "Suspended"}
+                        </span>
+                      )}
                     </td>
                     <td style={{ textAlign: "right" }}>
                       <button type="button" className="btn btn-secondary btn-xs" onClick={() => onEdit(m.id)}>

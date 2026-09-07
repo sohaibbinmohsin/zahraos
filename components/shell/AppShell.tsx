@@ -7,6 +7,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "@/lib/staffToken";
 import { resolveOrgSwitcherOptions, pickInitialOrgId, readStoredOrgId, writeStoredOrgId } from "@/lib/selectedOrg";
 import { MODULE_REGISTRY } from "@/registry/modules";
+import { isDisplayableLogo } from "@/lib/orgLogo";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
@@ -87,12 +88,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   } catch {
     // In unit test environment where usePathname is not provided
   }
+  const isGovernanceArea = pathname.startsWith("/team") || pathname.startsWith("/organization");
 
   const [fullName, setFullName] = useState<string | null>(null);
   const [email, setEmail] = useState<string | null>(null);
   const [platformOwner, setPlatformOwner] = useState(false);
   const [claims, setClaims] = useState<StaffTokenClaims | null>(null);
   const [orgNames, setOrgNames] = useState<Record<string, string>>({});
+  const [orgBrands, setOrgBrands] = useState<Record<string, { logoUrl: string | null; brandColor: string | null }>>({});
   const [orgTiers, setOrgTiers] = useState<Record<string, string>>({});
   const [assignedRolesByOrg, setAssignedRolesByOrg] = useState<Record<string, string[]>>({});
   const [availableOrgIds, setAvailableOrgIds] = useState<string[]>([]);
@@ -119,6 +122,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setPlatformOwner(false);
     setClaims(null);
     setOrgNames({});
+    setOrgBrands({});
     setOrgTiers({});
     setAvailableOrgIds([]);
     setSelectedOrgId(null);
@@ -206,29 +210,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         if (decoded.platformOwner) {
           const { data: allOrgs, error: allOrgsError } = await supabase
             .from("organizations")
-            .select("id, name");
+            .select("id, name, logo_url, brand_color");
           if (allOrgsError) throw allOrgsError;
           if (cancelled) return;
           orgIds = (allOrgs ?? []).map((org) => org.id as string);
           const names: Record<string, string> = {};
+          const brands: Record<string, { logoUrl: string | null; brandColor: string | null }> = {};
           for (const org of allOrgs ?? []) {
             names[org.id] = org.name;
+            brands[org.id] = { logoUrl: (org.logo_url as string) ?? null, brandColor: (org.brand_color as string) ?? null };
           }
           setOrgNames(names);
+          setOrgBrands(brands);
         } else {
           orgIds = resolveOrgSwitcherOptions(decoded.orgRoles, decoded.moduleAccess);
           if (orgIds.length > 0) {
             const { data: organizations, error: organizationsError } = await supabase
               .from("organizations")
-              .select("id, name")
+              .select("id, name, logo_url, brand_color")
               .in("id", orgIds);
             if (organizationsError) throw organizationsError;
             if (cancelled) return;
             const names: Record<string, string> = {};
+            const brands: Record<string, { logoUrl: string | null; brandColor: string | null }> = {};
             for (const org of organizations ?? []) {
               names[org.id] = org.name;
+              brands[org.id] = { logoUrl: (org.logo_url as string) ?? null, brandColor: (org.brand_color as string) ?? null };
             }
             setOrgNames(names);
+            setOrgBrands(brands);
           }
         }
         setAvailableOrgIds(orgIds);
@@ -425,6 +435,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
 
+  const brandLabel = (selectedOrgId ? orgNames[selectedOrgId] : null) || "Rizq";
+  const rawBrandLogoUrl = selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null;
+  const brandLogoUrl = isDisplayableLogo(rawBrandLogoUrl) ? rawBrandLogoUrl : null;
+  const brandColor = (selectedOrgId ? orgBrands[selectedOrgId]?.brandColor : null) || "#1F2430";
+  const brandInitials = brandLabel.trim().split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase() || "R";
+
   const userRoles = useMemo(() => {
     const rawRoles: string[] = [];
 
@@ -532,8 +548,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <button
                     type="button"
                     className="sidebar-logo-btn"
-                    title={sidebarCollapsed ? "Expand Sidebar" : "Rizq"}
-                    aria-label={sidebarCollapsed ? "Expand Sidebar" : "Rizq"}
+                    title={sidebarCollapsed ? "Expand Sidebar" : brandLabel}
+                    aria-label={sidebarCollapsed ? "Expand Sidebar" : brandLabel}
                     onClick={(e) => {
                       if (sidebarCollapsed) {
                         e.stopPropagation();
@@ -541,11 +557,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       }
                     }}
                   >
-                    <img
-                      src="/assets/rizq-symbol.png"
-                      alt="Rizq Logo"
-                      className="sidebar-logo-img"
-                    />
+                    {brandLogoUrl ? (
+                      <img
+                        src={brandLogoUrl}
+                        alt={`${brandLabel} logo`}
+                        className="sidebar-logo-img"
+                        style={{ width: 22, height: 22, borderRadius: 5, objectFit: "contain", background: "#fff", flexShrink: 0 }}
+                      />
+                    ) : (
+                      <span
+                        className="sidebar-logo-img"
+                        aria-hidden="true"
+                        style={{
+                          width: 22, height: 22, borderRadius: 5, background: brandColor, color: "#fff",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 11, fontWeight: 700, lineHeight: 1, flexShrink: 0,
+                        }}
+                      >
+                        {brandInitials}
+                      </span>
+                    )}
                     <span className="collapsed-hover-icon" title="Expand Sidebar">
                       <svg
                         width="18"
@@ -563,7 +594,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       </svg>
                     </span>
                   </button>
-                  <span className="sidebar-title">Rizq</span>
+                  <span className="sidebar-title">{brandLabel}</span>
                 </div>
                 <button
                   type="button"
@@ -667,26 +698,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="nav-label">Volunteers</span>
                 </Link>
 
-                {claims && isOrgAdminOrAbove && (
-                  <Link
-                    href="/organization"
-                    aria-label="Organization"
-                    className={`sidebar-nav-item ${pathname === "/organization" ? "active" : ""}`}
-                    onClick={() => setMobileSidebarOpen(false)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" />
-                      <path d="M9 9v.01" /><path d="M9 12v.01" /><path d="M9 15v.01" /><path d="M9 18v.01" />
-                    </svg>
-                    <span className="nav-label">Organization</span>
-                  </Link>
-                )}
-
                 <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
                 <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
 
                 {claims && isOrgAdminOrAbove && (
                   <>
+                    <Link
+                      href="/organization"
+                      aria-label="Organization"
+                      className={`sidebar-nav-item ${pathname === "/organization" ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" />
+                        <path d="M9 9v.01" /><path d="M9 12v.01" /><path d="M9 15v.01" /><path d="M9 18v.01" />
+                      </svg>
+                      <span className="nav-label">Organization</span>
+                    </Link>
                     <Link href="/team/members" aria-label="Team Members"
                       className={`sidebar-nav-item ${pathname === "/team/members" ? "active" : ""}`}
                       onClick={() => setMobileSidebarOpen(false)}>
@@ -790,13 +818,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                   <div
                     className="brand-name-lockup"
-                    onClick={() => router.push(pathname?.startsWith("/team") ? "/team/members" : "/youth-republic/dashboard")}
+                    onClick={() => router.push(isGovernanceArea ? "/team/members" : "/youth-republic/dashboard")}
                   >
                     <span className="brand-title">
-                      {pathname?.startsWith("/team") ? "Team & Governance" : "Youth Republic"}
+                      {isGovernanceArea ? "Team & Governance" : "Youth Republic"}
                     </span>
                     <span className="brand-tagline">
-                      {pathname?.startsWith("/team")
+                      {isGovernanceArea
                         ? "Administrative Roles & Permissions Management"
                         : "Volunteer Operations & Noticeboard"}
                     </span>

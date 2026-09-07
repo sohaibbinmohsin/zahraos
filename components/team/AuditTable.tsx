@@ -12,11 +12,11 @@ export interface AuditRow {
   scopeLabel: string | null;
 }
 
-const ACTION_TYPES = ["Member Invited", "Access Changed", "Member Removed", "Role Created", "Role Modified"];
+const ACTION_TYPES = ["Member Invited", "Access Changed", "Member Removed", "Role Created", "Role Modified", "Chapter Created", "Chapter Updated"];
 
 function badgeClass(action: string) {
   if (action === "Member Removed") return "badge-neg";
-  if (action === "Role Created" || action === "Role Modified") return "badge-custom";
+  if (action === "Role Created" || action === "Role Modified" || action === "Chapter Created" || action === "Chapter Updated") return "badge-custom";
   if (action === "Member Invited") return "badge-pend";
   return "badge-pos";
 }

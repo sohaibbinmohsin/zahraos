@@ -249,7 +249,7 @@ export interface CreateOpportunityPayload {
   name: string;
   type: string;
   description?: string;
-  location?: string;
+  location?: string | null;
   isOnline?: boolean;
   applicationOpenAt?: string;
   applicationDeadline?: string;
@@ -271,7 +271,7 @@ export interface UpdateOpportunityPayload {
   organizationId: string;
   name?: string;
   description?: string;
-  location?: string;
+  location?: string | null;
   isOnline?: boolean;
   applicationOpenAt?: string;
   applicationDeadline?: string;
@@ -285,6 +285,7 @@ export interface UpdateOpportunityPayload {
   capacity?: number;
   statusOverride?: string;
   deactivatedAt?: string | null;
+  hardDelete?: boolean;
 }
 export function updateOpportunity(payload: UpdateOpportunityPayload, staffToken: string) {
   return callYouthRepublicFunction<{ opportunityId: string }>("update-opportunity", payload, staffToken);

@@ -12,18 +12,25 @@ export function ChaptersPanel({
   onChanged: () => void;
 }) {
   const { showToast } = useToast();
+  const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [busy, setBusy] = useState(false);
+
+  function closeForm() {
+    setShowForm(false);
+    setName("");
+    setCity("");
+  }
 
   async function add() {
     if (!name.trim() || busy) return;
     setBusy(true);
     try {
       await createChapter({ organizationId, name: name.trim(), ...(city.trim() ? { city: city.trim() } : {}) }, accessToken);
-      setName(""); setCity("");
-      onChanged();
       showToast(`Added chapter "${name.trim()}".`);
+      closeForm();
+      onChanged();
     } catch (err) {
       showToast(err instanceof Error && err.message === "chapter_name_taken"
         ? "A chapter with that name already exists." : "Failed to add chapter.");
@@ -43,10 +50,37 @@ export function ChaptersPanel({
 
   return (
     <div className="table-card" style={{ padding: "1rem 1.25rem" }}>
-      <h2 className="panel-title" style={{ marginBottom: ".75rem" }}>Chapters</h2>
-      <p style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginBottom: ".75rem" }}>
-        Sub-divisions of the organization. Assigning a role a chapter scope limits that admin to the chapter&apos;s opportunities.
-      </p>
+      <div className="flex items-start justify-between gap-3" style={{ marginBottom: ".75rem" }}>
+        <div>
+          <h2 className="panel-title">Chapters</h2>
+          <p style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: ".35rem" }}>
+            Sub-divisions of the organization. Assigning a role a chapter scope limits that admin to the chapter&apos;s opportunities.
+          </p>
+        </div>
+        {!showForm && (
+          <button type="button" className="btn btn-primary btn-sm flex-shrink-0" onClick={() => setShowForm(true)}>
+            Add Chapter
+          </button>
+        )}
+      </div>
+
+      {showForm && (
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-page)] p-3 flex flex-wrap items-end gap-2" style={{ marginBottom: ".85rem" }}>
+          <div className="form-group" style={{ margin: 0, flex: "1 1 200px" }}>
+            <label className="form-label" htmlFor="chapter-name">Chapter name</label>
+            <input id="chapter-name" aria-label="Chapter name" className="form-input" placeholder="Rizq LUMS Society"
+              value={name} autoFocus onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div className="form-group" style={{ margin: 0, flex: "1 1 150px" }}>
+            <label className="form-label" htmlFor="chapter-city">City</label>
+            <input id="chapter-city" aria-label="City" className="form-input" placeholder="Lahore"
+              value={city} onChange={(e) => setCity(e.target.value)} />
+          </div>
+          <button type="button" className="btn btn-primary btn-sm" disabled={busy || !name.trim()} onClick={add}>Add</button>
+          <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={closeForm}>Cancel</button>
+        </div>
+      )}
+
       <div className="table-responsive-wrapper">
         <table className="data-table">
           <thead><tr><th>Chapter</th><th>City</th><th>Status</th><th style={{ textAlign: "right" }}>Actions</th></tr></thead>
@@ -67,11 +101,6 @@ export function ChaptersPanel({
             ))}
           </tbody>
         </table>
-      </div>
-      <div className="role-repeater-row" style={{ marginTop: ".85rem" }}>
-        <input aria-label="Chapter name" className="form-input" placeholder="Chapter name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input aria-label="City" className="form-input" placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
-        <button type="button" className="btn btn-primary btn-xs" disabled={busy} onClick={add}>Add Chapter</button>
       </div>
     </div>
   );

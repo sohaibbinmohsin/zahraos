@@ -56,8 +56,9 @@ describe("OrganizationPage", () => {
     const user = userEvent.setup();
     render(<OrganizationPage />);
     await waitFor(() => expect(screen.getByText("Rizq LUMS")).toBeInTheDocument());
-    await user.type(screen.getByLabelText("Chapter name"), "Rizq NUST");
     await user.click(screen.getByRole("button", { name: "Add Chapter" }));
+    await user.type(screen.getByLabelText("Chapter name"), "Rizq NUST");
+    await user.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(createCh).toHaveBeenCalledWith({ organizationId: "org-1", name: "Rizq NUST" }, "access-token"));
   });
 

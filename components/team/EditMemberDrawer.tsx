@@ -17,6 +17,7 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
   const member = members.find((m) => m.id === memberId) ?? null;
   const [rows, setRows] = useState<RoleScopeRow[]>([]);
   const [status, setStatus] = useState<"active" | "invited" | "deactivated">("active");
+  const [expiresAt, setExpiresAt] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -29,6 +30,7 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
         scopeLabel: a.scopeLabel,
       })));
       setStatus(member.status);
+      setExpiresAt(member.expiresAt ? member.expiresAt.slice(0, 10) : "");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
@@ -45,6 +47,7 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
         organizationId,
         roles: rowsToAssignmentPayload(rows),
         status,
+        expiresAt: expiresAt || null,
       }, accessToken);
       await refresh();
       showToast(`Saved access changes for ${member.fullName}.`);
@@ -122,6 +125,20 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
                   <option value="invited">Pending Invitation</option>
                   <option value="deactivated">Suspended / Deactivated</option>
                 </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="edit-mem-expires">Access expires</label>
+                <input
+                  id="edit-mem-expires"
+                  type="date"
+                  className="form-input"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                />
+                <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: ".35rem" }}>
+                  Leave blank for permanent access.
+                </div>
               </div>
 
               <div className="form-group">

@@ -21,6 +21,7 @@ export interface TeamMember {
   status: "active" | "invited" | "deactivated";
   lastActiveLabel: string;
   enforce2fa: boolean;
+  expiresAt: string | null;
   assignments: MemberAssignment[];
 }
 export interface TeamRole {
@@ -125,7 +126,7 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
       if (staffIds.length > 0) {
         const { data } = await supabase
           .from("staff")
-          .select("id, full_name, email, status, deactivated_at")
+          .select("id, full_name, email, status, deactivated_at, expires_at")
           .in("id", staffIds);
         staffRows = data ?? [];
       }
@@ -144,12 +145,13 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
         status: s.status as "active" | "invited" | "deactivated",
         lastActiveLabel: s.status === "invited" ? "Invited (Pending Sign-in)" : "—",
         enforce2fa: enforce2faByStaff.get(s.id as string) ?? true,
+        expiresAt: (s.expires_at as string) ?? null,
         assignments: assignmentsByStaff.get(s.id as string) ?? [],
       })));
 
-      if (st) {
+      if (accessToken) {
         try {
-          const res = await listChapters({ organizationId }, st);
+          const res = await listChapters({ organizationId }, accessToken);
           setChapters(res.chapters.map((c: ChapterRow) => ({ id: c.id, name: c.name, city: c.city, status: c.status })));
         } catch {
           setChapters([]);
@@ -160,7 +162,7 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
     } finally {
       setLoading(false);
     }
-  }, [organizationId]);
+  }, [organizationId, accessToken]);
 
   useEffect(() => { refresh(); }, [refresh]);
 

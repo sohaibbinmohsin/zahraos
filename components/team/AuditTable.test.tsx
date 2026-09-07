@@ -18,6 +18,18 @@ describe("AuditTable", () => {
     expect(screen.getByText(/Updated access for Fatima Noor/)).toBeInTheDocument();
   });
 
+  it("filters to a Chapter Created row when that option is selected", async () => {
+    const user = userEvent.setup();
+    const chapterRows: AuditRow[] = [
+      { id: "3", createdAt: "2026-03-01T09:00:00Z", actorName: "Sohaib Mohsin", action: "Chapter Created", summary: "Created chapter 'Rizq LUMS'", ip: "110.37.21.9", scopeLabel: "Rizq LUMS" },
+      { id: "4", createdAt: "2026-03-01T08:00:00Z", actorName: "Amina Malik", action: "Access Changed", summary: "Updated access for Fatima Noor", ip: "39.40.18.22", scopeLabel: "Lahore" },
+    ];
+    render(<AuditTable rows={chapterRows} />);
+    await user.selectOptions(screen.getByLabelText("Action type filter"), "Chapter Created");
+    expect(screen.getByText(/Created chapter 'Rizq LUMS'/)).toBeInTheDocument();
+    expect(screen.queryByText(/Updated access for Fatima Noor/)).not.toBeInTheDocument();
+  });
+
   it("serializes rows to CSV with a header line", () => {
     const csv = auditRowsToCsv(rows);
     expect(csv.split("\n")[0]).toBe("Timestamp,User,Action,Details,IP,Scope");

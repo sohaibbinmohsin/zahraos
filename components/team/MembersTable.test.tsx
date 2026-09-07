@@ -10,9 +10,9 @@ const roles: TeamRole[] = [
 ];
 const chapters: Chapter[] = [{ id: "c1", name: "Lahore Chapter", city: "Lahore", status: "active" }];
 const members: TeamMember[] = [
-  { id: "m1", fullName: "Amina Malik", email: "amina@x.org", status: "active", lastActiveLabel: "—", enforce2fa: true,
+  { id: "m1", fullName: "Amina Malik", email: "amina@x.org", status: "active", lastActiveLabel: "—", enforce2fa: true, expiresAt: null,
     assignments: [{ id: "a1", roleId: "r1", roleName: "Operations Lead", scopeKind: "chapter", chapterId: "c1", scopeLabel: "Lahore Chapter" }] },
-  { id: "m2", fullName: "Usman Ghani", email: "usman@x.org", status: "invited", lastActiveLabel: "Invited (Pending Sign-in)", enforce2fa: true,
+  { id: "m2", fullName: "Usman Ghani", email: "usman@x.org", status: "invited", lastActiveLabel: "Invited (Pending Sign-in)", enforce2fa: true, expiresAt: null,
     assignments: [{ id: "a2", roleId: "r2", roleName: "Auditor", scopeKind: "org_wide", chapterId: null, scopeLabel: "National / All Chapters" }] },
 ];
 
@@ -24,6 +24,16 @@ describe("MembersTable", () => {
     expect(screen.getByText("Create Drives")).toBeInTheDocument();
     expect(screen.getByText("Triage Apps")).toBeInTheDocument();
     expect(screen.getByText("View Hours (Read Only)")).toBeInTheDocument();
+  });
+
+  it("renders an Expired badge when the member's access has lapsed", () => {
+    const expired: TeamMember[] = [
+      { ...members[0], id: "m3", fullName: "Bilal Aziz", email: "bilal@x.org", status: "active",
+        expiresAt: "2020-01-01T00:00:00Z" },
+    ];
+    render(<MembersTable members={expired} roles={roles} chapters={chapters} onEdit={vi.fn()} />);
+    expect(screen.getByText("Expired")).toBeInTheDocument();
+    expect(screen.queryByText("Active")).not.toBeInTheDocument();
   });
 
   it("filters by status", async () => {

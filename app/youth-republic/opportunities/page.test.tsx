@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import YouthRepublicOpportunitiesPage from "./page";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
@@ -88,5 +89,66 @@ describe("YouthRepublicOpportunitiesPage", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Edit/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /View Applicants/i })).not.toBeInTheDocument();
+  });
+
+  it("renders Opportunities Noticeboard heading without uppercase class", async () => {
+    render(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Beach Cleanup");
+    const heading = screen.getByRole("heading", { name: "Opportunities Noticeboard", level: 1 });
+    expect(heading).toBeInTheDocument();
+    expect(heading.className).not.toContain("uppercase");
+  });
+
+  it("renders borderless Back to Opportunities button when in create or edit mode", async () => {
+    const user = userEvent.setup();
+    render(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Beach Cleanup");
+    await user.click(screen.getByRole("button", { name: "Create Opportunity" }));
+
+    const backBtn = screen.getByRole("button", { name: /Back to Opportunities/i });
+    expect(backBtn).toBeInTheDocument();
+    expect(backBtn.className).toContain("border-0");
+  });
+
+  it("deletes an archived opportunity using updateOpportunity with hardDelete", async () => {
+    window.confirm = vi.fn().mockReturnValue(true);
+    vi.mocked(youthRepublicFunctions.updateOpportunity).mockResolvedValue({ opportunityId: "opp-archived" });
+    vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+      opportunities: [
+        {
+          id: "opp-archived",
+          name: "Archived Project",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "environment",
+          city: "Karachi",
+          online: false,
+          computedStatus: "closed",
+          description: "Completed project",
+          capacity: 20,
+          filledCount: 3,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: "2026-01-01T00:00:00Z",
+        },
+      ],
+      total: 1,
+      facets: { cities: [], orgs: [] },
+    });
+
+    const user = userEvent.setup();
+    render(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Archived Project");
+
+    const delBtn = screen.getByRole("button", { name: "Delete" });
+    await user.click(delBtn);
+
+    await waitFor(() => {
+      expect(youthRepublicFunctions.updateOpportunity).toHaveBeenCalledWith(
+        { opportunityId: "opp-archived", organizationId: "org-1", hardDelete: true },
+        "staff-jwt",
+      );
+    });
   });
 });

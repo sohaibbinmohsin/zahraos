@@ -1,19 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { useSelectedOrg, useShellAccessToken, useIsOrgAdminOrAbove, useShellLoading } from "@/components/shell/AppShell";
 import { useToast } from "@/components/shell/ToastContext";
 import { updateOrganization, listChapters, type ChapterRow } from "@/lib/platformFunctions";
 import { ChaptersPanel } from "@/components/team/ChaptersPanel";
+import { isDisplayableLogo } from "@/lib/orgLogo";
 
 interface Profile {
   name: string;
   about: string;
   brandColor: string;
   logoUrl: string;
-  faviconUrl: string;
 }
+
+const MAX_LOGO_BYTES = 512 * 1024;
 
 export default function OrganizationPage() {
   const organizationId = useSelectedOrg();
@@ -25,18 +27,19 @@ export default function OrganizationPage() {
   const [chapters, setChapters] = useState<ChapterRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   const fetchAll = useCallback(async () => {
     if (!organizationId) return;
     const supabase = getBrowserSupabaseClient();
     const { data: org } = await supabase.from("organizations")
-      .select("name, about, brand_color, logo_url, favicon_url").eq("id", organizationId).single();
+      .select("name, about, brand_color, logo_url").eq("id", organizationId).single();
     setProfile({
       name: (org?.name as string) ?? "",
       about: (org?.about as string) ?? "",
       brandColor: (org?.brand_color as string) ?? "",
       logoUrl: (org?.logo_url as string) ?? "",
-      faviconUrl: (org?.favicon_url as string) ?? "",
     });
     if (accessToken) {
       try {
@@ -58,6 +61,36 @@ export default function OrganizationPage() {
 
   useEffect(() => { load(); }, [load]);
 
+  async function pickLogo(file: File | undefined) {
+    if (!file || !profile || !organizationId) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Please choose an image file.");
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      showToast("Logo must be 512 KB or smaller.");
+      return;
+    }
+    setLogoUploading(true);
+    try {
+      const supabase = getBrowserSupabaseClient();
+      const ext = (file.name.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
+      const path = `${organizationId}/logo-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage.from("org-logos").upload(path, file, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: file.type,
+      });
+      if (upErr) throw upErr;
+      const { data: pub } = supabase.storage.from("org-logos").getPublicUrl(path);
+      setProfile({ ...profile, logoUrl: pub.publicUrl });
+    } catch (err) {
+      showToast(err instanceof Error ? `Logo upload failed: ${err.message}` : "Logo upload failed.");
+    } finally {
+      setLogoUploading(false);
+    }
+  }
+
   async function saveProfile() {
     if (!organizationId || !accessToken || !profile) return;
     setSaving(true);
@@ -67,8 +100,7 @@ export default function OrganizationPage() {
         name: profile.name.trim(),
         about: profile.about.trim() || null,
         brandColor: profile.brandColor.trim() || null,
-        logoUrl: profile.logoUrl.trim() || null,
-        faviconUrl: profile.faviconUrl.trim() || null,
+        logoUrl: isDisplayableLogo(profile.logoUrl) ? profile.logoUrl.trim() : null,
       }, accessToken);
       showToast("Organization profile saved.");
     } catch (err) {
@@ -83,7 +115,7 @@ export default function OrganizationPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="page-header">
+      <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
           <h1 className="page-title">Organization</h1>
           <div className="page-subtitle">Your organization&apos;s public profile and its chapters.</div>
@@ -109,19 +141,49 @@ export default function OrganizationPage() {
           <textarea id="org-about" className="form-textarea" rows={3} value={profile.about}
             onChange={(e) => setProfile({ ...profile, about: e.target.value })} />
         </div>
-        <div className="grid-2col">
-          <div className="form-group">
-            <label className="form-label" htmlFor="org-logo">Logo URL</label>
-            <input id="org-logo" className="form-input" value={profile.logoUrl}
-              onChange={(e) => setProfile({ ...profile, logoUrl: e.target.value })} />
+        <div className="form-group">
+          <label className="form-label">Logo</label>
+          <div className="flex items-center gap-3 flex-wrap">
+            {isDisplayableLogo(profile.logoUrl) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.logoUrl}
+                alt="Organization logo"
+                className="rounded-md border border-[var(--line)] bg-white object-contain"
+                style={{ width: 56, height: 56 }}
+              />
+            ) : (
+              <div
+                className="rounded-md border border-dashed border-[var(--line)] bg-[var(--bg-page)] flex items-center justify-center text-[10px] text-[var(--ink-3)]"
+                style={{ width: 56, height: 56 }}
+              >
+                No logo
+              </div>
+            )}
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+              className="hidden"
+              onChange={(e) => { pickLogo(e.target.files?.[0]); e.target.value = ""; }}
+            />
+            <button type="button" className="btn btn-secondary btn-sm" disabled={logoUploading}
+              onClick={() => logoInputRef.current?.click()}>
+              {logoUploading ? "Uploading…" : isDisplayableLogo(profile.logoUrl) ? "Replace logo" : "Upload logo"}
+            </button>
+            {isDisplayableLogo(profile.logoUrl) && !logoUploading && (
+              <button type="button" className="btn btn-danger btn-sm" onClick={() => setProfile({ ...profile, logoUrl: "" })}>
+                Remove
+              </button>
+            )}
           </div>
-          <div className="form-group">
-            <label className="form-label" htmlFor="org-favicon">Favicon URL</label>
-            <input id="org-favicon" className="form-input" value={profile.faviconUrl}
-              onChange={(e) => setProfile({ ...profile, faviconUrl: e.target.value })} />
-          </div>
+          <p style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: ".4rem" }}>
+            PNG, JPG, WebP or SVG, up to 512 KB. Shown in the sidebar and on the volunteer-facing Youth Republic pages.
+          </p>
         </div>
-        <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={saveProfile}>Save profile</button>
+        <div className="flex justify-end" style={{ marginTop: ".25rem" }}>
+          <button type="button" className="btn btn-primary btn-sm" disabled={saving} onClick={saveProfile}>Save profile</button>
+        </div>
       </div>
 
       <ChaptersPanel

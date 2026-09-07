@@ -21,6 +21,7 @@ vi.mock("@/components/team/TeamAccessProvider", () => ({
     chapters: [{ id: "c1", name: "Lahore Chapter", city: "Lahore", status: "active" }],
     members: [{
       id: "m1", fullName: "Amina Malik", email: "amina@x.org", status: "active", lastActiveLabel: "—", enforce2fa: true,
+      expiresAt: "2027-06-30T00:00:00Z",
       assignments: [{ id: "a1", roleId: "r1", roleName: "Operations Lead", scopeKind: "org_wide", chapterId: null, scopeLabel: "National / All Chapters" }],
     }],
     refresh,
@@ -47,6 +48,29 @@ describe("EditMemberDrawer", () => {
     expect(payload.roles[0]).toMatchObject({ roleId: "r1", scopeKind: "org_wide" });
     expect(refresh).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("preloads the member's expiry date and sends it in the payload", async () => {
+    const user = userEvent.setup();
+    render(<EditMemberDrawer memberId="m1" onClose={vi.fn()} />);
+    expect(screen.getByLabelText("Access expires")).toHaveValue("2027-06-30");
+
+    await user.clear(screen.getByLabelText("Access expires"));
+    await user.type(screen.getByLabelText("Access expires"), "2028-01-15");
+    await user.click(screen.getByRole("button", { name: /Save Changes/i }));
+
+    await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
+    expect(updateAccess.mock.calls[0][0].expiresAt).toBe("2028-01-15");
+  });
+
+  it("sends expiresAt null when the field is cleared", async () => {
+    const user = userEvent.setup();
+    render(<EditMemberDrawer memberId="m1" onClose={vi.fn()} />);
+    await user.clear(screen.getByLabelText("Access expires"));
+    await user.click(screen.getByRole("button", { name: /Save Changes/i }));
+
+    await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
+    expect(updateAccess.mock.calls[0][0].expiresAt).toBeNull();
   });
 
   it("removes the member after confirm", async () => {

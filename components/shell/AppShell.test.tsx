@@ -1,4 +1,4 @@
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, within, act } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { AppShell } from "./AppShell";
@@ -44,7 +44,7 @@ function mockSupabase(options: {
   initialSession?: { access_token: string; user?: { id?: string; email?: string } } | null;
   staffRow: { full_name: string; platform_owner: boolean; email?: string };
   orgTierRows: Array<{ organization_id: string; org_tier: string }>;
-  organizations: Array<{ id: string; name: string }>;
+  organizations: Array<{ id: string; name: string; logo_url?: string | null; brand_color?: string | null }>;
   staffRoleAssignments?: Array<{ staff_id: string }>;
   activeStaffRows?: Array<{ id: string }>;
 }) {
@@ -171,8 +171,8 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Audit Log" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Organization" })).toBeInTheDocument();
     const switcher = screen.getByRole("combobox", { name: "Organization" });
-    expect(screen.getByText("Rizq Test Org")).toBeInTheDocument();
-    expect(screen.getByText("Some Other Org")).toBeInTheDocument();
+    expect(within(switcher).getByRole("option", { name: "Rizq Test Org" })).toBeInTheDocument();
+    expect(within(switcher).getByRole("option", { name: "Some Other Org" })).toBeInTheDocument();
     expect(switcher).toHaveValue("org-1");
   });
 
@@ -368,12 +368,12 @@ describe("AppShell", () => {
     expect(screen.getAllByText("Super Admin").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders Rizq brand logo and title in sidebar, and ZahraOS 2026 with Mohsin bird logo in footer", async () => {
+  it("renders the selected org's name and logo in the sidebar, and ZahraOS 2026 with Mohsin bird logo in footer", async () => {
     vi.mocked(getBrowserSupabaseClient).mockReturnValue(
       mockSupabase({
         staffRow: { full_name: "Admin Staff", platform_owner: true },
         orgTierRows: [],
-        organizations: [{ id: "org-1", name: "Youth Republic" }],
+        organizations: [{ id: "org-1", name: "Rizq Foundation", logo_url: "https://cdn.example.com/rizq.png", brand_color: "#C0392B" }],
       }) as never,
     );
     vi.mocked(fetchStaffToken).mockResolvedValue(
@@ -388,10 +388,10 @@ describe("AppShell", () => {
 
     await waitFor(() => expect(screen.getByText("Admin Staff")).toBeInTheDocument());
 
-    // Sidebar brand header: Rizq title and Rizq logo image
-    expect(screen.getByText("Rizq")).toBeInTheDocument();
-    const rizqLogoImg = screen.getByRole("img", { name: "Rizq Logo" });
-    expect(rizqLogoImg).toHaveAttribute("src", "/assets/rizq-symbol.png");
+    // Sidebar brand header: the selected org's name + its uploaded logo
+    await waitFor(() => expect(screen.getByText("Rizq Foundation")).toBeInTheDocument());
+    const orgLogoImg = screen.getByRole("img", { name: "Rizq Foundation logo" });
+    expect(orgLogoImg).toHaveAttribute("src", "https://cdn.example.com/rizq.png");
 
     // Sidebar footer: ZahraOS © 2026 and Mohsin Project white bird
     expect(screen.getByText(/ZahraOS © 2026/i)).toBeInTheDocument();
@@ -409,6 +409,30 @@ describe("AppShell", () => {
       expect(document.getElementById("side-badge-hours")).toHaveTextContent("1");
       expect(document.getElementById("side-badge-team")).toHaveTextContent("4");
     });
+  });
+
+  it("falls back to org initials in the sidebar when the org has no logo", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Admin Staff", platform_owner: true },
+        orgTierRows: [],
+        organizations: [{ id: "org-1", name: "Green Earth Trust", logo_url: null, brand_color: "#1F7A1F" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({ actor_type: "staff", staff_id: "s1", platform_owner: true, org_roles: [], module_access: [] }),
+    );
+
+    render(
+      <AppShell>
+        <p>page content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Green Earth Trust")).toBeInTheDocument());
+    expect(screen.queryByRole("img", { name: /Green Earth Trust logo/i })).not.toBeInTheDocument();
+    // Two-letter initials chip
+    expect(screen.getByText("GE")).toBeInTheDocument();
   });
 
   it("toggles sidebar collapsed state via toggle button, logo button, and empty sidebar click", async () => {
