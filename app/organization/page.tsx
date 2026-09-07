@@ -6,6 +6,7 @@ import { useSelectedOrg, useShellAccessToken, useIsOrgAdminOrAbove, useShellLoad
 import { useToast } from "@/components/shell/ToastContext";
 import { updateOrganization, listChapters, type ChapterRow } from "@/lib/platformFunctions";
 import { ChaptersPanel } from "@/components/team/ChaptersPanel";
+import { isDisplayableLogo } from "@/lib/orgLogo";
 
 interface Profile {
   name: string;
@@ -99,7 +100,7 @@ export default function OrganizationPage() {
         name: profile.name.trim(),
         about: profile.about.trim() || null,
         brandColor: profile.brandColor.trim() || null,
-        logoUrl: profile.logoUrl.trim() || null,
+        logoUrl: isDisplayableLogo(profile.logoUrl) ? profile.logoUrl.trim() : null,
       }, accessToken);
       showToast("Organization profile saved.");
     } catch (err) {
@@ -143,7 +144,7 @@ export default function OrganizationPage() {
         <div className="form-group">
           <label className="form-label">Logo</label>
           <div className="flex items-center gap-3 flex-wrap">
-            {profile.logoUrl ? (
+            {isDisplayableLogo(profile.logoUrl) ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={profile.logoUrl}
@@ -168,9 +169,9 @@ export default function OrganizationPage() {
             />
             <button type="button" className="btn btn-secondary btn-sm" disabled={logoUploading}
               onClick={() => logoInputRef.current?.click()}>
-              {logoUploading ? "Uploading…" : profile.logoUrl ? "Replace logo" : "Upload logo"}
+              {logoUploading ? "Uploading…" : isDisplayableLogo(profile.logoUrl) ? "Replace logo" : "Upload logo"}
             </button>
-            {profile.logoUrl && !logoUploading && (
+            {isDisplayableLogo(profile.logoUrl) && !logoUploading && (
               <button type="button" className="btn btn-danger btn-sm" onClick={() => setProfile({ ...profile, logoUrl: "" })}>
                 Remove
               </button>

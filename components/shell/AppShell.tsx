@@ -7,6 +7,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "@/lib/staffToken";
 import { resolveOrgSwitcherOptions, pickInitialOrgId, readStoredOrgId, writeStoredOrgId } from "@/lib/selectedOrg";
 import { MODULE_REGISTRY } from "@/registry/modules";
+import { isDisplayableLogo } from "@/lib/orgLogo";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
@@ -435,7 +436,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
 
   const brandLabel = (selectedOrgId ? orgNames[selectedOrgId] : null) || "Rizq";
-  const brandLogoUrl = selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null;
+  const rawBrandLogoUrl = selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null;
+  const brandLogoUrl = isDisplayableLogo(rawBrandLogoUrl) ? rawBrandLogoUrl : null;
   const brandColor = (selectedOrgId ? orgBrands[selectedOrgId]?.brandColor : null) || "#1F2430";
   const brandInitials = brandLabel.trim().split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase() || "R";
 
