@@ -904,7 +904,8 @@ h1, h2, h3, h4, h5, h6 {
 /* Completed drives — distinct from open/closed. */
 .badge-comp { background: #F2ECFB; color: #5B21B6; border-color: #DFD1F3; }
 
-/* Live "in progress" indicator — brand-gold blinking dot. */
+/* Live "in progress" indicator — brand-gold blinking dot, sits before the
+   opportunity title. */
 .live-dot {
   width: 7px;
   height: 7px;
@@ -913,7 +914,8 @@ h1, h2, h3, h4, h5, h6 {
   position: relative;
   display: inline-block;
   flex: none;
-  margin-right: .3rem;
+  margin-right: .4rem;
+  vertical-align: middle;
 }
 .live-dot::after {
   content: "";

@@ -29,23 +29,38 @@ function fmtDateRange(start: string | null, end: string | null): string | null {
   return s ?? e;
 }
 
-// Card status pill — label, colour class, and whether to show the live
-// (brand-gold blinking) dot.
-function statusPill(computedStatus: string, archived: boolean): { label: string; cls: string; live: boolean } {
-  if (archived) return { label: "Archived", cls: "badge-neu", live: false };
-  switch (computedStatus) {
-    case "open":
-      return { label: "Open", cls: "badge-pos", live: false };
-    case "in_progress":
-      return { label: "In Progress", cls: "badge-prog", live: true };
+// The top-right pill is the *lifecycle / application* status; the brand-gold
+// blinking dot on the title separately marks a drive that is running now.
+// An in-progress drive can still have applications open or closed, so the two
+// are independent. Coming-soon / completed / archived always imply closed
+// applications, so their pill is just the lifecycle label.
+function cardStatus(
+  opp: OpportunitySummary,
+  archived: boolean,
+): { pill: { label: string; cls: string }; running: boolean } {
+  if (archived) return { pill: { label: "Archived", cls: "badge-neu" }, running: false };
+
+  const deadlinePassed = opp.applicationDeadline
+    ? new Date(opp.applicationDeadline).getTime() < Date.now()
+    : false;
+
+  switch (opp.computedStatus) {
     case "completed":
-      return { label: "Completed", cls: "badge-comp", live: false };
+      return { pill: { label: "Completed", cls: "badge-comp" }, running: false };
     case "coming_soon":
-      return { label: "Coming Soon", cls: "badge-pend", live: false };
+      return { pill: { label: "Coming Soon", cls: "badge-pend" }, running: false };
     case "closed":
-      return { label: "Closed", cls: "badge-neu", live: false };
+      return { pill: { label: "Closed", cls: "badge-neu" }, running: false };
+    case "in_progress":
+      return {
+        pill: deadlinePassed
+          ? { label: "Closed", cls: "badge-neu" }
+          : { label: "Open", cls: "badge-pos" },
+        running: true,
+      };
+    case "open":
     default:
-      return { label: computedStatus.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), cls: "badge-neu", live: false };
+      return { pill: { label: "Open", cls: "badge-pos" }, running: false };
   }
 }
 
@@ -233,20 +248,22 @@ export default function YouthRepublicOpportunitiesPage() {
             const percent = cap && cap > 0 ? Math.min(100, Math.round((filled / cap) * 100)) : 0;
             const dateRange = fmtDateRange(opp.activityStartAt, opp.activityEndAt);
             const archived = Boolean(opp.deactivatedAt);
-            const pill = statusPill(opp.computedStatus, archived);
+            const { pill, running } = cardStatus(opp, archived);
 
             return (
               <div key={opp.id} className="opp-card" style={archived ? { opacity: 0.6 } : undefined}>
                 <div>
                   <div className="opp-head">
                     <span className={`type-pill ${opp.type}`}>{opp.type}</span>
-                    <span className={`badge ${pill.cls}`}>
-                      {pill.live && <span className="live-dot" aria-hidden="true" />}
-                      {pill.label}
-                    </span>
+                    <span className={`badge ${pill.cls}`}>{pill.label}</span>
                   </div>
 
-                  <div className="opp-title">{opp.name}</div>
+                  <div className="opp-title">
+                    {running && (
+                      <span className="live-dot" aria-hidden="true" title="Drive in progress" />
+                    )}
+                    {opp.name}
+                  </div>
                   {opp.description && <div className="opp-lead">{opp.description}</div>}
 
                   <div className="opp-meta-row">

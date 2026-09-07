@@ -503,7 +503,7 @@ export function CreateOpportunityForm({
       {/* STEP 1: Specifications & Overview */}
       {currentStep === 1 && (
         <div className="space-y-4">
-          <div className="builder-pane-card">
+          <div className="flex flex-col gap-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="form-group">
               <div className="flex items-center justify-between">
