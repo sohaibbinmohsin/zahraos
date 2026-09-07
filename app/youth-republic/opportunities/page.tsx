@@ -10,7 +10,7 @@ import {
   updateOpportunity,
   type OpportunitySummary,
 } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg } from "@/components/shell/AppShell";
+import { useSelectedOrg, useShellAccessToken } from "@/components/shell/AppShell";
 import { CreateOpportunityForm } from "@/components/youth-republic/CreateOpportunityForm";
 import { useToast } from "@/components/shell/ToastContext";
 
@@ -37,6 +37,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function YouthRepublicOpportunitiesPage() {
   const organizationId = useSelectedOrg();
+  const accessToken = useShellAccessToken();
   const { showToast } = useToast();
   const [opportunities, setOpportunities] = useState<OpportunitySummary[]>([]);
   const [staffToken, setStaffToken] = useState<string | null>(null);
@@ -171,6 +172,7 @@ export default function YouthRepublicOpportunitiesPage() {
           <CreateOpportunityForm
             organizationId={organizationId}
             staffToken={staffToken}
+            accessToken={accessToken}
             initialOpportunity={editTarget ?? undefined}
             onCreated={() => {
               setIsCreating(false);

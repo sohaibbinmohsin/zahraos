@@ -3,7 +3,12 @@ export interface StaffTokenClaims {
   staffId: string;
   platformOwner: boolean;
   orgRoles: { organizationId: string }[];
-  moduleAccess: { organizationId: string; module: string; permissions: string[]; chapters?: string[] }[];
+  moduleAccess: {
+    organizationId: string;
+    module: string;
+    permissions: string[];
+    chapterScopes?: Record<string, string[]>;
+  }[];
 }
 
 export async function fetchStaffToken(platformAccessToken: string): Promise<string> {
@@ -46,7 +51,15 @@ export function decodeStaffTokenClaims(token: string): StaffTokenClaims {
         organizationId: String(m.organization_id),
         module: String(m.module),
         permissions: Array.isArray(m.permissions) ? (m.permissions as unknown[]).map(String) : [],
-        chapters: Array.isArray(m.chapters) ? (m.chapters as unknown[]).map(String) : undefined,
+        chapterScopes:
+          m.chapter_scopes && typeof m.chapter_scopes === "object"
+            ? Object.fromEntries(
+                Object.entries(m.chapter_scopes as Record<string, unknown>).map(([k, v]) => [
+                  k,
+                  Array.isArray(v) ? (v as unknown[]).map(String) : [],
+                ]),
+              )
+            : undefined,
       }))
       : [],
   };
