@@ -25,7 +25,7 @@ describe("YouthRepublicVolunteersPage", () => {
     vi.mocked(youthRepublicFunctions.listVolunteers).mockReset();
   });
 
-  it("lists volunteers and re-fetches with the search term when submitted", async () => {
+  it("lists volunteers and re-fetches (debounced) as the search term is typed", async () => {
     vi.mocked(youthRepublicFunctions.listVolunteers).mockResolvedValue({
       volunteers: [{
         id: "vol-1", volunteerCode: "YR-2026-00001", fullName: "Aisha Khan", email: "aisha@example.com",
@@ -39,8 +39,8 @@ describe("YouthRepublicVolunteersPage", () => {
 
     expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
 
+    expect(screen.queryByRole("button", { name: "Search" })).not.toBeInTheDocument();
     await user.type(screen.getByLabelText("Search"), "Aisha");
-    await user.click(screen.getByRole("button", { name: "Search" }));
 
     await waitFor(() => {
       expect(youthRepublicFunctions.listVolunteers).toHaveBeenLastCalledWith(

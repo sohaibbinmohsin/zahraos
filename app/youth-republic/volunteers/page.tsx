@@ -12,12 +12,10 @@ import {
 } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg } from "@/components/shell/AppShell";
 import { VolunteerProfileDrawer } from "@/components/youth-republic/VolunteerProfileDrawer";
-import { useToast } from "@/components/shell/ToastContext";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
 export default function YouthRepublicVolunteersPage() {
   const organizationId = useSelectedOrg();
-  const { showToast } = useToast();
   const [volunteers, setVolunteers] = useState<VolunteerSummary[]>([]);
   const [search, setSearch] = useState("");
   const [staffToken, setStaffToken] = useState<string | null>(null);
@@ -44,14 +42,13 @@ export default function YouthRepublicVolunteersPage() {
     }
   }, [organizationId]);
 
+  // Live search — debounced so we don't fire a request per keystroke.
   useEffect(() => {
-    load("");
-  }, [load]);
-
-  async function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    await load(search);
-  }
+    const t = setTimeout(() => {
+      load(search);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [search, load]);
 
   async function handleOpenProfile(volunteerId: string) {
     if (!organizationId || !staffToken) return;
@@ -72,7 +69,7 @@ export default function YouthRepublicVolunteersPage() {
   }
 
   if (loading && volunteers.length === 0) {
-    return <ListPageSkeleton columns={5} rows={6} filterBar={false} toolbarItems={2} />;
+    return <ListPageSkeleton columns={5} rows={6} filterBar={false} toolbarItems={1} />;
   }
 
   return (
@@ -85,20 +82,17 @@ export default function YouthRepublicVolunteersPage() {
             Search student volunteers, verify CNIC credentials, and inspect verified service portfolios across Pakistan.
           </div>
         </div>
-        <form onSubmit={handleSearch} className="page-toolbar">
+        <div className="page-toolbar">
           <label htmlFor="volunteerSearch" className="sr-only">Search</label>
           <input
             id="volunteerSearch"
-            type="text"
+            type="search"
             className="search-input"
             placeholder="Search by student name, CNIC, or institution..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <button type="submit" className="btn btn-primary btn-sm">
-            Search
-          </button>
-        </form>
+        </div>
       </div>
 
       {/* Data Table */}
