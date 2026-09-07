@@ -28,7 +28,8 @@ function fmtDateRange(start: string | null, end: string | null): string | null {
   const s = start ? new Date(start).toLocaleDateString("en-GB", opts) : null;
   const e = end ? new Date(end).toLocaleDateString("en-GB", opts) : null;
   if (s && e) return `${s} – ${e}`;
-  return s ?? e;
+  if (s) return `${s} – ongoing`;
+  return e;
 }
 
 // The top-right pill is the *lifecycle / application* status; the brand-gold
@@ -77,7 +78,6 @@ function publishBlockers(d: OpportunityDetail): string[] {
   if (!d.applicationOpenAt) missing.push("an applications-open date");
   if (!d.applicationDeadline) missing.push("an application deadline");
   if (!d.activityStartAt) missing.push("a drive start date");
-  if (!d.activityEndAt) missing.push("a drive end date");
   if (!d.description?.trim()) missing.push("a one-line summary");
   if (!d.about?.trim()) missing.push("the full details");
   if (!d.duties?.length) missing.push("at least one duty");
