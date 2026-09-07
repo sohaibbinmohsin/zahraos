@@ -3,6 +3,17 @@
 import { useState } from "react";
 import type { ApplicationListRow, DecideApplicationPayload } from "@/lib/youthRepublicFunctions";
 
+type Decision = DecideApplicationPayload["decision"];
+
+const PENDING_STATUSES = ["pending_review", "submitted", "under_review"];
+
+const DECISION_META: Record<Decision, { label: string; loadingLabel: string; variant: string }> = {
+  selected: { label: "Select", loadingLabel: "Selecting…", variant: "btn-primary" },
+  waitlisted: { label: "Waitlist", loadingLabel: "Waitlisting…", variant: "btn-secondary" },
+  rejected: { label: "Reject", loadingLabel: "Rejecting…", variant: "btn-danger" },
+  pending_review: { label: "Reconsider", loadingLabel: "Moving to review…", variant: "btn-secondary" },
+};
+
 interface ApplicationReviewDrawerProps {
   application: ApplicationListRow | null;
   isOpen: boolean;
@@ -16,22 +27,25 @@ export function ApplicationReviewDrawer({
   onClose,
   onDecide,
 }: ApplicationReviewDrawerProps) {
-  const [submitting, setSubmitting] = useState(false);
+  const [pending, setPending] = useState<Decision | null>(null);
+  const submitting = pending !== null;
 
   if (!isOpen || !application) return null;
 
-  async function handleDecision(decision: DecideApplicationPayload["decision"]) {
+  async function handleDecision(decision: Decision) {
     if (!application) return;
-    setSubmitting(true);
+    setPending(decision);
     try {
       await onDecide(application.id, decision);
       onClose();
     } catch (err) {
       console.error(err);
     } finally {
-      setSubmitting(false);
+      setPending(null);
     }
   }
+
+  const isPending = PENDING_STATUSES.includes(application.status);
 
   const answersObj = (application.answers ?? {}) as Record<string, unknown>;
   const answerEntries = Object.entries(answersObj);
@@ -91,7 +105,7 @@ export function ApplicationReviewDrawer({
                     : "badge-pend"
                 }`}
               >
-                {application.status}
+                {isPending ? "pending review" : application.status}
               </span>
             </div>
 
@@ -179,43 +193,32 @@ export function ApplicationReviewDrawer({
           </button>
 
           <div className="flex items-center gap-2">
-            {application.status === "waitlisted" ? (
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => handleDecision("selected")}
-                disabled={submitting}
-              >
-                Promote to selected
-              </button>
-            ) : (
-              <>
+            {(isPending
+              ? (["rejected", "waitlisted", "selected"] as const)
+              : (["pending_review"] as const)
+            ).map((decision) => {
+              const meta = DECISION_META[decision];
+              const loading = pending === decision;
+              return (
                 <button
+                  key={decision}
                   type="button"
-                  className="btn btn-danger btn-sm"
-                  onClick={() => handleDecision("rejected")}
+                  className={`btn ${meta.variant} btn-sm`}
+                  onClick={() => handleDecision(decision)}
                   disabled={submitting}
+                  aria-busy={loading || undefined}
                 >
-                  Reject
+                  {loading ? (
+                    <>
+                      <span className="btn-spinner" aria-hidden="true" />
+                      {meta.loadingLabel}
+                    </>
+                  ) : (
+                    meta.label
+                  )}
                 </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => handleDecision("waitlisted")}
-                  disabled={submitting}
-                >
-                  Waitlist
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => handleDecision("selected")}
-                  disabled={submitting}
-                >
-                  Select
-                </button>
-              </>
-            )}
+              );
+            })}
           </div>
         </div>
       </div>

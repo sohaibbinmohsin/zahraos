@@ -127,10 +127,10 @@ describe("§5D admin — Applications: review & decide", () => {
   // GAP — the list itself renders; opportunity/status filter UI does not
   // exist (same shape as the Volunteers/Opportunities filter gaps above).
   it.todo("[5D] list applications, filter by Opportunity and Application Status");
-  it("[5D] decide an application: selected / waitlisted / rejected / under_review (calls decideApplication) — see app/youth-republic/applications/page.test.tsx (only the 'selected' path is click-tested; Waitlist/Reject buttons render and call the same decideApplication wrapper but aren't individually exercised)", () => {
+  it("[5D] decide a pending_review application: selected / waitlisted / rejected (calls decideApplication) — see app/youth-republic/applications/page.test.tsx (the 'selected' path is click-tested; Waitlist/Reject render and call the same decideApplication wrapper)", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  it("[5D] promote a waitlisted application to selected when a spot opens (manual — no auto-promotion) — see app/youth-republic/applications/page.test.tsx", () => {
+  it("[5D] reconsider a decided application (selected / waitlisted / rejected) — a single Reconsider action moves it back to pending_review — see app/youth-republic/applications/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
   // GAP — decideApplication's real error surface was never verified for

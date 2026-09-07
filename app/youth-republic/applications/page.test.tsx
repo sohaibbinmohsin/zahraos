@@ -54,7 +54,7 @@ describe("YouthRepublicApplicationsPage", () => {
     });
   });
 
-  it("promotes a waitlisted application to selected using the same decide action", async () => {
+  it("shows only a Reconsider action on a decided application and moves it back to pending review", async () => {
     vi.mocked(youthRepublicFunctions.listApplications).mockResolvedValue({
       applications: [{
         id: "app-2", volunteerId: "vol-2", volunteerName: "Bilal Ahmed", opportunityId: "opp-1",
@@ -64,19 +64,43 @@ describe("YouthRepublicApplicationsPage", () => {
       }],
       total: 1,
     });
-    vi.mocked(youthRepublicFunctions.decideApplication).mockResolvedValue({ applicationId: "app-2", participationId: "p-2" });
+    vi.mocked(youthRepublicFunctions.decideApplication).mockResolvedValue({ applicationId: "app-2", participationId: null });
     const user = userEvent.setup();
 
     render(<YouthRepublicApplicationsPage />);
 
     expect(await screen.findByText("Bilal Ahmed")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Promote to selected" }));
+    expect(screen.queryByRole("button", { name: "Select" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reconsider" }));
 
     await waitFor(() => {
       expect(youthRepublicFunctions.decideApplication).toHaveBeenCalledWith(
-        { applicationId: "app-2", decision: "selected" },
+        { applicationId: "app-2", decision: "pending_review" },
         "staff-jwt",
       );
+    });
+  });
+
+  it("shows a spinner and loading label on the clicked decision button while the server call is in flight", async () => {
+    let resolveDecide: (v: { applicationId: string; participationId: string | null }) => void = () => {};
+    vi.mocked(youthRepublicFunctions.decideApplication).mockImplementation(
+      () => new Promise((res) => { resolveDecide = res; }),
+    );
+    const user = userEvent.setup();
+
+    render(<YouthRepublicApplicationsPage />);
+
+    expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Select" }));
+
+    const busyButton = await screen.findByRole("button", { name: /Selecting/ });
+    expect(busyButton).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("button", { name: "Waitlist" })).toBeDisabled();
+
+    resolveDecide({ applicationId: "app-1", participationId: "p-1" });
+    await waitFor(() => {
+      expect(youthRepublicFunctions.decideApplication).toHaveBeenCalled();
     });
   });
 });

@@ -18,8 +18,9 @@ import { useSelectedOrg } from "@/components/shell/AppShell";
 import { useToast } from "@/components/shell/ToastContext";
 
 const ACTIVE_OPP_STATUSES = ["open", "coming_soon", "in_progress"];
-const PENDING_APP_STATUSES = ["submitted", "under_review"];
+const PENDING_APP_STATUSES = ["pending_review", "submitted", "under_review"];
 const APP_STATUS_BADGE: Record<string, string> = {
+  pending_review: "badge-pend",
   submitted: "badge-pend",
   under_review: "badge-pend",
   selected: "badge-pos",
@@ -27,8 +28,9 @@ const APP_STATUS_BADGE: Record<string, string> = {
   rejected: "badge-neg",
 };
 const APP_STATUS_LABEL: Record<string, string> = {
-  submitted: "Applied",
-  under_review: "Under review",
+  pending_review: "Pending review",
+  submitted: "Pending review",
+  under_review: "Pending review",
   selected: "Selected",
   waitlisted: "Waitlisted",
   rejected: "Not selected",
