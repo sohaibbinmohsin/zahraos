@@ -159,50 +159,70 @@ Deno.test("mintStaffToken resolves only the granted role's permissions for a reg
   assertEquals(youthRepublicAccess!.permissions.includes("applications:write"), false);
 });
 
-// SUPERSEDED by the chapter_scopes model — re-enabled + rewritten in plan 2026-09-06-chapter-scoped-enforcement.md Task 1.
-Deno.test({ name: "mintStaffToken omits chapters for an org-wide assignment and unions chapter ids otherwise", ignore: true }, async () => {
+Deno.test("mintStaffToken emits per-key chapter_scopes: org-wide grant unrestricts a key, others are scoped", async () => {
   Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
   const supabase = testClient();
   const { data: org } = await supabase.from("organizations").insert({
-    name: "Scope Token Org", slug: `scope-token-${crypto.randomUUID()}`,
+    name: "Scopes Org", slug: `scopes-${crypto.randomUUID()}`,
   }).select("id").single();
   const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
   await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: mod!.id });
   await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: org!.id, p_module_id: mod!.id });
-  const { data: opsLead } = await supabase.from("roles").select("id")
-    .eq("organization_id", org!.id).eq("name", "Operations Lead").single();
-  const { data: reviewer } = await supabase.from("roles").select("id")
-    .eq("organization_id", org!.id).eq("name", "Application Reviewer").single();
+  const roleId = async (n: string) =>
+    (await supabase.from("roles").select("id").eq("organization_id", org!.id).eq("name", n).single()).data!.id as string;
+  const auditor = await roleId("Auditor");           // read-only everything (org-wide grant)
+  const opsLead = await roleId("Operations Lead");    // write/triage (chapter-scoped)
 
-  const email = `scope-tok-${crypto.randomUUID()}@example.com`;
+  const { data: chapter } = await supabase.from("chapters").insert({
+    organization_id: org!.id, name: `LUMS-${crypto.randomUUID()}`,
+  }).select("id").single();
+
+  const email = `scopes-${crypto.randomUUID()}@example.com`;
   const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
   const { data: staff } = await supabase.from("staff").insert({
     auth_user_id: authUser!.user!.id, full_name: "Scoped", email,
   }).select("id").single();
 
-  const chapterA = crypto.randomUUID();
-  const chapterB = crypto.randomUUID();
   await supabase.from("staff_role_assignments").insert([
-    { staff_id: staff!.id, organization_id: org!.id, module_id: mod!.id, role_id: reviewer!.id,
-      scope_kind: "chapter", chapter_id: chapterA, scope_label: "Lahore Chapter" },
-    { staff_id: staff!.id, organization_id: org!.id, module_id: mod!.id, role_id: opsLead!.id,
-      scope_kind: "chapter", chapter_id: chapterB, scope_label: "Karachi Chapter" },
+    { staff_id: staff!.id, organization_id: org!.id, module_id: mod!.id, role_id: auditor,
+      scope_kind: "org_wide", scope_label: "National / All Chapters" },
+    { staff_id: staff!.id, organization_id: org!.id, module_id: mod!.id, role_id: opsLead,
+      scope_kind: "chapter", chapter_id: chapter!.id, scope_label: "LUMS" },
   ]);
 
   const token = await mintStaffToken(supabase, staff!.id, false);
-  const payload = JSON.parse(atob(token.split(".")[1]));
-  const entry = payload.module_access.find((m: { module: string }) => m.module === "youth-republic");
-  assertEquals([...entry.chapters].sort(), [chapterA, chapterB].sort());
-
-  // Adding an org-wide assignment drops chapters entirely.
-  await supabase.from("staff_role_assignments").insert({
-    staff_id: staff!.id, organization_id: org!.id, module_id: mod!.id, role_id: opsLead!.id,
-    scope_kind: "org_wide", scope_label: "National / All Chapters",
-  });
-  const token2 = await mintStaffToken(supabase, staff!.id, false);
-  const entry2 = JSON.parse(atob(token2.split(".")[1])).module_access
+  const entry = JSON.parse(atob(token.split(".")[1])).module_access
     .find((m: { module: string }) => m.module === "youth-republic");
-  assertEquals(entry2.chapters, undefined);
+
+  // read keys granted by the org-wide Auditor → unrestricted (absent from chapter_scopes)
+  assertEquals(entry.chapter_scopes["applications:read"], undefined);
+  assertEquals(entry.chapter_scopes["opportunities:read"], undefined);
+  // write/triage keys only from the chapter-scoped Ops Lead → scoped to [chapter]
+  assertEquals(entry.chapter_scopes["opportunities:write"], [chapter!.id]);
+  assertEquals(entry.chapter_scopes["applications:update"], [chapter!.id]);
+  // no flat chapters field anymore
+  assertEquals(entry.chapters, undefined);
+});
+
+Deno.test("mintStaffToken emits no chapter_scopes for a super_admin org", async () => {
+  Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
+  const supabase = testClient();
+  const { data: org } = await supabase.from("organizations").insert({
+    name: "SA Scopes Org", slug: `sa-scopes-${crypto.randomUUID()}`,
+  }).select("id").single();
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: mod!.id });
+  const email = `sa-scopes-${crypto.randomUUID()}@example.com`;
+  const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser!.user!.id, full_name: "SA", email,
+  }).select("id").single();
+  await supabase.from("staff_org_roles").insert({ staff_id: staff!.id, organization_id: org!.id, org_tier: "super_admin" });
+
+  const token = await mintStaffToken(supabase, staff!.id, false);
+  const entry = JSON.parse(atob(token.split(".")[1])).module_access
+    .find((m: { module: string }) => m.module === "youth-republic");
+  assertEquals(entry.chapter_scopes, undefined);
 });
 
 Deno.test("mintStaffToken refuses an account past its expires_at", async () => {

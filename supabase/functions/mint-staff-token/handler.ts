@@ -5,7 +5,7 @@ interface ModuleAccessEntry {
   organization_id: string;
   module: string;
   permissions: string[];
-  chapters?: string[];
+  chapter_scopes?: Record<string, string[]>;
 }
 
 async function signingKey(): Promise<CryptoKey> {
@@ -59,14 +59,27 @@ export async function mintStaffToken(
 
   const moduleAccessMap = new Map<string, ModuleAccessEntry>();
 
-  // orgId:moduleKey -> { anyOrgWide: boolean, chapters: Set<string> }
-  const scopeMap = new Map<string, { anyOrgWide: boolean; chapters: Set<string> }>();
-  function noteScope(orgId: string, moduleKey: string, row: { scope_kind: string; chapter_id: string | null }) {
-    const key = `${orgId}:${moduleKey}`;
-    const cur = scopeMap.get(key) ?? { anyOrgWide: false, chapters: new Set<string>() };
+  // `${orgId}:${moduleKey}` -> Map<permissionKey, { anyOrgWide: boolean; chapters: Set<string> }>
+  const keyScopes = new Map<string, Map<string, { anyOrgWide: boolean; chapters: Set<string> }>>();
+  function notePermScope(
+    orgId: string,
+    moduleKey: string,
+    permKey: string,
+    row: { scope_kind: string; chapter_id: string | null },
+  ) {
+    const mapKey = `${orgId}:${moduleKey}`;
+    let perKey = keyScopes.get(mapKey);
+    if (!perKey) {
+      perKey = new Map();
+      keyScopes.set(mapKey, perKey);
+    }
+    let cur = perKey.get(permKey);
+    if (!cur) {
+      cur = { anyOrgWide: false, chapters: new Set<string>() };
+      perKey.set(permKey, cur);
+    }
     if (row.scope_kind === "org_wide") cur.anyOrgWide = true;
     else if (row.chapter_id) cur.chapters.add(row.chapter_id);
-    scopeMap.set(key, cur);
   }
 
   async function moduleKeyFor(moduleId: string): Promise<string> {
@@ -93,7 +106,7 @@ export async function mintStaffToken(
         .select("resource, action")
         .eq("module_id", row.module_id);
       addPermissions(orgId, moduleKey, (perms ?? []).map((p) => `${p.resource}:${p.action}`));
-      noteScope(orgId, moduleKey, { scope_kind: "org_wide", chapter_id: null });
+      // super_admin: no notePermScope call -> keyScopes has no entry -> unrestricted.
     }
   }
 
@@ -108,15 +121,26 @@ export async function mintStaffToken(
       return `${p.resource}:${p.action}`;
     });
     addPermissions(row.organization_id as string, moduleKey, permissions);
-    noteScope(row.organization_id as string, moduleKey, row as { scope_kind: string; chapter_id: string | null });
+    for (const permKey of permissions) {
+      notePermScope(
+        row.organization_id as string,
+        moduleKey,
+        permKey,
+        row as { scope_kind: string; chapter_id: string | null },
+      );
+    }
   }
 
   const moduleAccess = Array.from(moduleAccessMap.values()).map((entry) => {
-    const scope = scopeMap.get(`${entry.organization_id}:${entry.module}`);
-    if (scope && !scope.anyOrgWide && scope.chapters.size > 0) {
-      return { ...entry, chapters: Array.from(scope.chapters) };
+    const perKey = keyScopes.get(`${entry.organization_id}:${entry.module}`);
+    if (!perKey) return entry;
+    const chapter_scopes: Record<string, string[]> = {};
+    for (const [permKey, scope] of perKey) {
+      if (!scope.anyOrgWide && scope.chapters.size > 0) {
+        chapter_scopes[permKey] = Array.from(scope.chapters);
+      }
     }
-    return entry;
+    return Object.keys(chapter_scopes).length > 0 ? { ...entry, chapter_scopes } : entry;
   });
 
   const key = await signingKey();
