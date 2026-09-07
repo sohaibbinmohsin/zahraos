@@ -3,12 +3,43 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { CreateOpportunityForm } from "./CreateOpportunityForm";
 import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
+import * as platformFunctions from "@/lib/platformFunctions";
+import * as appShell from "@/components/shell/AppShell";
+import type { StaffTokenClaims } from "@/lib/staffToken";
 
 vi.mock("@/lib/youthRepublicFunctions");
+vi.mock("@/lib/platformFunctions", () => ({
+  listChapters: vi.fn().mockResolvedValue({ chapters: [] }),
+}));
+vi.mock("@/components/shell/AppShell", () => ({
+  useStaffClaims: vi.fn(),
+}));
+
+function makeClaims(chapterScopes?: Record<string, string[]>): StaffTokenClaims {
+  return {
+    actorType: "staff",
+    staffId: "staff-1",
+    platformOwner: false,
+    orgRoles: [{ organizationId: "org-1" }],
+    moduleAccess: [
+      {
+        organizationId: "org-1",
+        module: "youth-republic",
+        permissions: ["opportunities:write"],
+        ...(chapterScopes ? { chapterScopes } : {}),
+      },
+    ],
+  };
+}
 
 describe("CreateOpportunityForm", () => {
   beforeEach(() => {
     vi.mocked(youthRepublicFunctions.createOpportunity).mockReset();
+    vi.mocked(youthRepublicFunctions.updateOpportunity).mockReset();
+    vi.mocked(platformFunctions.listChapters).mockReset();
+    vi.mocked(platformFunctions.listChapters).mockResolvedValue({ chapters: [] });
+    vi.mocked(appShell.useStaffClaims).mockReset();
+    vi.mocked(appShell.useStaffClaims).mockReturnValue(null);
   });
 
   it("proceeds through steps and submits name and type to createOpportunity", async () => {
@@ -16,7 +47,7 @@ describe("CreateOpportunityForm", () => {
     const onCreated = vi.fn();
     const user = userEvent.setup();
 
-    render(<CreateOpportunityForm organizationId="org-1" staffToken="staff-jwt" onCreated={onCreated} />);
+    render(<CreateOpportunityForm organizationId="org-1" staffToken="staff-jwt" accessToken={null} onCreated={onCreated} />);
 
     await user.type(screen.getByLabelText("Name"), "Beach Cleanup");
     await user.selectOptions(screen.getByLabelText("Type"), "environment");
@@ -39,7 +70,7 @@ describe("CreateOpportunityForm", () => {
     const onCreated = vi.fn();
     const user = userEvent.setup();
 
-    render(<CreateOpportunityForm organizationId="org-1" staffToken="staff-jwt" onCreated={onCreated} />);
+    render(<CreateOpportunityForm organizationId="org-1" staffToken="staff-jwt" accessToken={null} onCreated={onCreated} />);
 
     await user.type(screen.getByLabelText("Name"), "Draft Food Drive");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
@@ -67,6 +98,7 @@ describe("CreateOpportunityForm", () => {
       <CreateOpportunityForm
         organizationId="org-1"
         staffToken="staff-jwt"
+        accessToken={null}
         onCreated={onCreated}
         onCancel={vi.fn()}
         initialOpportunity={{
@@ -106,6 +138,7 @@ describe("CreateOpportunityForm", () => {
       <CreateOpportunityForm
         organizationId="org-1"
         staffToken="staff-jwt"
+        accessToken={null}
         onCreated={onCreated}
         initialOpportunity={{
           id: "opp-live",
@@ -130,7 +163,7 @@ describe("CreateOpportunityForm", () => {
   });
 
   it("enforces character limit on name (80) and description (200)", async () => {
-    render(<CreateOpportunityForm organizationId="org-1" staffToken="staff-jwt" onCreated={vi.fn()} />);
+    render(<CreateOpportunityForm organizationId="org-1" staffToken="staff-jwt" accessToken={null} onCreated={vi.fn()} />);
 
     const nameInput = screen.getByLabelText("Name");
     expect(nameInput).toHaveAttribute("maxLength", "80");
@@ -148,6 +181,7 @@ describe("CreateOpportunityForm", () => {
       <CreateOpportunityForm
         organizationId="org-1"
         staffToken="staff-jwt"
+        accessToken={null}
         onCreated={vi.fn()}
         initialOpportunity={{
           id: "opp-live",
@@ -172,6 +206,7 @@ describe("CreateOpportunityForm", () => {
       <CreateOpportunityForm
         organizationId="org-1"
         staffToken="staff-jwt"
+        accessToken={null}
         onCreated={vi.fn()}
       />,
     );
@@ -205,6 +240,7 @@ describe("CreateOpportunityForm", () => {
       <CreateOpportunityForm
         organizationId="org-1"
         staffToken="staff-jwt"
+        accessToken={null}
         onCreated={vi.fn()}
       />,
     );
@@ -226,6 +262,7 @@ describe("CreateOpportunityForm", () => {
       <CreateOpportunityForm
         organizationId="org-1"
         staffToken="staff-jwt"
+        accessToken={null}
         onCreated={vi.fn()}
       />,
     );
@@ -277,5 +314,96 @@ describe("CreateOpportunityForm", () => {
     fireEvent.dragEnd(cards[0]);
 
     expect(screen.getAllByTitle("Drag to reorder questions").length).toBe(2);
+  });
+
+  it("chapter-scoped writer sees only scoped chapters, no org-wide option, and submits that chapterId", async () => {
+    vi.mocked(appShell.useStaffClaims).mockReturnValue(
+      makeClaims({ "opportunities:write": ["lums"] }),
+    );
+    vi.mocked(platformFunctions.listChapters).mockResolvedValue({
+      chapters: [
+        { id: "lums", name: "Rizq LUMS", city: null, status: "active" },
+        { id: "nust", name: "Rizq NUST", city: null, status: "active" },
+      ],
+    });
+    vi.mocked(youthRepublicFunctions.createOpportunity).mockResolvedValue({ opportunityId: "opp-scoped" });
+    const onCreated = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <CreateOpportunityForm
+        organizationId="org-1"
+        staffToken="staff-jwt"
+        accessToken="platform-token"
+        onCreated={onCreated}
+      />,
+    );
+
+    // Chapter options load from listChapters, filtered to the write scope.
+    await screen.findByRole("option", { name: "Rizq LUMS" });
+    const chapterSelect = screen.getByLabelText("Chapter");
+    expect(chapterSelect).toBeRequired();
+    expect(screen.queryByRole("option", { name: "Rizq NUST" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /Org-wide/i })).not.toBeInTheDocument();
+
+    await waitFor(() => expect((chapterSelect as HTMLSelectElement).value).toBe("lums"));
+
+    await user.type(screen.getByLabelText("Name"), "LUMS Blood Drive");
+    await user.selectOptions(screen.getByLabelText("Type"), "health");
+    await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+    await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
+    await user.click(screen.getByRole("button", { name: "Create opportunity" }));
+
+    await waitFor(() => {
+      expect(youthRepublicFunctions.createOpportunity).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "LUMS Blood Drive", chapterId: "lums" }),
+        "staff-jwt",
+      );
+      expect(onCreated).toHaveBeenCalled();
+    });
+  });
+
+  it("unrestricted writer sees all active chapters plus an org-wide option and submits chapterId null when org-wide", async () => {
+    vi.mocked(appShell.useStaffClaims).mockReturnValue(makeClaims());
+    vi.mocked(platformFunctions.listChapters).mockResolvedValue({
+      chapters: [
+        { id: "lums", name: "Rizq LUMS", city: null, status: "active" },
+        { id: "nust", name: "Rizq NUST", city: null, status: "active" },
+      ],
+    });
+    vi.mocked(youthRepublicFunctions.createOpportunity).mockResolvedValue({ opportunityId: "opp-open" });
+    const onCreated = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <CreateOpportunityForm
+        organizationId="org-1"
+        staffToken="staff-jwt"
+        accessToken="platform-token"
+        onCreated={onCreated}
+      />,
+    );
+
+    await screen.findByRole("option", { name: "Rizq LUMS" });
+    expect(screen.getByRole("option", { name: "Rizq NUST" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Org-wide (no chapter)" })).toBeInTheDocument();
+
+    const chapterSelect = screen.getByLabelText("Chapter") as HTMLSelectElement;
+    expect(chapterSelect).not.toBeRequired();
+    expect(chapterSelect.value).toBe("");
+
+    await user.type(screen.getByLabelText("Name"), "National Tree Plantation");
+    await user.selectOptions(screen.getByLabelText("Type"), "environment");
+    await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
+    await user.click(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i }));
+    await user.click(screen.getByRole("button", { name: "Create opportunity" }));
+
+    await waitFor(() => {
+      expect(youthRepublicFunctions.createOpportunity).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "National Tree Plantation", chapterId: null }),
+        "staff-jwt",
+      );
+      expect(onCreated).toHaveBeenCalled();
+    });
   });
 });

@@ -248,6 +248,7 @@ export interface CreateOpportunityPayload {
   organizationId: string;
   name: string;
   type: string;
+  chapterId?: string | null;
   description?: string;
   location?: string | null;
   isOnline?: boolean;
@@ -270,6 +271,7 @@ export interface UpdateOpportunityPayload {
   opportunityId: string;
   organizationId: string;
   name?: string;
+  chapterId?: string | null;
   description?: string;
   location?: string | null;
   isOnline?: boolean;

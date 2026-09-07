@@ -1,19 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createOpportunity, updateOpportunity, type CreateOpportunityPayload } from "@/lib/youthRepublicFunctions";
+import { listChapters, type ChapterRow } from "@/lib/platformFunctions";
 import { VolunteerApplyPreview } from "@/components/youth-republic/VolunteerApplyPreview";
 import { CityCombobox } from "@/components/youth-republic/CityCombobox";
 import type { FormDefinition, FieldDef, FieldType } from "@/lib/forms";
 import { useToast } from "@/components/shell/ToastContext";
+import { useStaffClaims } from "@/components/shell/AppShell";
 
 interface CreateOpportunityFormProps {
   organizationId: string;
   staffToken: string;
+  /** Platform session token — needed to call the platform `listChapters` function. */
+  accessToken: string | null;
   onCreated: () => void;
   onCancel?: () => void;
   initialOpportunity?: {
     id?: string;
+    chapterId?: string | null;
     name: string;
     type: string;
     description?: string;
@@ -81,12 +86,53 @@ const DEFAULT_FORM_FIELDS: FieldDef[] = [
 export function CreateOpportunityForm({
   organizationId,
   staffToken,
+  accessToken,
   onCreated,
   onCancel,
   initialOpportunity,
 }: CreateOpportunityFormProps) {
   const { showToast } = useToast();
+  const claims = useStaffClaims();
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+
+  const isEditMode = Boolean(initialOpportunity?.id);
+
+  // Chapter scoping — a caller whose `opportunities:write` is chapter-scoped may
+  // only create drives inside their scoped chapters (required); an unrestricted
+  // caller may pick any active chapter or leave the drive org-wide.
+  const writeScopeChapters = claims?.moduleAccess?.find(
+    (m) => m.organizationId === organizationId && m.module === "youth-republic",
+  )?.chapterScopes?.["opportunities:write"];
+  const isChapterScoped = Array.isArray(writeScopeChapters) && writeScopeChapters.length > 0;
+
+  const [chapters, setChapters] = useState<ChapterRow[]>([]);
+  const [chapterId, setChapterId] = useState<string>(initialOpportunity?.chapterId ?? "");
+
+  useEffect(() => {
+    if (isEditMode || !organizationId || !accessToken) return;
+    let cancelled = false;
+    listChapters({ organizationId }, accessToken)
+      .then((res) => {
+        if (cancelled) return;
+        const active = res.chapters.filter((c) => c.status === "active");
+        setChapters(active);
+        if (isChapterScoped && !initialOpportunity?.chapterId) {
+          const first = active.find((c) => writeScopeChapters!.includes(c.id));
+          if (first) setChapterId(first.id);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setChapters([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditMode, organizationId, accessToken]);
+
+  const chapterOptions = isChapterScoped
+    ? chapters.filter((c) => writeScopeChapters!.includes(c.id))
+    : chapters;
 
   // Step 1: Specs
   const [name, setName] = useState(initialOpportunity?.name ?? "");
@@ -266,6 +312,11 @@ export function CreateOpportunityForm({
       setCurrentStep(1);
       return;
     }
+    if (!initialOpportunity?.id && isChapterScoped && !chapterId) {
+      setError("Chapter is required");
+      setCurrentStep(1);
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -307,6 +358,7 @@ export function CreateOpportunityForm({
           organizationId,
           name: name.trim(),
           type,
+          chapterId: chapterId || null,
           ...common,
         };
         const created = await createOpportunity(payload, staffToken);
@@ -443,6 +495,41 @@ export function CreateOpportunityForm({
                 <option value="environment">Environment &amp; Climate Action</option>
                 <option value="health">Healthcare &amp; Emergency Relief</option>
               </select>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="oppChapter" className="form-label">
+                Chapter
+              </label>
+              {isEditMode ? (
+                <input
+                  id="oppChapter"
+                  className="form-input"
+                  value={
+                    initialOpportunity?.chapterId
+                      ? chapters.find((c) => c.id === initialOpportunity?.chapterId)?.name ??
+                        initialOpportunity.chapterId
+                      : "Org-wide (no chapter)"
+                  }
+                  readOnly
+                  disabled
+                />
+              ) : (
+                <select
+                  id="oppChapter"
+                  className="form-select"
+                  value={chapterId}
+                  onChange={(e) => setChapterId(e.target.value)}
+                  required={isChapterScoped}
+                >
+                  {!isChapterScoped && <option value="">Org-wide (no chapter)</option>}
+                  {chapterOptions.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
 
