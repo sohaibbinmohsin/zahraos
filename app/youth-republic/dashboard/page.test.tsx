@@ -73,8 +73,8 @@ describe("YouthRepublicDashboardPage", () => {
   it("derives the tiles from live data across all four endpoints", async () => {
     render(<YouthRepublicDashboardPage />);
 
-    // "Active opportunities" = live opps in an active status -> just "Open Drive" -> 1
-    await waitFor(() => expect(screen.getByText("Active opportunities")).toBeInTheDocument());
+    // "Active drives" = live opps in an active status -> just "Open Drive" -> 1
+    await waitFor(() => expect(screen.getByText("Active drives")).toBeInTheDocument());
     expect(screen.getByText("Applications to review")).toBeInTheDocument(); // = submitted + under_review = 2
     expect(screen.getByText("Hours to verify")).toBeInTheDocument(); // = 1 pending
     expect(screen.getByText("Active volunteers")).toBeInTheDocument(); // = kpis.active = 30

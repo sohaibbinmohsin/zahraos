@@ -25,8 +25,8 @@ const TAB_META = [
     key: null,
   },
   {
-    href: "/youth-republic/opportunities",
-    label: "Opportunities",
+    href: "/youth-republic/drives",
+    label: "Drives",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />

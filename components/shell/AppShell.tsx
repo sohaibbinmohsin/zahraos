@@ -691,16 +691,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
 
                 <Link
-                  href="/youth-republic/opportunities"
-                  aria-label="Opportunities"
-                  className={`sidebar-nav-item ${pathname?.includes("/opportunities") ? "active" : ""}`}
+                  href="/youth-republic/drives"
+                  aria-label="Drives"
+                  className={`sidebar-nav-item ${pathname?.includes("/drives") ? "active" : ""}`}
                   onClick={() => setMobileSidebarOpen(false)}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                   </svg>
-                  <span className="nav-label">Opportunities</span>
+                  <span className="nav-label">Drives</span>
                 </Link>
 
                 <Link

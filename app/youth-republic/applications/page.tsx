@@ -1,7 +1,6 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
@@ -100,8 +99,10 @@ function ApplicationsContent() {
   const [reconsideringId, setReconsideringId] = useState<string | null>(null);
 
   // Search & Filter — opens on the triage queue (Pending Review) by default.
+  // The drive filter is seeded from a ?opportunityId= deep link when present.
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending_review");
+  const [driveFilter, setDriveFilter] = useState(opportunityIdParam ?? "all");
 
   const load = useCallback(async () => {
     if (!organizationId) return;
@@ -112,10 +113,9 @@ function ApplicationsContent() {
       if (!sessionData.session) return;
       const token = await fetchStaffToken(sessionData.session.access_token);
       setStaffToken(token);
-      const result = await listApplications(
-        { organizationId, ...(opportunityIdParam ? { opportunityId: opportunityIdParam } : {}) },
-        token,
-      );
+      // Always load the org's full set — the drive filter is applied
+      // client-side so switching it needs no refetch.
+      const result = await listApplications({ organizationId }, token);
       setApplications(result.applications);
     } catch (err) {
       console.error("Failed to load applications", err);
@@ -123,7 +123,7 @@ function ApplicationsContent() {
     } finally {
       setLoading(false);
     }
-  }, [organizationId, opportunityIdParam, showToast]);
+  }, [organizationId, showToast]);
 
   useEffect(() => {
     load();
@@ -162,12 +162,15 @@ function ApplicationsContent() {
   }
 
   if (loading && applications.length === 0) {
-    return <ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={2} />;
+    return <ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={3} />;
   }
 
-  const filteredOppName = opportunityIdParam
-    ? applications.find((a) => a.opportunityId === opportunityIdParam)?.opportunityName ?? null
-    : null;
+  // Distinct drives present in the loaded applications, for the filter select.
+  const driveOptions = [...new Map(
+    applications
+      .filter((a) => a.opportunityId)
+      .map((a) => [a.opportunityId, a.opportunityName || "Untitled drive"] as [string, string]),
+  ).entries()].sort((a, b) => a[1].localeCompare(b[1]));
 
   const filtered = applications.filter((a) => {
     const candidateName = a.applicantName || a.volunteerName || "";
@@ -180,7 +183,8 @@ function ApplicationsContent() {
       statusFilter === "all" ||
       a.status === statusFilter ||
       (statusFilter === "pending_review" && PENDING_STATUSES.includes(a.status));
-    return matchesSearch && matchesStatus;
+    const matchesDrive = driveFilter === "all" || a.opportunityId === driveFilter;
+    return matchesSearch && matchesStatus && matchesDrive;
   });
 
   return (
@@ -203,8 +207,20 @@ function ApplicationsContent() {
           />
           <select
             className="filter-select"
+            value={driveFilter}
+            onChange={(e) => setDriveFilter(e.target.value)}
+            aria-label="Filter by drive"
+          >
+            <option value="all">All Drives</option>
+            {driveOptions.map(([id, nm]) => (
+              <option key={id} value={id}>{nm}</option>
+            ))}
+          </select>
+          <select
+            className="filter-select"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            aria-label="Filter by status"
           >
             <option value="all">All Application Statuses</option>
             <option value="pending_review">Pending Review</option>
@@ -214,17 +230,6 @@ function ApplicationsContent() {
           </select>
         </div>
       </div>
-
-      {opportunityIdParam && (
-        <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[var(--bg-page)] border border-[var(--line-subtle)] text-sm">
-          <span className="text-[var(--ink-2)]">
-            Showing applications for <strong className="text-[var(--ink)]">{filteredOppName ?? "this opportunity"}</strong>
-          </span>
-          <Link href="/youth-republic/applications" className="btn btn-secondary btn-xs">
-            Clear filter
-          </Link>
-        </div>
-      )}
 
       {/* Data Table */}
       <div className="table-card">
@@ -376,7 +381,7 @@ function ApplicationsContent() {
 
 export default function YouthRepublicApplicationsPage() {
   return (
-    <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={2} />}>
+    <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={3} />}>
       <ApplicationsContent />
     </Suspense>
   );
