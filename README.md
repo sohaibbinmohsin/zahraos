@@ -35,29 +35,29 @@ ZahraOS adopts an architectural pattern designed for high scale and modular inde
 4. **Push-Based Organization Sync**: Platform tenant mutations (creations, deactivations, branding updates) are pushed to subscribed modules via idempotent sync webhooks.
 
 ```mermaid
-graph TD
-    subgraph Browser Client
-        UI[ZahraOS Operations Console<br/>Next.js 16 / React 19]
+flowchart TD
+    subgraph BrowserClient["Browser Client"]
+        UI["ZahraOS Operations Console<br/>Next.js 16 / React 19"]
     end
 
-    subgraph ZahraOS Platform Hub
-        P_AUTH[Platform Auth & Staff Directory]
-        P_MINT[mint-staff-token Edge Function]
-        P_DB[(Platform Database<br/>Organizations · Staff · Roles · Chapters)]
+    subgraph ZahraOSPlatform["ZahraOS Platform Hub"]
+        P_AUTH["Platform Auth & Staff Directory"]
+        P_MINT["mint-staff-token Edge Function"]
+        P_DB[("Platform Database<br/>Organizations · Staff · Roles · Chapters")]
     end
 
-    subgraph Functional Modules e.g. Youth Republic
-        M_EF[Module Edge Functions<br/>list-opportunities · verify-hours · decide-application]
-        M_DB[(Module Database<br/>Volunteers · Applications · Hours)]
+    subgraph FunctionalModules["Functional Modules (e.g. Youth Republic)"]
+        M_EF["Module Edge Functions<br/>list-opportunities · verify-hours · decide-application"]
+        M_DB[("Module Database<br/>Volunteers · Applications · Hours")]
     end
 
-    UI -->|1. Authenticate Staff| P_AUTH
-    UI -->|2. Request Scoped Capability Token| P_MINT
-    P_MINT -->|Read RBAC & Permissions| P_DB
-    P_MINT -->>|3. Signed Staff JWT| UI
-    UI -->|4. Direct Action with Bearer JWT| M_EF
-    M_EF -->|Validate JWT & Enforce Tenant RLS| M_DB
-    P_DB -.->|5. Push Sync Org State| M_EF
+    UI -->|"1. Authenticate Staff"| P_AUTH
+    UI -->|"2. Request Scoped Capability Token"| P_MINT
+    P_MINT -->|"Read RBAC & Permissions"| P_DB
+    P_MINT -->|"3. Signed Staff JWT"| UI
+    UI -->|"4. Direct Action with Bearer JWT"| M_EF
+    M_EF -->|"Validate JWT & Enforce Tenant RLS"| M_DB
+    P_DB -.->|"5. Push Sync Org State"| M_EF
 ```
 
 ---
