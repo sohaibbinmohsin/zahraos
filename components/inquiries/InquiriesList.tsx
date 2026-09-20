@@ -95,9 +95,16 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
                 </td>
                 <td className="py-3 px-4 text-neutral-700">{item.partner_organization || '-'}</td>
                 <td className="py-3 px-4">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-neutral-100 text-neutral-800">
-                    {item.category}
-                  </span>
+                  <div className="flex flex-col gap-1 items-start">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-neutral-100 text-neutral-800">
+                      {item.category}
+                    </span>
+                    {item.chapter_id && (
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        GroRizq
+                      </span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-3 px-4">
                   <select
@@ -134,7 +141,10 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
             <div className="flex items-start justify-between border-b pb-3">
               <div>
                 <h3 className="font-semibold text-lg text-neutral-900">{selectedInquiry.name}</h3>
-                <p className="text-xs text-neutral-500">{selectedInquiry.email} • {selectedInquiry.category}</p>
+                <p className="text-xs text-neutral-500">
+                  {selectedInquiry.email} • {selectedInquiry.category}
+                  {selectedInquiry.chapter_id ? ' • GroRizq Chapter' : ''}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedInquiry(null)}
