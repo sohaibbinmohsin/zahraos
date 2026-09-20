@@ -50,19 +50,21 @@ export default function InquiriesPage() {
 
   if (!selectedOrgId) {
     return (
-      <div className="p-8 text-neutral-500">
-        Please select an organization from the switcher above.
+      <div className="panel p-8 text-center">
+        <p className="text-[var(--ink-2)] font-medium">Please select an organization from the switcher above.</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-neutral-900 tracking-tight">Partner Inquiries</h1>
-        <p className="text-sm text-neutral-500 mt-1">
-          Review and manage incoming partnership inquiries submitted through the website.
-        </p>
+    <div className="flex flex-col gap-6">
+      <div className="page-header" style={{ marginBottom: 0 }}>
+        <div>
+          <h1 className="page-title">Partner Inquiries</h1>
+          <div className="page-subtitle">
+            Review and manage incoming partnership inquiries submitted through the website.
+          </div>
+        </div>
       </div>
 
       {error && (
