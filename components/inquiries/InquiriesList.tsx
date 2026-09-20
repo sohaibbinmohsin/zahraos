@@ -21,8 +21,8 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
   const [selectedInquiry, setSelectedInquiry] = useState<PartnerInquiry | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  const filtered = inquiries.filter((inq) => {
-    if (inq.organization_id !== organizationId) return false;
+  const orgInquiries = inquiries.filter((inq) => inq.organization_id === organizationId);
+  const filtered = orgInquiries.filter((inq) => {
     if (filterStatus !== 'all' && inq.status !== filterStatus) return false;
     return true;
   });
@@ -31,7 +31,7 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
     return <div className="p-8 text-center text-neutral-500">Loading inquiries...</div>;
   }
 
-  if (filtered.length === 0) {
+  if (orgInquiries.length === 0) {
     return (
       <div className="p-12 text-center border border-dashed border-neutral-200 rounded-xl">
         <h3 className="text-base font-semibold text-neutral-800">No inquiries found</h3>
@@ -57,7 +57,20 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
         </select>
       </div>
 
-      <div className="overflow-x-auto border border-neutral-200 rounded-xl bg-white shadow-xs">
+      {filtered.length === 0 ? (
+        <div className="p-12 text-center border border-dashed border-neutral-200 rounded-xl bg-white space-y-3">
+          <h3 className="text-base font-semibold text-neutral-800">No matching inquiries</h3>
+          <p className="text-sm text-neutral-500">No inquiries match the selected status filter.</p>
+          <button
+            type="button"
+            onClick={() => setFilterStatus('all')}
+            className="text-xs font-medium text-blue-600 hover:text-blue-800 px-3 py-1.5 rounded-lg border border-blue-200 hover:bg-blue-50"
+          >
+            Clear filter
+          </button>
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-neutral-200 rounded-xl bg-white shadow-xs">
         <table className="w-full text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-600 border-b border-neutral-200 font-medium">
             <tr>
@@ -112,6 +125,7 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Message Modal */}
       {selectedInquiry && (

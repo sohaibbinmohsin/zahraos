@@ -137,4 +137,31 @@ describe('InquiriesList Component', () => {
 
     expect(screen.queryByText('Interested in partnering on 500 acres.')).not.toBeInTheDocument();
   });
+
+  it('preserves filter controls and allows clearing filter when filter returns 0 results', () => {
+    render(
+      <InquiriesList
+        inquiries={mockInquiries}
+        organizationId="org-grorizq"
+        onStatusChange={vi.fn()}
+      />
+    );
+
+    const filterSelect = screen.getByDisplayValue('All Statuses');
+    // None of org-grorizq inquiries have status 'archived'
+    fireEvent.change(filterSelect, { target: { value: 'archived' } });
+
+    // Filter controls are still preserved
+    expect(screen.getByDisplayValue('Archived')).toBeInTheDocument();
+    expect(screen.getByText('Showing 0 inquiries')).toBeInTheDocument();
+    expect(screen.getByText('No matching inquiries')).toBeInTheDocument();
+
+    // Clear filter restores the list
+    const clearButton = screen.getByRole('button', { name: /Clear filter/i });
+    fireEvent.click(clearButton);
+
+    expect(screen.getByDisplayValue('All Statuses')).toBeInTheDocument();
+    expect(screen.getByText('Ahmed Khan')).toBeInTheDocument();
+    expect(screen.getByText('Bilal Tariq')).toBeInTheDocument();
+  });
 });

@@ -2,12 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSelectedOrg } from '@/components/shell/AppShell';
+import { useToast } from '@/components/shell/ToastContext';
 import { InquiriesList } from '@/components/inquiries/InquiriesList';
 import { fetchOrgInquiries, updateInquiryStatus } from '@/lib/inquiryService';
 import type { PartnerInquiry, InquiryStatus } from '@/lib/inquiryTypes';
 
 export default function InquiriesPage() {
   const selectedOrgId = useSelectedOrg();
+  const { showToast } = useToast();
   const [inquiries, setInquiries] = useState<PartnerInquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +40,9 @@ export default function InquiriesPage() {
       setInquiries((prev) =>
         prev.map((item) => (item.id === inquiryId ? { ...item, status } : item))
       );
+      showToast('Inquiry status updated successfully.');
     } catch (err: any) {
-      alert(`Error updating status: ${err.message}`);
+      showToast(`Error updating status: ${err.message}`);
     }
   }
 
