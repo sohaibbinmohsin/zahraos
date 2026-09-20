@@ -71,8 +71,10 @@ describe('InquiriesList Component', () => {
       />
     );
 
-    const select = screen.getByDisplayValue('New');
-    fireEvent.change(select, { target: { value: 'contacted' } });
+    const statusDropdown = screen.getByRole('combobox', { name: 'Status for Ahmed Khan' });
+    fireEvent.click(statusDropdown);
+    const contactedOption = screen.getByRole('option', { name: 'Contacted' });
+    fireEvent.click(contactedOption);
 
     expect(onStatusChange).toHaveBeenCalledWith('inq-1', 'contacted');
   });
@@ -111,8 +113,10 @@ describe('InquiriesList Component', () => {
       />
     );
 
-    const filterSelect = screen.getByDisplayValue('All Statuses');
-    fireEvent.change(filterSelect, { target: { value: 'contacted' } });
+    const filterDropdown = screen.getByRole('combobox', { name: 'Filter by status' });
+    fireEvent.click(filterDropdown);
+    const contactedOption = screen.getByRole('option', { name: 'Contacted' });
+    fireEvent.click(contactedOption);
 
     expect(screen.queryByText('Ahmed Khan')).not.toBeInTheDocument();
     expect(screen.getByText('Bilal Tariq')).toBeInTheDocument();
@@ -147,12 +151,14 @@ describe('InquiriesList Component', () => {
       />
     );
 
-    const filterSelect = screen.getByDisplayValue('All Statuses');
+    const filterDropdown = screen.getByRole('combobox', { name: 'Filter by status' });
     // None of org-grorizq inquiries have status 'archived'
-    fireEvent.change(filterSelect, { target: { value: 'archived' } });
+    fireEvent.click(filterDropdown);
+    const archivedOption = screen.getByRole('option', { name: 'Archived' });
+    fireEvent.click(archivedOption);
 
     // Filter controls are still preserved
-    expect(screen.getByDisplayValue('Archived')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Filter by status' })).toHaveTextContent('Archived');
     expect(screen.getByText('Showing 0 inquiries')).toBeInTheDocument();
     expect(screen.getByText('No matching inquiries')).toBeInTheDocument();
 
@@ -160,7 +166,7 @@ describe('InquiriesList Component', () => {
     const clearButton = screen.getByRole('button', { name: /Clear filter/i });
     fireEvent.click(clearButton);
 
-    expect(screen.getByDisplayValue('All Statuses')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Filter by status' })).toHaveTextContent('All Statuses');
     expect(screen.getByText('Ahmed Khan')).toBeInTheDocument();
     expect(screen.getByText('Bilal Tariq')).toBeInTheDocument();
   });

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import type { PartnerInquiry, InquiryStatus } from '@/lib/inquiryTypes';
+import { Select, type SelectOption } from '@/components/ui/Select';
 
 interface InquiriesListProps {
   inquiries: PartnerInquiry[];
@@ -10,12 +11,17 @@ interface InquiriesListProps {
   loading?: boolean;
 }
 
-const STATUS_BADGES: Record<InquiryStatus, string> = {
-  new: 'bg-blue-100 text-blue-800 border-blue-200',
-  in_review: 'bg-amber-100 text-amber-800 border-amber-200',
-  contacted: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  archived: 'bg-neutral-100 text-neutral-600 border-neutral-200',
-};
+const STATUS_OPTIONS: SelectOption[] = [
+  { value: 'new', label: 'New' },
+  { value: 'in_review', label: 'In Review' },
+  { value: 'contacted', label: 'Contacted' },
+  { value: 'archived', label: 'Archived' },
+];
+
+const FILTER_OPTIONS: SelectOption[] = [
+  { value: 'all', label: 'All Statuses' },
+  ...STATUS_OPTIONS,
+];
 
 export function InquiriesList({ inquiries, organizationId, onStatusChange, loading }: InquiriesListProps) {
   const [selectedInquiry, setSelectedInquiry] = useState<PartnerInquiry | null>(null);
@@ -44,17 +50,13 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
     <div className="space-y-4">
       <div className="flex items-center justify-between pb-2">
         <div className="text-sm text-neutral-500">Showing {filtered.length} inquiries</div>
-        <select
+        <Select
+          aria-label="Filter by status"
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="text-sm border border-neutral-300 rounded-lg px-3 py-1.5 bg-white"
-        >
-          <option value="all">All Statuses</option>
-          <option value="new">New</option>
-          <option value="in_review">In Review</option>
-          <option value="contacted">Contacted</option>
-          <option value="archived">Archived</option>
-        </select>
+          onChange={setFilterStatus}
+          options={FILTER_OPTIONS}
+          className="w-44"
+        />
       </div>
 
       {filtered.length === 0 ? (
@@ -70,7 +72,7 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
           </button>
         </div>
       ) : (
-        <div className="overflow-x-auto border border-neutral-200 rounded-xl bg-white shadow-xs">
+        <div className="overflow-x-auto border border-neutral-200 rounded-xl bg-white shadow-xs min-h-[300px]">
         <table className="w-full text-left text-sm">
           <thead className="bg-neutral-50 text-neutral-600 border-b border-neutral-200 font-medium">
             <tr>
@@ -107,16 +109,13 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
                   </div>
                 </td>
                 <td className="py-3 px-4">
-                  <select
+                  <Select
+                    aria-label={`Status for ${item.name}`}
                     value={item.status}
-                    onChange={(e) => onStatusChange(item.id, e.target.value as InquiryStatus)}
-                    className={`text-xs font-medium px-2 py-1 rounded-full border ${STATUS_BADGES[item.status]} cursor-pointer`}
-                  >
-                    <option value="new">New</option>
-                    <option value="in_review">In Review</option>
-                    <option value="contacted">Contacted</option>
-                    <option value="archived">Archived</option>
-                  </select>
+                    onChange={(val) => onStatusChange(item.id, val as InquiryStatus)}
+                    options={STATUS_OPTIONS}
+                    className="w-36"
+                  />
                 </td>
                 <td className="py-3 px-4 text-right">
                   <button
