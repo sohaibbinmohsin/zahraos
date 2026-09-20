@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import type { PartnerInquiry, InquiryStatus } from '@/lib/inquiryTypes';
 import { Select, type SelectOption } from '@/components/ui/Select';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface InquiriesListProps {
   inquiries: PartnerInquiry[];
@@ -23,6 +24,53 @@ const FILTER_OPTIONS: SelectOption[] = [
   ...STATUS_OPTIONS,
 ];
 
+export function InquiriesTableSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="space-y-4" role="status" aria-label="Loading inquiries">
+      <span className="sr-only">Loading inquiries...</span>
+      <div className="flex items-center justify-between pb-2">
+        <Skeleton w={140} h={16} />
+        <Skeleton w={176} h={36} style={{ borderRadius: 8 }} />
+      </div>
+      <div className="border border-neutral-200 rounded-xl bg-white shadow-xs overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-neutral-50 text-neutral-600 border-b border-neutral-200 font-medium">
+            <tr>
+              <th className="py-3 px-4"><Skeleton w={50} h={12} /></th>
+              <th className="py-3 px-4"><Skeleton w={80} h={12} /></th>
+              <th className="py-3 px-4"><Skeleton w={100} h={12} /></th>
+              <th className="py-3 px-4"><Skeleton w={70} h={12} /></th>
+              <th className="py-3 px-4"><Skeleton w={60} h={12} /></th>
+              <th className="py-3 px-4 text-right"><div className="flex justify-end"><Skeleton w={60} h={12} /></div></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-neutral-100">
+            {Array.from({ length: rows }).map((_, r) => (
+              <tr key={r}>
+                <td className="py-3.5 px-4"><Skeleton w={75} h={13} /></td>
+                <td className="py-3.5 px-4">
+                  <div className="flex flex-col gap-1.5">
+                    <Skeleton w={120} h={14} />
+                    <Skeleton w={150} h={11} />
+                  </div>
+                </td>
+                <td className="py-3.5 px-4"><Skeleton w={110} h={13} /></td>
+                <td className="py-3.5 px-4"><Skeleton w={90} h={22} style={{ borderRadius: 4 }} /></td>
+                <td className="py-3.5 px-4"><Skeleton w={120} h={32} style={{ borderRadius: 8 }} /></td>
+                <td className="py-3.5 px-4 text-right">
+                  <div className="flex justify-end">
+                    <Skeleton w={85} h={26} style={{ borderRadius: 6 }} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function InquiriesList({ inquiries, organizationId, onStatusChange, loading }: InquiriesListProps) {
   const [selectedInquiry, setSelectedInquiry] = useState<PartnerInquiry | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -34,7 +82,7 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
   });
 
   if (loading) {
-    return <div className="p-8 text-center text-neutral-500">Loading inquiries...</div>;
+    return <InquiriesTableSkeleton />;
   }
 
   if (orgInquiries.length === 0) {
