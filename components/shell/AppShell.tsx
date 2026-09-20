@@ -741,6 +741,17 @@ export function AppShell({
                       </svg>
                       <span className="nav-label">Organization</span>
                     </Link>
+                    <Link
+                      href="/organization/inquiries"
+                      aria-label="Partner Inquiries"
+                      className={`sidebar-nav-item ${pathname?.startsWith("/organization/inquiries") ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <span className="nav-label">Partner Inquiries</span>
+                    </Link>
                     <Link href="/team/members" aria-label="Team Members"
                       className={`sidebar-nav-item ${pathname === "/team/members" ? "active" : ""}`}
                       onClick={() => setMobileSidebarOpen(false)}>
