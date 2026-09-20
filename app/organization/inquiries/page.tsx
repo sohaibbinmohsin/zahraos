@@ -14,23 +14,25 @@ export default function InquiriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  async function loadData(orgId: string) {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchOrgInquiries(orgId);
-      setInquiries(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load inquiries');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
+    let isCancelled = false;
     if (selectedOrgId) {
-      loadData(selectedOrgId);
+      setLoading(true);
+      setError(null);
+      fetchOrgInquiries(selectedOrgId)
+        .then((data) => {
+          if (!isCancelled) setInquiries(data);
+        })
+        .catch((err: any) => {
+          if (!isCancelled) setError(err.message || 'Failed to load inquiries');
+        })
+        .finally(() => {
+          if (!isCancelled) setLoading(false);
+        });
     }
+    return () => {
+      isCancelled = true;
+    };
   }, [selectedOrgId]);
 
   async function handleStatusChange(inquiryId: string, status: InquiryStatus) {
