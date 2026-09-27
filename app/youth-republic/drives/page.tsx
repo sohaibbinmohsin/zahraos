@@ -404,8 +404,28 @@ export default function YouthRepublicDrivesPage() {
               <div key={opp.id} className="opp-card" style={archived ? { opacity: 0.6 } : undefined}>
                 <div>
                   <div className="opp-head">
-                    <span className={`type-pill ${opp.type}`}>{TYPE_LABELS[opp.type] ?? opp.type}</span>
-                    <span className={`badge ${pill.cls}`}>{pill.label}</span>
+                    <span
+                      className={`type-pill ${opp.type}`}
+                      style={{
+                        fontSize: "0.6875rem",
+                        fontWeight: 600,
+                        textTransform: "capitalize",
+                        letterSpacing: "normal",
+                      }}
+                    >
+                      {TYPE_LABELS[opp.type] ?? opp.type}
+                    </span>
+                    <span
+                      className={`badge ${pill.cls}`}
+                      style={{
+                        fontSize: "0.6875rem",
+                        fontWeight: 600,
+                        textTransform: "capitalize",
+                        letterSpacing: "normal",
+                      }}
+                    >
+                      {pill.label}
+                    </span>
                   </div>
 
                   <div className="opp-title">

@@ -909,11 +909,11 @@ h1, h2, h3, h4, h5, h6 {
 .badge {
   display: inline-flex;
   align-items: center;
-  padding: .15rem .45rem;
+  padding: .12rem .4rem;
   border-radius: 4px;
-  font-size: var(--text-xs);
+  font-size: var(--text-2xs);
   font-weight: 600;
-  letter-spacing: .02em;
+  letter-spacing: normal;
   border: 1px solid transparent;
   text-transform: none;
 }
@@ -929,12 +929,12 @@ h1, h2, h3, h4, h5, h6 {
   display: inline-flex;
   align-items: center;
   gap: .3rem;
-  padding: .15rem .5rem;
+  padding: .12rem .45rem;
   border-radius: 99px;
-  font-size: var(--text-xs);
+  font-size: var(--text-2xs);
   font-weight: 600;
   text-transform: capitalize;
-  letter-spacing: .02em;
+  letter-spacing: normal;
 }
 
 /* Youth Republic type colours: community=orange, education=blue,
