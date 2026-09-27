@@ -14,6 +14,8 @@ import { ApplicationReviewDrawer } from "@/components/youth-republic/Application
 import { useToast } from "@/components/shell/ToastContext";
 import { Select } from "@/components/ui/Select";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
+import { AccessDeniedGate } from "@/components/shell/AccessDeniedGate";
 
 // Statuses that still need a triage decision. The backend now emits a single
 // "pending_review"; the two legacy values are kept here so older rows still
@@ -101,6 +103,7 @@ function ApplicationsContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending_review");
   const [driveFilter, setDriveFilter] = useState(opportunityIdParam ?? "all");
+  const perms = useStaffPermissions();
 
   // Cached per org; the drive/status filters are applied client-side so
   // switching them never refetches.
@@ -109,7 +112,7 @@ function ApplicationsContent() {
     isLoading: loading,
     mutate: load,
   } = useSWR(
-    organizationId && staffToken ? ["listApplications", organizationId] : null,
+    organizationId && staffToken && perms.canViewApplications ? ["listApplications", organizationId] : null,
     async () => (await listApplications({ organizationId: organizationId! }, staffToken!)).applications,
     {
       onError: (err) =>
@@ -368,9 +371,17 @@ function ApplicationsContent() {
 }
 
 export default function YouthRepublicApplicationsPage() {
+  const perms = useStaffPermissions();
   return (
-    <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={3} />}>
-      <ApplicationsContent />
-    </Suspense>
+    <AccessDeniedGate
+      allowed={perms.canViewApplications}
+      sectionName="Applications"
+      fallbackRoute="/youth-republic"
+      fallbackLabel="Youth Republic"
+    >
+      <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={3} />}>
+        <ApplicationsContent />
+      </Suspense>
+    </AccessDeniedGate>
   );
 }

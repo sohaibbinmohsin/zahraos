@@ -7,19 +7,40 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
 import * as shell from "@/components/shell/AppShell";
+import { useStaffPermissions, type StaffPermissions } from "@/components/shell/useStaffPermissions";
 
 vi.mock("@/lib/supabase/browserClient");
 vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");
+vi.mock("@/components/shell/useStaffPermissions", () => ({
+  useStaffPermissions: vi.fn(),
+}));
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
   return { ...actual, useSelectedOrg: vi.fn(), useShellStaffToken: vi.fn() };
 });
 
+const allPerms: StaffPermissions = {
+  canAccessDashboard: true,
+  canViewDrives: true,
+  canCreateDrives: true,
+  canPublishDrives: true,
+  canViewApplications: true,
+  canTriageApplications: true,
+  canViewHours: true,
+  canApproveHours: true,
+  canViewVolunteers: true,
+  canManageTeam: true,
+  isChapterScoped: false,
+  scopedChapterIds: null,
+  hasChapterPermission: () => true,
+};
+
 describe("YouthRepublicHoursPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
     vi.mocked(shell.useShellStaffToken).mockReturnValue("staff-jwt");
+    vi.mocked(useStaffPermissions).mockReturnValue(allPerms);
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
@@ -119,5 +140,15 @@ describe("YouthRepublicHoursPage", () => {
         "staff-jwt",
       );
     });
+  });
+
+  it("renders AccessDeniedGate when user lacks hours viewing permissions", () => {
+    vi.mocked(useStaffPermissions).mockReturnValue({ ...allPerms, canViewHours: false });
+    renderWithSwr(<YouthRepublicHoursPage />);
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
+    expect(screen.getByText(/Hours/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Youth Republic/i })).toHaveAttribute("href", "/youth-republic");
   });
 });

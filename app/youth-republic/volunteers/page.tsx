@@ -11,10 +11,13 @@ import useSWR from "swr";
 import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { VolunteerProfileDrawer } from "@/components/youth-republic/VolunteerProfileDrawer";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
+import { AccessDeniedGate } from "@/components/shell/AccessDeniedGate";
 
 export default function YouthRepublicVolunteersPage() {
   const organizationId = useSelectedOrg();
   const staffToken = useShellStaffToken();
+  const perms = useStaffPermissions();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -27,7 +30,7 @@ export default function YouthRepublicVolunteersPage() {
     data: volunteers = [],
     isLoading: loading,
   } = useSWR(
-    organizationId && staffToken ? ["listVolunteers", organizationId, debouncedSearch] : null,
+    organizationId && staffToken && perms.canViewVolunteers ? ["listVolunteers", organizationId, debouncedSearch] : null,
     async () =>
       (
         await listVolunteers(
@@ -56,107 +59,130 @@ export default function YouthRepublicVolunteersPage() {
 
   if (!organizationId) {
     return (
-      <div className="panel p-8 text-center">
-        <p className="text-[var(--ink-2)] font-medium">Select an organization to see its volunteers directory.</p>
-      </div>
+      <AccessDeniedGate
+        allowed={perms.canViewVolunteers}
+        sectionName="Volunteers"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <div className="panel p-8 text-center">
+          <p className="text-[var(--ink-2)] font-medium">Select an organization to see its volunteers directory.</p>
+        </div>
+      </AccessDeniedGate>
     );
   }
 
   if (loading && volunteers.length === 0) {
-    return <ListPageSkeleton columns={5} rows={6} filterBar={false} toolbarItems={1} />;
+    return (
+      <AccessDeniedGate
+        allowed={perms.canViewVolunteers}
+        sectionName="Volunteers"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <ListPageSkeleton columns={5} rows={6} filterBar={false} toolbarItems={1} />
+      </AccessDeniedGate>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page Header — search lives inline with the title */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Volunteers Directory</h1>
-          <div className="page-subtitle">
-            Search student volunteers, verify CNIC credentials, and inspect verified service portfolios across Pakistan.
+    <AccessDeniedGate
+      allowed={perms.canViewVolunteers}
+      sectionName="Volunteers"
+      fallbackRoute="/youth-republic"
+      fallbackLabel="Youth Republic"
+    >
+      <div className="space-y-6">
+        {/* Page Header — search lives inline with the title */}
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Volunteers Directory</h1>
+            <div className="page-subtitle">
+              Search student volunteers, verify CNIC credentials, and inspect verified service portfolios across Pakistan.
+            </div>
+          </div>
+          <div className="page-toolbar">
+            <label htmlFor="volunteerSearch" className="sr-only">Search</label>
+            <input
+              id="volunteerSearch"
+              type="search"
+              className="search-input"
+              placeholder="Search by student name, CNIC, or institution..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
-        <div className="page-toolbar">
-          <label htmlFor="volunteerSearch" className="sr-only">Search</label>
-          <input
-            id="volunteerSearch"
-            type="search"
-            className="search-input"
-            placeholder="Search by student name, CNIC, or institution..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-      </div>
 
-      {/* Data Table */}
-      <div className="table-card">
-        <div className="table-responsive-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Volunteer Name &amp; Code</th>
-                <th>Academic Institution</th>
-                <th>Location / Chapter</th>
-                <th>Clearance Status</th>
-                <th style={{ textAlign: "right" }}>Portfolio Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {volunteers.map((v) => (
-                <tr key={v.id}>
-                  <td>
-                    <div>
-                      <Link
-                        href={`/youth-republic/volunteers/${v.id}`}
-                        className="font-bold text-[var(--ink)] hover:underline"
-                      >
-                        {v.fullName}
-                      </Link>
-                      <div className="font-mono text-xs text-[var(--ink-2)] mt-0.5">
-                        {v.volunteerCode || `YR-2026-${v.id.slice(0, 5)}`} · {v.email}
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    <span className="font-medium text-[var(--ink)]">{v.institution}</span>
-                  </td>
-                  <td>
-                    <span className="text-[var(--ink-2)]">{v.city}, {v.province}</span>
-                  </td>
-                  <td>
-                    <span className={`badge ${v.status === "active" ? "badge-pos" : "badge-neu"}`}>
-                      {v.status}
-                    </span>
-                  </td>
-                  <td style={{ textAlign: "right" }}>
-                    <button
-                      type="button"
-                      onClick={() => handleOpenProfile(v.id)}
-                      className="btn btn-secondary btn-xs"
-                    >
-                      View Portfolio
-                    </button>
-                  </td>
+        {/* Data Table */}
+        <div className="table-card">
+          <div className="table-responsive-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Volunteer Name &amp; Code</th>
+                  <th>Academic Institution</th>
+                  <th>Location / Chapter</th>
+                  <th>Clearance Status</th>
+                  <th style={{ textAlign: "right" }}>Portfolio Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {volunteers.map((v) => (
+                  <tr key={v.id}>
+                    <td>
+                      <div>
+                        <Link
+                          href={`/youth-republic/volunteers/${v.id}`}
+                          className="font-bold text-[var(--ink)] hover:underline"
+                        >
+                          {v.fullName}
+                        </Link>
+                        <div className="font-mono text-xs text-[var(--ink-2)] mt-0.5">
+                          {v.volunteerCode || `YR-2026-${v.id.slice(0, 5)}`} · {v.email}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span className="font-medium text-[var(--ink)]">{v.institution}</span>
+                    </td>
+                    <td>
+                      <span className="text-[var(--ink-2)]">{v.city}, {v.province}</span>
+                    </td>
+                    <td>
+                      <span className={`badge ${v.status === "active" ? "badge-pos" : "badge-neu"}`}>
+                        {v.status}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: "right" }}>
+                      <button
+                        type="button"
+                        onClick={() => handleOpenProfile(v.id)}
+                        className="btn btn-secondary btn-xs"
+                      >
+                        View Portfolio
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
+
+        {volunteers.length === 0 && !loading && (
+          <div className="panel p-8 text-center">
+            <p className="text-sm text-[var(--ink-2)]">No volunteers found matching your query.</p>
+          </div>
+        )}
+
+        {/* Slide-Out Portfolio Drawer */}
+        <VolunteerProfileDrawer
+          detail={selectedVolunteer}
+          isOpen={Boolean(selectedVolunteer)}
+          onClose={() => setSelectedVolunteer(null)}
+        />
       </div>
-
-      {volunteers.length === 0 && !loading && (
-        <div className="panel p-8 text-center">
-          <p className="text-sm text-[var(--ink-2)]">No volunteers found matching your query.</p>
-        </div>
-      )}
-
-      {/* Slide-Out Portfolio Drawer */}
-      <VolunteerProfileDrawer
-        detail={selectedVolunteer}
-        isOpen={Boolean(selectedVolunteer)}
-        onClose={() => setSelectedVolunteer(null)}
-      />
-    </div>
+    </AccessDeniedGate>
   );
 }

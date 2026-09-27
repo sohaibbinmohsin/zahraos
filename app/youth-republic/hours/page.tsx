@@ -18,6 +18,8 @@ import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
+import { AccessDeniedGate } from "@/components/shell/AccessDeniedGate";
 
 // Two verification-status values mean "awaiting review" — a shift the
 // volunteer logged (`recorded`) and one carried over from older data
@@ -35,6 +37,7 @@ export default function YouthRepublicHoursPage() {
   const organizationId = useSelectedOrg();
   const { showToast } = useToast();
   const staffToken = useShellStaffToken();
+  const perms = useStaffPermissions();
   const [selectedOpportunityId, setSelectedOpportunityId] = useState("");
   const [participants, setParticipants] = useState<ParticipantOption[]>([]);
 
@@ -56,13 +59,20 @@ export default function YouthRepublicHoursPage() {
     isLoading: loading,
     mutate: load,
   } = useSWR(
-    organizationId && staffToken ? ["hoursPage", organizationId] : null,
+    organizationId && staffToken && perms.canViewHours ? ["hoursPage", organizationId] : null,
     async () => {
-      const [hoursResult, opportunitiesResult] = await Promise.all([
+      const results = await Promise.allSettled([
         listActivityHours({ organizationId: organizationId! }, staffToken!),
-        listOpportunities({ organizationId: organizationId! }, staffToken!),
+        perms.canViewDrives
+          ? listOpportunities({ organizationId: organizationId! }, staffToken!)
+          : Promise.resolve({ opportunities: [] }),
       ]);
-      return { activity: hoursResult.activity, opportunities: opportunitiesResult.opportunities };
+      const hoursResult = results[0];
+      const opportunitiesResult = results[1];
+      const activity = hoursResult.status === "fulfilled" ? hoursResult.value.activity : [];
+      const opportunities =
+        opportunitiesResult.status === "fulfilled" ? opportunitiesResult.value.opportunities : [];
+      return { activity, opportunities };
     },
     { onError: (err) => console.error("Failed to load activity hours", err) },
   );
@@ -113,14 +123,30 @@ export default function YouthRepublicHoursPage() {
 
   if (!organizationId) {
     return (
-      <div className="panel p-8 text-center">
-        <p className="text-[var(--ink-2)] font-medium">Select an organization to see its activity hours.</p>
-      </div>
+      <AccessDeniedGate
+        allowed={perms.canViewHours}
+        sectionName="Hours"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <div className="panel p-8 text-center">
+          <p className="text-[var(--ink-2)] font-medium">Select an organization to see its activity hours.</p>
+        </div>
+      </AccessDeniedGate>
     );
   }
 
   if (loading && activity.length === 0) {
-    return <ListPageSkeleton columns={7} rows={6} filterBar={false} toolbarItems={4} />;
+    return (
+      <AccessDeniedGate
+        allowed={perms.canViewHours}
+        sectionName="Hours"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <ListPageSkeleton columns={7} rows={6} filterBar={false} toolbarItems={4} />
+      </AccessDeniedGate>
+    );
   }
 
   const driveNames = [...new Set(activity.map((a) => a.opportunityName).filter(Boolean))].sort();
@@ -139,7 +165,13 @@ export default function YouthRepublicHoursPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <AccessDeniedGate
+      allowed={perms.canViewHours}
+      sectionName="Hours"
+      fallbackRoute="/youth-republic"
+      fallbackLabel="Youth Republic"
+    >
+      <div className="space-y-6">
       {/* Page Header */}
       <div className="page-header">
         <div>
@@ -341,5 +373,6 @@ export default function YouthRepublicHoursPage() {
         </div>
       </Modal>
     </div>
+    </AccessDeniedGate>
   );
 }

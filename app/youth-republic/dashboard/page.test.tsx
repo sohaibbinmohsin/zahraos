@@ -6,14 +6,34 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
 import * as shell from "@/components/shell/AppShell";
+import { useStaffPermissions, type StaffPermissions } from "@/components/shell/useStaffPermissions";
 
 vi.mock("@/lib/supabase/browserClient");
 vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");
+vi.mock("@/components/shell/useStaffPermissions", () => ({
+  useStaffPermissions: vi.fn(),
+}));
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
   return { ...actual, useSelectedOrg: vi.fn(), useShellStaffToken: vi.fn() };
 });
+
+const allPerms: StaffPermissions = {
+  canAccessDashboard: true,
+  canViewDrives: true,
+  canCreateDrives: true,
+  canPublishDrives: true,
+  canViewApplications: true,
+  canTriageApplications: true,
+  canViewHours: true,
+  canApproveHours: true,
+  canViewVolunteers: true,
+  canManageTeam: true,
+  isChapterScoped: false,
+  scopedChapterIds: null,
+  hasChapterPermission: () => true,
+};
 
 const opp = (over: Partial<youthRepublicFunctions.OpportunitySummary>): youthRepublicFunctions.OpportunitySummary => ({
   id: "o", name: "Drive", orgName: "Rizq", orgLogoUrl: null, type: "community", city: "Lahore",
@@ -35,6 +55,7 @@ describe("YouthRepublicDashboardPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
     vi.mocked(shell.useShellStaffToken).mockReturnValue("staff-jwt");
+    vi.mocked(useStaffPermissions).mockReturnValue(allPerms);
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
@@ -90,5 +111,15 @@ describe("YouthRepublicDashboardPage", () => {
     expect(youthRepublicFunctions.getKpiSummary).toHaveBeenCalledWith({ organizationId: "org-1" }, "staff-jwt");
     expect(youthRepublicFunctions.listApplications).toHaveBeenCalled();
     expect(youthRepublicFunctions.listActivityHours).toHaveBeenCalled();
+  });
+
+  it("renders AccessDeniedGate when user lacks dashboard access permissions", () => {
+    vi.mocked(useStaffPermissions).mockReturnValue({ ...allPerms, canAccessDashboard: false });
+    renderWithSwr(<YouthRepublicDashboardPage />);
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
+    expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Youth Republic/i })).toHaveAttribute("href", "/youth-republic");
   });
 });

@@ -14,6 +14,8 @@ import {
 import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { useToast } from "@/components/shell/ToastContext";
 import { DashboardSkeleton } from "@/components/ui/skeletons";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
+import { AccessDeniedGate } from "@/components/shell/AccessDeniedGate";
 
 const ACTIVE_OPP_STATUSES = ["open", "coming_soon", "in_progress"];
 const PENDING_APP_STATUSES = ["pending_review", "submitted", "under_review"];
@@ -44,25 +46,36 @@ function timeAgo(iso: string): string {
 export default function YouthRepublicDashboardPage() {
   const organizationId = useSelectedOrg();
   const staffToken = useShellStaffToken();
+  const perms = useStaffPermissions();
   const { showToast } = useToast();
   const {
     data,
     isLoading: loading,
     mutate: loadData,
   } = useSWR(
-    organizationId && staffToken ? ["dashboard", organizationId] : null,
+    organizationId && staffToken && perms.canAccessDashboard ? ["dashboard", organizationId] : null,
     async () => {
-      const [kpiRes, oppRes, appRes, hourRes] = await Promise.all([
+      const results = await Promise.allSettled([
         getKpiSummary({ organizationId: organizationId! }, staffToken!),
-        listOpportunities({ organizationId: organizationId!, limit: 100 }, staffToken!),
-        listApplications({ organizationId: organizationId!, limit: 100 }, staffToken!),
-        listActivityHours({ organizationId: organizationId!, limit: 100 }, staffToken!),
+        perms.canViewDrives
+          ? listOpportunities({ organizationId: organizationId!, limit: 100 }, staffToken!)
+          : Promise.resolve({ opportunities: [] }),
+        perms.canViewApplications
+          ? listApplications({ organizationId: organizationId!, limit: 100 }, staffToken!)
+          : Promise.resolve({ applications: [] }),
+        perms.canViewHours
+          ? listActivityHours({ organizationId: organizationId!, limit: 100 }, staffToken!)
+          : Promise.resolve({ activity: [] }),
       ]);
+      const kpis = results[0].status === "fulfilled" ? results[0].value : null;
+      const opps = results[1].status === "fulfilled" ? results[1].value.opportunities : [];
+      const apps = results[2].status === "fulfilled" ? results[2].value.applications : [];
+      const hours = results[3].status === "fulfilled" ? results[3].value.activity : [];
       return {
-        kpis: kpiRes,
-        opps: oppRes.opportunities,
-        apps: appRes.applications,
-        hours: hourRes.activity,
+        kpis,
+        opps,
+        apps,
+        hours,
       };
     },
     {
@@ -77,14 +90,30 @@ export default function YouthRepublicDashboardPage() {
 
   if (!organizationId) {
     return (
-      <div className="panel p-8 text-center">
-        <p className="text-[var(--ink-2)] font-medium">Select an organization to see its Youth Republic operations dashboard.</p>
-      </div>
+      <AccessDeniedGate
+        allowed={perms.canAccessDashboard}
+        sectionName="Dashboard"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <div className="panel p-8 text-center">
+          <p className="text-[var(--ink-2)] font-medium">Select an organization to see its Youth Republic operations dashboard.</p>
+        </div>
+      </AccessDeniedGate>
     );
   }
 
   if (loading && !kpis) {
-    return <DashboardSkeleton />;
+    return (
+      <AccessDeniedGate
+        allowed={perms.canAccessDashboard}
+        sectionName="Dashboard"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <DashboardSkeleton />
+      </AccessDeniedGate>
+    );
   }
 
   const liveOpps = opps.filter((o) => !o.deactivatedAt);
@@ -109,7 +138,13 @@ export default function YouthRepublicDashboardPage() {
     .slice(0, 6);
 
   return (
-    <div className="space-y-6">
+    <AccessDeniedGate
+      allowed={perms.canAccessDashboard}
+      sectionName="Dashboard"
+      fallbackRoute="/youth-republic"
+      fallbackLabel="Youth Republic"
+    >
+      <div className="space-y-6">
       <div className="page-header">
         <div>
           <h1 className="page-title">Operations Command Center</h1>
@@ -274,5 +309,6 @@ export default function YouthRepublicDashboardPage() {
         </div>
       </div>
     </div>
+    </AccessDeniedGate>
   );
 }

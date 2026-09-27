@@ -18,6 +18,8 @@ import { useToast } from "@/components/shell/ToastContext";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { CardGridSkeleton } from "@/components/ui/skeletons";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
+import { AccessDeniedGate } from "@/components/shell/AccessDeniedGate";
 
 type EditTarget = NonNullable<
   React.ComponentProps<typeof CreateOpportunityForm>["initialOpportunity"]
@@ -124,6 +126,7 @@ export default function YouthRepublicDrivesPage() {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const staffToken = useShellStaffToken();
+  const perms = useStaffPermissions();
   const [busy, setBusy] = useState<{ id: string; action: "archive" | "delete" } | null>(null);
 
   const [typeFilter, setTypeFilter] = useState("all");
@@ -141,7 +144,7 @@ export default function YouthRepublicDrivesPage() {
     isLoading,
     mutate,
   } = useSWR(
-    organizationId && staffToken ? ["listOpportunities", organizationId] : null,
+    organizationId && staffToken && perms.canViewDrives ? ["listOpportunities", organizationId] : null,
     async () => {
       const result = await listOpportunities({ organizationId: organizationId! }, staffToken!);
       return result.opportunities.filter((o) => o.computedStatus !== "deleted");
@@ -282,44 +285,58 @@ export default function YouthRepublicDrivesPage() {
 
   if (!organizationId) {
     return (
-      <div className="panel p-8 text-center">
-        <p className="text-[var(--ink-2)] font-medium">Select an organization to see its drives.</p>
-      </div>
+      <AccessDeniedGate
+        allowed={perms.canViewDrives}
+        sectionName="Drives"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <div className="panel p-8 text-center">
+          <p className="text-[var(--ink-2)] font-medium">Select an organization to see its drives.</p>
+        </div>
+      </AccessDeniedGate>
     );
   }
 
   if (isCreating || editTarget) {
     return (
-      <div className="space-y-6">
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--ink-2)] hover:text-[var(--ink)] mb-3 bg-transparent border-0 p-0 cursor-pointer transition-colors"
-          onClick={() => {
-            setIsCreating(false);
-            setEditTarget(null);
-          }}
-        >
-          &larr; Back to Drives
-        </button>
+      <AccessDeniedGate
+        allowed={perms.canViewDrives}
+        sectionName="Drives"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <div className="space-y-6">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--ink-2)] hover:text-[var(--ink)] mb-3 bg-transparent border-0 p-0 cursor-pointer transition-colors"
+            onClick={() => {
+              setIsCreating(false);
+              setEditTarget(null);
+            }}
+          >
+            &larr; Back to Drives
+          </button>
 
-        {staffToken && (
-          <CreateOpportunityForm
-            organizationId={organizationId}
-            staffToken={staffToken}
-            accessToken={accessToken}
-            initialOpportunity={editTarget ?? undefined}
-            onCreated={() => {
-              setIsCreating(false);
-              setEditTarget(null);
-              load();
-            }}
-            onCancel={() => {
-              setIsCreating(false);
-              setEditTarget(null);
-            }}
-          />
-        )}
-      </div>
+          {staffToken && (
+            <CreateOpportunityForm
+              organizationId={organizationId}
+              staffToken={staffToken}
+              accessToken={accessToken}
+              initialOpportunity={editTarget ?? undefined}
+              onCreated={() => {
+                setIsCreating(false);
+                setEditTarget(null);
+                load();
+              }}
+              onCancel={() => {
+                setIsCreating(false);
+                setEditTarget(null);
+              }}
+            />
+          )}
+        </div>
+      </AccessDeniedGate>
     );
   }
 
@@ -356,7 +373,13 @@ export default function YouthRepublicDrivesPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <AccessDeniedGate
+      allowed={perms.canViewDrives}
+      sectionName="Drives"
+      fallbackRoute="/youth-republic"
+      fallbackLabel="Youth Republic"
+    >
+      <div className="space-y-6">
       <div className="page-header">
         <div>
           <h1 className="page-title">Drives Noticeboard</h1>
@@ -616,5 +639,6 @@ export default function YouthRepublicDrivesPage() {
         />
       )}
     </div>
+    </AccessDeniedGate>
   );
 }
