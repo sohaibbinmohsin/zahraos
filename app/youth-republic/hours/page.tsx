@@ -208,17 +208,19 @@ export default function YouthRepublicHoursPage() {
               { value: "rejected", label: "Rejected" },
             ]}
           />
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => setShowBulkAssign(true)}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>Bulk-Assign Hours</span>
-          </button>
+          {perms.canApproveHours && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowBulkAssign(true)}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Bulk-Assign Hours</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -281,28 +283,32 @@ export default function YouthRepublicHoursPage() {
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <div className="inline-flex items-center gap-1.5 justify-end">
-                        {isPending && (
-                          <LoadingButton
-                            onClick={() => handleVerify(a.id, a.hoursSubmitted)}
-                            className="btn btn-primary btn-xs"
-                            loading={verifyingId === a.id}
-                            loadingText="Accrediting…"
-                            disabled={verifyingId !== null}
-                          >
-                            Verify
-                          </LoadingButton>
-                        )}
+                      {perms.canApproveHours ? (
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          {isPending && (
+                            <LoadingButton
+                              onClick={() => handleVerify(a.id, a.hoursSubmitted)}
+                              className="btn btn-primary btn-xs"
+                              loading={verifyingId === a.id}
+                              loadingText="Accrediting…"
+                              disabled={verifyingId !== null}
+                            >
+                              Verify
+                            </LoadingButton>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => setAdjustingRow(a)}
-                          className="btn btn-secondary btn-xs"
-                          disabled={verifyingId === a.id}
-                        >
-                          Adjust Hours
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => setAdjustingRow(a)}
+                            className="btn btn-secondary btn-xs"
+                            disabled={verifyingId === a.id}
+                          >
+                            Adjust Hours
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="badge badge-neu text-xs">Read-only</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -324,6 +330,7 @@ export default function YouthRepublicHoursPage() {
         isOpen={Boolean(adjustingRow)}
         onClose={() => setAdjustingRow(null)}
         onSave={handleSaveAdjustment}
+        canApprove={perms.canApproveHours}
       />
 
       {/* Bulk-Assign Hours Modal */}
@@ -336,20 +343,16 @@ export default function YouthRepublicHoursPage() {
       >
         <div className="space-y-4">
           <div className="form-group">
-            <label htmlFor="bulkOpportunity" className="form-label">Opportunity / drive</label>
-            <select
-              id="bulkOpportunity"
-              className="form-select"
+            <label className="form-label">Opportunity / drive</label>
+            <Select
+              aria-label="Opportunity / drive"
               value={selectedOpportunityId}
-              onChange={(e) => setSelectedOpportunityId(e.target.value)}
-            >
-              <option value="">Select a drive</option>
-              {opportunities.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedOpportunityId}
+              options={[
+                { value: "", label: "Select a drive" },
+                ...opportunities.map((o) => ({ value: o.id, label: o.name })),
+              ]}
+            />
           </div>
 
           {selectedOpportunityId && staffToken ? (

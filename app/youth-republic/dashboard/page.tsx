@@ -103,7 +103,7 @@ export default function YouthRepublicDashboardPage() {
     );
   }
 
-  if (loading && !kpis) {
+  if (loading && !data) {
     return (
       <AccessDeniedGate
         allowed={perms.canAccessDashboard}
@@ -194,9 +194,11 @@ export default function YouthRepublicDashboardPage() {
         <div className="panel">
           <div className="panel-head">
             <span className="panel-title">Volunteer capacity</span>
-            <Link href="/youth-republic/drives" className="text-xs font-semibold text-[var(--ink)] hover:underline">
-              View all &rarr;
-            </Link>
+            {perms.canViewDrives && (
+              <Link href="/youth-republic/drives" className="text-xs font-semibold text-[var(--ink)] hover:underline">
+                View all &rarr;
+              </Link>
+            )}
           </div>
           <div className="flex flex-col gap-3.5">
             {capacityRows.length === 0 ? (
@@ -220,9 +222,11 @@ export default function YouthRepublicDashboardPage() {
         <div className="panel">
           <div className="panel-head">
             <span className="panel-title">Recent applications</span>
-            <Link href="/youth-republic/applications" className="text-xs font-semibold text-[var(--ink)] hover:underline">
-              Triage all &rarr;
-            </Link>
+            {perms.canViewApplications && (
+              <Link href="/youth-republic/applications" className="text-xs font-semibold text-[var(--ink)] hover:underline">
+                Triage all &rarr;
+              </Link>
+            )}
           </div>
           <div className="flex flex-col gap-2.5">
             {recentApps.length === 0 ? (
@@ -245,12 +249,14 @@ export default function YouthRepublicDashboardPage() {
                     <span className={`badge ${APP_STATUS_BADGE[a.status] ?? "badge-neu"}`}>
                       {APP_STATUS_LABEL[a.status] ?? a.status}
                     </span>
-                    <Link
-                      href={`/youth-republic/applications?opportunityId=${a.opportunityId}`}
-                      className="btn btn-secondary btn-xs"
-                    >
-                      Review
-                    </Link>
+                    {perms.canViewApplications && (
+                      <Link
+                        href={`/youth-republic/applications?opportunityId=${a.opportunityId}`}
+                        className="btn btn-secondary btn-xs"
+                      >
+                        Review
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))

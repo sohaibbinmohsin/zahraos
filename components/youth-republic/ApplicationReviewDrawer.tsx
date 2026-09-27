@@ -19,6 +19,7 @@ interface ApplicationReviewDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onDecide: (applicationId: string, decision: DecideApplicationPayload["decision"]) => Promise<void>;
+  canTriage?: boolean;
 }
 
 export function ApplicationReviewDrawer({
@@ -26,6 +27,7 @@ export function ApplicationReviewDrawer({
   isOpen,
   onClose,
   onDecide,
+  canTriage = true,
 }: ApplicationReviewDrawerProps) {
   const [pending, setPending] = useState<Decision | null>(null);
   // Local-only reveal of the decision buttons on an already-decided
@@ -198,53 +200,55 @@ export function ApplicationReviewDrawer({
             Close
           </button>
 
-          <div className="flex items-center gap-2">
-            {isPending || reconsidering ? (
-              <>
-                {(["rejected", "waitlisted", "selected"] as const).map((decision) => {
-                  const meta = DECISION_META[decision];
-                  const loading = pending === decision;
-                  return (
+          {canTriage && (
+            <div className="flex items-center gap-2">
+              {isPending || reconsidering ? (
+                <>
+                  {(["rejected", "waitlisted", "selected"] as const).map((decision) => {
+                    const meta = DECISION_META[decision];
+                    const loading = pending === decision;
+                    return (
+                      <button
+                        key={decision}
+                        type="button"
+                        className={`btn ${meta.variant} btn-sm`}
+                        onClick={() => handleDecision(decision)}
+                        disabled={submitting}
+                        aria-busy={loading || undefined}
+                      >
+                        {loading ? (
+                          <>
+                            <span className="btn-spinner" aria-hidden="true" />
+                            {meta.loadingLabel}
+                          </>
+                        ) : (
+                          meta.label
+                        )}
+                      </button>
+                    );
+                  })}
+                  {reconsidering && !isPending && (
                     <button
-                      key={decision}
                       type="button"
-                      className={`btn ${meta.variant} btn-sm`}
-                      onClick={() => handleDecision(decision)}
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => setReconsideringFor(null)}
                       disabled={submitting}
-                      aria-busy={loading || undefined}
                     >
-                      {loading ? (
-                        <>
-                          <span className="btn-spinner" aria-hidden="true" />
-                          {meta.loadingLabel}
-                        </>
-                      ) : (
-                        meta.label
-                      )}
+                      Cancel
                     </button>
-                  );
-                })}
-                {reconsidering && !isPending && (
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => setReconsideringFor(null)}
-                    disabled={submitting}
-                  >
-                    Cancel
-                  </button>
-                )}
-              </>
-            ) : (
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => setReconsideringFor(application.id)}
-              >
-                Reconsider
-              </button>
-            )}
-          </div>
+                  )}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setReconsideringFor(application.id)}
+                >
+                  Reconsider
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>

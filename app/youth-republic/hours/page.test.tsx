@@ -3,6 +3,7 @@ import { renderWithSwr } from "@/tests/renderWithSwr";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import YouthRepublicHoursPage from "./page";
+import { AdjustHoursDrawer } from "@/components/youth-republic/AdjustHoursDrawer";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
@@ -131,8 +132,8 @@ describe("YouthRepublicHoursPage", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Bulk-Assign Hours/ }));
 
-    await screen.findAllByText("Beach Cleanup", { selector: "option" });
-    await user.selectOptions(screen.getByLabelText("Opportunity / drive"), "opp-1");
+    await user.click(await screen.findByRole("combobox", { name: "Opportunity / drive" }));
+    await user.click(await screen.findByRole("option", { name: "Beach Cleanup" }));
 
     await waitFor(() => {
       expect(youthRepublicFunctions.listParticipationForOpportunity).toHaveBeenCalledWith(
@@ -150,5 +151,59 @@ describe("YouthRepublicHoursPage", () => {
     expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
     expect(screen.getByText(/Hours/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Youth Republic/i })).toHaveAttribute("href", "/youth-republic");
+  });
+
+  describe("action button permissions gating", () => {
+    it("hides Bulk-Assign Hours button when user lacks canApproveHours", async () => {
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canApproveHours: false,
+      });
+      renderWithSwr(<YouthRepublicHoursPage />);
+
+      expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Bulk-Assign Hours/i })).not.toBeInTheDocument();
+    });
+
+    it("hides row actions (Verify, Adjust Hours) and renders Read-only badge when user lacks canApproveHours", async () => {
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canApproveHours: false,
+      });
+      renderWithSwr(<YouthRepublicHoursPage />);
+
+      expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Verify" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Adjust Hours" })).not.toBeInTheDocument();
+      expect(screen.getByText("Read-only")).toBeInTheDocument();
+    });
+
+    it("hides save button in AdjustHoursDrawer when canApprove is false", () => {
+      renderWithSwr(
+        <AdjustHoursDrawer
+          activityRow={{
+            id: "ah-1",
+            volunteerName: "Aisha Khan",
+            opportunityName: "Beach Cleanup",
+            activityDate: "2026-02-01",
+            hoursSubmitted: 5,
+            hoursVerified: null,
+            verificationStatus: "pending",
+            activityType: "community",
+            role: "Lead",
+            adminNotes: null,
+          }}
+          isOpen={true}
+          onClose={vi.fn()}
+          onSave={vi.fn()}
+          canApprove={false}
+        />
+      );
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Approve & Accredit Hours/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Reject Shift/i })).not.toBeInTheDocument();
+    });
   });
 });

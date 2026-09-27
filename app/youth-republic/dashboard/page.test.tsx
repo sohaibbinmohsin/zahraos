@@ -122,4 +122,33 @@ describe("YouthRepublicDashboardPage", () => {
     expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Youth Republic/i })).toHaveAttribute("href", "/youth-republic");
   });
+
+  describe("resilient loading and widget gating", () => {
+    it("renders surviving widgets when getKpiSummary fails", async () => {
+      vi.mocked(youthRepublicFunctions.getKpiSummary).mockRejectedValue(new Error("KPI service offline"));
+      renderWithSwr(<YouthRepublicDashboardPage />);
+
+      // Dashboard should still load without crashing
+      await waitFor(() => expect(screen.getByText("Active drives")).toBeInTheDocument());
+      expect(screen.getByText("Applications to review")).toBeInTheDocument();
+      expect(screen.getByText("Hamza Sheikh")).toBeInTheDocument();
+      expect(screen.getByText("20 / 40 (50%)")).toBeInTheDocument();
+      // KPI values gracefully fallback to 0
+      expect(screen.getByText("0 hours verified so far")).toBeInTheDocument();
+    });
+
+    it("hides navigation links for modules user lacks view permissions for", async () => {
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canViewApplications: false,
+        canViewDrives: false,
+      });
+      renderWithSwr(<YouthRepublicDashboardPage />);
+
+      await waitFor(() => expect(screen.getByText("Operations Command Center")).toBeInTheDocument());
+      expect(screen.queryByRole("link", { name: /View all/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /Triage all/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Review" })).not.toBeInTheDocument();
+    });
+  });
 });

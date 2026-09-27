@@ -478,4 +478,159 @@ describe("YouthRepublicOpportunitiesPage", () => {
     expect(screen.getByText(/Drives/i)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Youth Republic/i })).toHaveAttribute("href", "/youth-republic");
   });
+
+  describe("action button permissions gating", () => {
+    it("hides Create Drive button when user lacks canCreateDrives", async () => {
+      vi.mocked(useStaffPermissions).mockReturnValue({ ...allPerms, canCreateDrives: false });
+      renderWithSwr(<YouthRepublicOpportunitiesPage />);
+
+      await screen.findByText("Beach Cleanup");
+      expect(screen.queryByRole("button", { name: /Create Drive/i })).not.toBeInTheDocument();
+    });
+
+    it("hides Publish drive button when user lacks canPublishDrives", async () => {
+      vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+        opportunities: [{
+          id: "opp-draft",
+          name: "Draft Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "community",
+          city: "Lahore",
+          online: false,
+          computedStatus: "draft",
+          description: "Draft desc",
+          capacity: 10,
+          filledCount: 0,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        }],
+        total: 1,
+        facets: { cities: [], orgs: [] },
+      });
+      vi.mocked(useStaffPermissions).mockReturnValue({ ...allPerms, canPublishDrives: false });
+      renderWithSwr(<YouthRepublicOpportunitiesPage />);
+
+      await screen.findByText("Draft Drive");
+      expect(screen.queryByRole("button", { name: /Publish drive/i })).not.toBeInTheDocument();
+    });
+
+    it("hides Edit button when user lacks chapter opportunities:write permission", async () => {
+      vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+        opportunities: [{
+          id: "opp-ch-1",
+          name: "Chapter Drive",
+          chapterId: "ch-99",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "community",
+          city: "Lahore",
+          online: false,
+          computedStatus: "open",
+          description: "Chapter desc",
+          capacity: 10,
+          filledCount: 0,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        }],
+        total: 1,
+        facets: { cities: [], orgs: [] },
+      });
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        hasChapterPermission: (key, targetChapterId) => {
+          if (key === "opportunities:write" && targetChapterId === "ch-99") return false;
+          return true;
+        },
+      });
+      renderWithSwr(<YouthRepublicOpportunitiesPage />);
+
+      await screen.findByText("Chapter Drive");
+      expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+      // View Applicants should still be present
+      expect(screen.getByRole("link", { name: /View Applicants/i })).toBeInTheDocument();
+    });
+
+    it("hides Restore and Delete buttons on archived drive when user lacks chapter opportunities:write permission", async () => {
+      vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+        opportunities: [{
+          id: "opp-archived",
+          name: "Archived Chapter Drive",
+          chapterId: "ch-99",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "community",
+          city: "Lahore",
+          online: false,
+          computedStatus: "open",
+          description: "Chapter desc",
+          capacity: 10,
+          filledCount: 0,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: "2026-01-01T00:00:00Z",
+        }],
+        total: 1,
+        facets: { cities: [], orgs: [] },
+      });
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        hasChapterPermission: () => false,
+      });
+      renderWithSwr(<YouthRepublicOpportunitiesPage />);
+
+      await screen.findByText("Archived Chapter Drive");
+      expect(screen.queryByRole("button", { name: "Restore" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+    });
+
+    it("hides Impact & Stats when user lacks both canCreateDrives and canManageTeam", async () => {
+      vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+        opportunities: [{
+          id: "opp-completed",
+          name: "Completed Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "community",
+          city: "Lahore",
+          online: false,
+          computedStatus: "completed",
+          description: "Completed desc",
+          capacity: 10,
+          filledCount: 10,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        }],
+        total: 1,
+        facets: { cities: [], orgs: [] },
+      });
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canCreateDrives: false,
+        canManageTeam: false,
+      });
+      renderWithSwr(<YouthRepublicOpportunitiesPage />);
+
+      await screen.findByText("Completed Drive");
+      expect(screen.queryByRole("button", { name: /Impact & Stats/i })).not.toBeInTheDocument();
+    });
+
+    it("hides View Applicants link when user lacks canViewApplications", async () => {
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canViewApplications: false,
+      });
+      renderWithSwr(<YouthRepublicOpportunitiesPage />);
+
+      await screen.findByText("Beach Cleanup");
+      expect(screen.queryByRole("link", { name: /View Applicants/i })).not.toBeInTheDocument();
+    });
+  });
 });

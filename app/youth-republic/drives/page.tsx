@@ -400,13 +400,15 @@ export default function YouthRepublicDrivesPage() {
             onChange={setStatusFilter}
             options={STATUS_OPTIONS}
           />
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => setIsCreating(true)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>Create Drive</span>
-          </button>
+          {perms.canCreateDrives && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setIsCreating(true)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Create Drive</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -525,88 +527,100 @@ export default function YouthRepublicDrivesPage() {
                   )}
 
                   {archived ? (
-                    <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
-                      <LoadingButton
-                        className="btn btn-secondary btn-xs"
-                        disabled={busy?.id === opp.id}
-                        loading={busy?.id === opp.id && busy.action === "archive"}
-                        loadingText="Restoring…"
-                        onClick={() => toggleDeactivated(opp)}
-                      >
-                        Restore
-                      </LoadingButton>
-                      <LoadingButton
-                        className="btn btn-danger btn-xs"
-                        disabled={busy?.id === opp.id}
-                        loading={busy?.id === opp.id && busy.action === "delete"}
-                        loadingText="Deleting…"
-                        onClick={() => handleDeleteOpportunity(opp)}
-                      >
-                        Delete
-                      </LoadingButton>
-                    </div>
+                    perms.hasChapterPermission("opportunities:write", opp.chapterId) ? (
+                      <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
+                        <LoadingButton
+                          className="btn btn-secondary btn-xs"
+                          disabled={busy?.id === opp.id}
+                          loading={busy?.id === opp.id && busy.action === "archive"}
+                          loadingText="Restoring…"
+                          onClick={() => toggleDeactivated(opp)}
+                        >
+                          Restore
+                        </LoadingButton>
+                        <LoadingButton
+                          className="btn btn-danger btn-xs"
+                          disabled={busy?.id === opp.id}
+                          loading={busy?.id === opp.id && busy.action === "delete"}
+                          loadingText="Deleting…"
+                          onClick={() => handleDeleteOpportunity(opp)}
+                        >
+                          Delete
+                        </LoadingButton>
+                      </div>
+                    ) : (
+                      <div />
+                    )
                   ) : (
                     <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
-                      <LoadingButton
-                        className="btn btn-secondary btn-xs"
-                        disabled={openingEditorId !== null}
-                        loading={openingEditorId === opp.id}
-                        loadingText="Opening…"
-                        onClick={() => openEditor(opp.id)}
-                      >
-                        <span className="icon-svg">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                          </svg>
-                        </span>
-                        <span>Edit</span>
-                      </LoadingButton>
+                      {perms.hasChapterPermission("opportunities:write", opp.chapterId) && (
+                        <LoadingButton
+                          className="btn btn-secondary btn-xs"
+                          disabled={openingEditorId !== null}
+                          loading={openingEditorId === opp.id}
+                          loadingText="Opening…"
+                          onClick={() => openEditor(opp.id)}
+                        >
+                          <span className="icon-svg">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                            </svg>
+                          </span>
+                          <span>Edit</span>
+                        </LoadingButton>
+                      )}
 
                       {isDraft ? (
-                        <LoadingButton
-                          className="btn btn-dark btn-xs"
-                          disabled={publishingId !== null || openingEditorId !== null}
-                          loading={publishingId === opp.id}
-                          loadingText="Publishing…"
-                          onClick={() => handlePublish(opp)}
-                        >
-                          <span className="icon-svg">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M22 2 11 13" />
-                              <path d="M22 2 15 22l-4-9-9-4 20-7z" />
-                            </svg>
-                          </span>
-                          <span>Publish drive</span>
-                        </LoadingButton>
+                        perms.canPublishDrives && (
+                          <LoadingButton
+                            className="btn btn-dark btn-xs"
+                            disabled={publishingId !== null || openingEditorId !== null}
+                            loading={publishingId === opp.id}
+                            loadingText="Publishing…"
+                            onClick={() => handlePublish(opp)}
+                          >
+                            <span className="icon-svg">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M22 2 11 13" />
+                                <path d="M22 2 15 22l-4-9-9-4 20-7z" />
+                              </svg>
+                            </span>
+                            <span>Publish drive</span>
+                          </LoadingButton>
+                        )
                       ) : opp.computedStatus === "completed" ? (
-                        <button
-                          type="button"
-                          className="btn btn-dark btn-xs"
-                          onClick={() => setStatsTarget(opp)}
-                        >
-                          <span className="icon-svg">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M12 20V10" />
-                              <path d="M18 20V4" />
-                              <path d="M6 20v-4" />
-                            </svg>
-                          </span>
-                          <span>Impact & Stats</span>
-                        </button>
+                        (perms.canCreateDrives || perms.canManageTeam) && (
+                          <button
+                            type="button"
+                            className="btn btn-dark btn-xs"
+                            onClick={() => setStatsTarget(opp)}
+                          >
+                            <span className="icon-svg">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 20V10" />
+                                <path d="M18 20V4" />
+                                <path d="M6 20v-4" />
+                              </svg>
+                            </span>
+                            <span>Impact & Stats</span>
+                          </button>
+                        )
                       ) : (
-                        <Link
-                          href={`/youth-republic/applications?opportunityId=${opp.id}`}
-                          className="btn btn-dark btn-xs"
-                        >
-                          <span className="icon-svg">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
-                          </span>
-                          <span>View Applicants</span>
-                        </Link>
+                        perms.canViewApplications && (
+                          <Link
+                            href={`/youth-republic/applications?opportunityId=${opp.id}`}
+                            className="btn btn-dark btn-xs"
+                          >
+                            <span className="icon-svg">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            </span>
+                            <span>View Applicants</span>
+                          </Link>
+                        )
                       )}
                     </div>
                   )}

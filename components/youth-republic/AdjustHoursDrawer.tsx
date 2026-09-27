@@ -9,6 +9,7 @@ interface AdjustHoursDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (payload: VerifyHoursPayload) => Promise<void>;
+  canApprove?: boolean;
 }
 
 export function AdjustHoursDrawer({
@@ -16,6 +17,7 @@ export function AdjustHoursDrawer({
   isOpen,
   onClose,
   onSave,
+  canApprove = true,
 }: AdjustHoursDrawerProps) {
   const [hoursAssigned, setHoursAssigned] = useState<number>(6.0);
   const [decision, setDecision] = useState<"verified" | "rejected">("verified");
@@ -281,14 +283,16 @@ export function AdjustHoursDrawer({
             Cancel
           </button>
 
-          <LoadingButton
-            className={`btn btn-sm ${decision === "verified" ? "btn-primary" : "btn-danger"}`}
-            onClick={handleConfirm}
-            loading={submitting}
-            loadingText={decision === "verified" ? "Accrediting…" : "Rejecting…"}
-          >
-            {decision === "verified" ? "Approve & Accredit Hours" : "Reject Shift"}
-          </LoadingButton>
+          {canApprove && (
+            <LoadingButton
+              className={`btn btn-sm ${decision === "verified" ? "btn-primary" : "btn-danger"}`}
+              onClick={handleConfirm}
+              loading={submitting}
+              loadingText={decision === "verified" ? "Accrediting…" : "Rejecting…"}
+            >
+              {decision === "verified" ? "Approve & Accredit Hours" : "Reject Shift"}
+            </LoadingButton>
+          )}
         </div>
       </div>
     </>

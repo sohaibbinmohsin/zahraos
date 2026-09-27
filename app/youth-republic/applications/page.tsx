@@ -301,45 +301,49 @@ function ApplicationsContent() {
                               Review Answers
                             </button>
 
-                            {showDecisionButtons ? (
-                              <>
-                                <DecisionButton
-                                  decision="selected"
-                                  loading={rowBusy && busy?.decision === "selected"}
-                                  disabled={rowBusy}
-                                  onClick={() => decideFromRow(a.id, "selected")}
-                                />
-                                <DecisionButton
-                                  decision="waitlisted"
-                                  loading={rowBusy && busy?.decision === "waitlisted"}
-                                  disabled={rowBusy}
-                                  onClick={() => decideFromRow(a.id, "waitlisted")}
-                                />
-                                <DecisionButton
-                                  decision="rejected"
-                                  loading={rowBusy && busy?.decision === "rejected"}
-                                  disabled={rowBusy}
-                                  onClick={() => decideFromRow(a.id, "rejected")}
-                                />
-                                {isReconsidering && !isPending && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-secondary btn-xs"
-                                    onClick={() => setReconsideringId(null)}
+                            {perms.canTriageApplications ? (
+                              showDecisionButtons ? (
+                                <>
+                                  <DecisionButton
+                                    decision="selected"
+                                    loading={rowBusy && busy?.decision === "selected"}
                                     disabled={rowBusy}
-                                  >
-                                    Cancel
-                                  </button>
-                                )}
-                              </>
+                                    onClick={() => decideFromRow(a.id, "selected")}
+                                  />
+                                  <DecisionButton
+                                    decision="waitlisted"
+                                    loading={rowBusy && busy?.decision === "waitlisted"}
+                                    disabled={rowBusy}
+                                    onClick={() => decideFromRow(a.id, "waitlisted")}
+                                  />
+                                  <DecisionButton
+                                    decision="rejected"
+                                    loading={rowBusy && busy?.decision === "rejected"}
+                                    disabled={rowBusy}
+                                    onClick={() => decideFromRow(a.id, "rejected")}
+                                  />
+                                  {isReconsidering && !isPending && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-xs"
+                                      onClick={() => setReconsideringId(null)}
+                                      disabled={rowBusy}
+                                    >
+                                      Cancel
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-xs"
+                                  onClick={() => setReconsideringId(a.id)}
+                                >
+                                  Reconsider
+                                </button>
+                              )
                             ) : (
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-xs"
-                                onClick={() => setReconsideringId(a.id)}
-                              >
-                                Reconsider
-                              </button>
+                              <span className="badge badge-neu text-xs">Read-only</span>
                             )}
                           </div>
                         );
@@ -365,6 +369,7 @@ function ApplicationsContent() {
         isOpen={Boolean(selectedApp)}
         onClose={() => setSelectedApp(null)}
         onDecide={handleDecide}
+        canTriage={perms.canTriageApplications}
       />
     </div>
   );
