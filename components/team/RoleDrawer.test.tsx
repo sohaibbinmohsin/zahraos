@@ -33,8 +33,10 @@ describe("RoleDrawer", () => {
     const onClose = vi.fn();
     render(<RoleDrawer request={{ mode: "create", roleId: null }} onClose={onClose} />);
     await user.type(screen.getByLabelText(/Role Title/i), "Warehouse Lead");
-    await user.selectOptions(screen.getByLabelText("Drive Creation"), "granted");
-    await user.selectOptions(screen.getByLabelText("Approve Hours"), "read_only");
+    await user.click(screen.getByRole("combobox", { name: "Drive Creation" }));
+    await user.click(screen.getByRole("option", { name: "Granted" }));
+    await user.click(screen.getByRole("combobox", { name: "Approve Hours" }));
+    await user.click(screen.getByRole("option", { name: "Read Only" }));
     await user.click(screen.getByRole("button", { name: /Save Role/i }));
 
     await waitFor(() => expect(createRole).toHaveBeenCalledTimes(1));
@@ -46,23 +48,32 @@ describe("RoleDrawer", () => {
 
   it("opens a system role read-only with no save", () => {
     render(<RoleDrawer request={{ mode: "view", roleId: "r1" }} onClose={vi.fn()} />);
-    expect(screen.getByLabelText("Drive Creation")).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Drive Creation" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: /Save Role/i })).not.toBeInTheDocument();
   });
 
   it("prefills a clone from the source role with an editable name", () => {
     render(<RoleDrawer request={{ mode: "clone", roleId: "r2" }} onClose={vi.fn()} />);
     expect((screen.getByLabelText(/Role Title/i) as HTMLInputElement).value).toBe("Regional Logistics Lead (Copy)");
-    expect((screen.getByLabelText("Drive Creation") as HTMLSelectElement).value).toBe("granted");
+    expect(screen.getByRole("combobox", { name: "Drive Creation" })).toHaveTextContent("Granted");
   });
 
   it("edits a custom role", async () => {
     const user = userEvent.setup();
     render(<RoleDrawer request={{ mode: "edit", roleId: "r2" }} onClose={vi.fn()} />);
-    await user.selectOptions(screen.getByLabelText("Publish Noticeboard"), "granted");
+    await user.click(screen.getByRole("combobox", { name: "Publish Noticeboard" }));
+    await user.click(screen.getByRole("option", { name: "Granted" }));
     await user.click(screen.getByRole("button", { name: /Save Role/i }));
     await waitFor(() => expect(updateRole).toHaveBeenCalledTimes(1));
     expect(updateRole.mock.calls[0][0]).toMatchObject({ roleId: "r2" });
     expect(updateRole.mock.calls[0][0].capabilities.publish).toBe("granted");
+  });
+
+  it("applies a system template to update capability grid", async () => {
+    const user = userEvent.setup();
+    render(<RoleDrawer request={{ mode: "create", roleId: null }} onClose={vi.fn()} />);
+    await user.click(screen.getByRole("combobox", { name: "Base Permission Template" }));
+    await user.click(screen.getByRole("option", { name: "Clone from Operations Lead" }));
+    expect(screen.getByRole("combobox", { name: "Approve Hours" })).toHaveTextContent("Granted");
   });
 });

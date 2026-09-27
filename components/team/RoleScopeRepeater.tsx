@@ -1,5 +1,7 @@
 "use client";
 
+import { Select } from "@/components/ui/Select";
+
 const ORG_WIDE_LABEL = "National / All Chapters";
 
 export interface RoleScopeRow {
@@ -54,25 +56,24 @@ export function RoleScopeRepeater({
     <div className="role-repeater-box">
       {rows.map((row, idx) => (
         <div className="role-repeater-row" key={row.key}>
-          <select
-            className="form-select"
+          <Select
+            aria-label="Role"
             value={row.roleId}
-            onChange={(e) => update(idx, { roleId: e.target.value })}
-          >
-            {roles.map((r) => (
-              <option key={r.id} value={r.id}>{r.name}{r.isSystem ? "" : " (Custom)"}</option>
-            ))}
-          </select>
-          <select
-            className="form-select"
+            onChange={(roleId) => update(idx, { roleId })}
+            options={roles.map((r) => ({
+              value: r.id,
+              label: `${r.name}${r.isSystem ? "" : " (Custom)"}`,
+            }))}
+          />
+          <Select
+            aria-label="Scope"
             value={row.scopeKind === "org_wide" ? "org_wide" : (row.chapterId ?? "")}
-            onChange={(e) => setScope(idx, e.target.value)}
-          >
-            <option value="org_wide">{ORG_WIDE_LABEL}</option>
-            {chapters.map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+            onChange={(val) => setScope(idx, val)}
+            options={[
+              { value: "org_wide", label: ORG_WIDE_LABEL },
+              ...chapters.map((c) => ({ value: c.id, label: c.name })),
+            ]}
+          />
           {rows.length > 1 ? (
             <button
               type="button"

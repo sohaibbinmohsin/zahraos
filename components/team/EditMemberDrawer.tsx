@@ -8,6 +8,7 @@ import { removeStaffMember, updateStaffAccess } from "@/lib/platformFunctions";
 import { effectivePermissionTags } from "@/lib/capabilityMap";
 import { RoleScopeRepeater, rowsToAssignmentPayload, type RoleScopeRow } from "./RoleScopeRepeater";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import { Select } from "@/components/ui/Select";
 
 function initials(name: string) {
   return name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
@@ -123,17 +124,17 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
 
               <div className="form-group">
                 <label className="form-label" htmlFor="edit-mem-status">Account Access Status</label>
-                <select
+                <Select
                   id="edit-mem-status"
                   aria-label="Account Access Status"
-                  className="form-select"
                   value={status}
-                  onChange={(e) => setStatus(e.target.value as "active" | "invited" | "deactivated")}
-                >
-                  <option value="active">Active &amp; Verified</option>
-                  <option value="invited">Pending Invitation</option>
-                  <option value="deactivated">Suspended / Deactivated</option>
-                </select>
+                  onChange={(val) => setStatus(val as "active" | "invited" | "deactivated")}
+                  options={[
+                    { value: "active", label: "Active & Verified" },
+                    { value: "invited", label: "Pending Invitation" },
+                    { value: "deactivated", label: "Suspended / Deactivated" },
+                  ]}
+                />
               </div>
 
               <div className="form-group">

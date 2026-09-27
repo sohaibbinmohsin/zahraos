@@ -9,6 +9,7 @@ import {
   type CapabilityGrid, type CapabilityKey, type CapabilityLevel,
 } from "@/lib/capabilityMap";
 import { LoadingButton } from "@/components/ui/LoadingButton";
+import { Select } from "@/components/ui/Select";
 
 const LEVEL_LABEL: Record<CapabilityLevel, string> = {
   granted: "Granted", read_only: "Read Only", restricted: "Restricted",
@@ -28,18 +29,20 @@ export function RoleDrawer({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [grid, setGrid] = useState<CapabilityGrid>(RESTRICTED_GRID);
+  const [selectedTemplate, setSelectedTemplate] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     if (!request) return;
     if (request.mode === "create") {
-      setName(""); setDescription("");
+      setName(""); setDescription(""); setSelectedTemplate("");
       setGrid({ drive: "granted", publish: "restricted", triage: "granted", hours: "restricted", team: "restricted" });
     } else if (source) {
       const g = permissionKeysToGrid(source.permissionKeys);
       setGrid(g);
       setDescription(source.description ?? "");
       setName(request.mode === "clone" ? `${source.name} (Copy)` : source.name);
+      setSelectedTemplate("");
     }
     // `source` is intentionally not a dep: it is recomputed every render
     // (roles.find over a fresh array), so including it would re-run this
@@ -56,6 +59,11 @@ export function RoleDrawer({
       setGrid(permissionKeysToGrid(t.permissionKeys));
       if (!description) setDescription(t.description ?? "");
     }
+  }
+
+  function handleTemplateChange(roleId: string) {
+    setSelectedTemplate(roleId);
+    if (roleId) applyTemplate(roleId);
   }
 
   async function save() {
@@ -126,10 +134,16 @@ export function RoleDrawer({
               {!readOnly && request.mode !== "edit" && (
                 <div className="form-group">
                   <label className="form-label" htmlFor="role-template">Base Permission Template</label>
-                  <select id="role-template" className="form-select" defaultValue="" onChange={(e) => e.target.value && applyTemplate(e.target.value)}>
-                    <option value="">Start from Blank / Custom</option>
-                    {templateOptions.map((r) => <option key={r.id} value={r.id}>Clone from {r.name}</option>)}
-                  </select>
+                  <Select
+                    id="role-template"
+                    aria-label="Base Permission Template"
+                    value={selectedTemplate}
+                    onChange={handleTemplateChange}
+                    options={[
+                      { value: "", label: "Start from Blank / Custom" },
+                      ...templateOptions.map((r) => ({ value: r.id, label: `Clone from ${r.name}` })),
+                    ]}
+                  />
                 </div>
               )}
 
@@ -140,18 +154,16 @@ export function RoleDrawer({
                     <div className="perm-matrix-group" key={cap}>
                       <div className="perm-checkbox-row">
                         <span>{CAPABILITY_META[cap].column}</span>
-                        <select
+                        <Select
                           aria-label={CAPABILITY_META[cap].column}
-                          className="filter-select"
-                          style={{ padding: ".2rem .4rem", fontSize: "var(--text-sm)" }}
                           value={grid[cap]}
                           disabled={readOnly}
-                          onChange={(e) => setGrid({ ...grid, [cap]: e.target.value as CapabilityLevel })}
-                        >
-                          {CAPABILITY_META[cap].levels.map((lvl) => (
-                            <option key={lvl} value={lvl}>{LEVEL_LABEL[lvl]}</option>
-                          ))}
-                        </select>
+                          onChange={(val) => setGrid({ ...grid, [cap]: val as CapabilityLevel })}
+                          options={CAPABILITY_META[cap].levels.map((lvl) => ({
+                            value: lvl,
+                            label: LEVEL_LABEL[lvl],
+                          }))}
+                        />
                       </div>
                     </div>
                   ))}

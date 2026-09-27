@@ -39,7 +39,8 @@ describe("EditMemberDrawer", () => {
     render(<EditMemberDrawer memberId="m1" onClose={onClose} />);
     expect(screen.getByText("Amina Malik")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Account Access Status"), "invited");
+    await user.click(screen.getByRole("combobox", { name: "Account Access Status" }));
+    await user.click(screen.getByRole("option", { name: "Pending Invitation" }));
     await user.click(screen.getByRole("button", { name: /Save Changes/i }));
 
     await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));

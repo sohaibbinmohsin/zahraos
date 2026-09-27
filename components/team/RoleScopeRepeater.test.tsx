@@ -39,4 +39,41 @@ describe("RoleScopeRepeater", () => {
       { roleId: "r2", scopeKind: "chapter", chapterId: "c1", scopeLabel: "Lahore Chapter" },
     ]);
   });
+
+  it("changes role selection using custom Select dropdown", async () => {
+    const user = userEvent.setup();
+    const rows: RoleScopeRow[] = [makeRoleScopeRow("r1")];
+    const onChange = vi.fn();
+    render(
+      <RoleScopeRepeater rows={rows} roles={roles} chapters={chapters} onChange={onChange} addLabel="+ Add Role" />,
+    );
+    await user.click(screen.getByRole("combobox", { name: "Role" }));
+    await user.click(screen.getByRole("option", { name: "Regional Logistics Lead (Custom)" }));
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ roleId: "r2" }),
+    ]);
+  });
+
+  it("changes scope to a specific chapter and back to org_wide using custom Select dropdown", async () => {
+    const user = userEvent.setup();
+    let rows: RoleScopeRow[] = [makeRoleScopeRow("r1")];
+    const onChange = vi.fn((next: RoleScopeRow[]) => { rows = next; });
+    const { rerender } = render(
+      <RoleScopeRepeater rows={rows} roles={roles} chapters={chapters} onChange={onChange} addLabel="+ Add Role" />,
+    );
+    await user.click(screen.getByRole("combobox", { name: "Scope" }));
+    await user.click(screen.getByRole("option", { name: "Lahore Chapter" }));
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({ scopeKind: "chapter", chapterId: "c1", scopeLabel: "Lahore Chapter" }),
+    ]);
+
+    rerender(
+      <RoleScopeRepeater rows={onChange.mock.calls.at(-1)![0]} roles={roles} chapters={chapters} onChange={onChange} addLabel="+ Add Role" />,
+    );
+    await user.click(screen.getByRole("combobox", { name: "Scope" }));
+    await user.click(screen.getByRole("option", { name: "National / All Chapters" }));
+    expect(onChange).toHaveBeenLastCalledWith([
+      expect.objectContaining({ scopeKind: "org_wide", chapterId: null, scopeLabel: "National / All Chapters" }),
+    ]);
+  });
 });
