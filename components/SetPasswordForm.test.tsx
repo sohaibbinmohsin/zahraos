@@ -23,11 +23,59 @@ describe("SetPasswordForm", () => {
     const user = userEvent.setup();
     render(<SetPasswordForm />);
 
-    await user.type(screen.getByLabelText("New password"), "brand-new-password-1");
-    await user.type(screen.getByLabelText("Confirm password"), "different-password");
+    await user.type(screen.getByLabelText("New password"), "Brand-new-pass-1!");
+    await user.type(screen.getByLabelText("Confirm password"), "Different-pass-2!");
     await user.click(screen.getByRole("button", { name: "Set password" }));
 
     expect(await screen.findByText("Passwords do not match")).toBeInTheDocument();
+    expect(platformFunctions.setPassword).not.toHaveBeenCalled();
+  });
+
+  it("enforces minimum 8 characters requirement", async () => {
+    const user = userEvent.setup();
+    render(<SetPasswordForm />);
+
+    await user.type(screen.getByLabelText("New password"), "Ab1!");
+    await user.type(screen.getByLabelText("Confirm password"), "Ab1!");
+    await user.click(screen.getByRole("button", { name: "Set password" }));
+
+    expect(await screen.findByText("Password must be at least 8 characters")).toBeInTheDocument();
+    expect(platformFunctions.setPassword).not.toHaveBeenCalled();
+  });
+
+  it("enforces lowercase, uppercase, number, and symbol requirements", async () => {
+    const user = userEvent.setup();
+    render(<SetPasswordForm />);
+
+    // Missing lowercase: "ALLCAPS123!"
+    await user.type(screen.getByLabelText("New password"), "ALLCAPS123!");
+    await user.type(screen.getByLabelText("Confirm password"), "ALLCAPS123!");
+    await user.click(screen.getByRole("button", { name: "Set password" }));
+    expect(await screen.findByText("Password must include at least one lowercase letter")).toBeInTheDocument();
+
+    // Missing uppercase: "lowercase123!"
+    await user.clear(screen.getByLabelText("New password"));
+    await user.clear(screen.getByLabelText("Confirm password"));
+    await user.type(screen.getByLabelText("New password"), "lowercase123!");
+    await user.type(screen.getByLabelText("Confirm password"), "lowercase123!");
+    await user.click(screen.getByRole("button", { name: "Set password" }));
+    expect(await screen.findByText("Password must include at least one uppercase letter")).toBeInTheDocument();
+
+    // Missing number: "NoNumberPass!"
+    await user.clear(screen.getByLabelText("New password"));
+    await user.clear(screen.getByLabelText("Confirm password"));
+    await user.type(screen.getByLabelText("New password"), "NoNumberPass!");
+    await user.type(screen.getByLabelText("Confirm password"), "NoNumberPass!");
+    await user.click(screen.getByRole("button", { name: "Set password" }));
+    expect(await screen.findByText("Password must include at least one number (0-9)")).toBeInTheDocument();
+
+    // Missing symbol: "NoSymbols123"
+    await user.clear(screen.getByLabelText("New password"));
+    await user.clear(screen.getByLabelText("Confirm password"));
+    await user.type(screen.getByLabelText("New password"), "NoSymbols123");
+    await user.type(screen.getByLabelText("Confirm password"), "NoSymbols123");
+    await user.click(screen.getByRole("button", { name: "Set password" }));
+    expect(await screen.findByText("Password must include at least one symbol or special character")).toBeInTheDocument();
     expect(platformFunctions.setPassword).not.toHaveBeenCalled();
   });
 
@@ -36,13 +84,13 @@ describe("SetPasswordForm", () => {
     const user = userEvent.setup();
     render(<SetPasswordForm />);
 
-    await user.type(screen.getByLabelText("New password"), "brand-new-password-1");
-    await user.type(screen.getByLabelText("Confirm password"), "brand-new-password-1");
+    await user.type(screen.getByLabelText("New password"), "Brand-new-pass-1!");
+    await user.type(screen.getByLabelText("Confirm password"), "Brand-new-pass-1!");
     await user.click(screen.getByRole("button", { name: "Set password" }));
 
     await waitFor(() => {
       expect(platformFunctions.setPassword).toHaveBeenCalledWith(
-        { newPassword: "brand-new-password-1" },
+        { newPassword: "Brand-new-pass-1!" },
         "session-token",
       );
     });
