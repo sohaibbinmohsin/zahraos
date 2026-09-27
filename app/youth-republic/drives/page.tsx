@@ -382,26 +382,26 @@ export default function YouthRepublicDrivesPage() {
                     <span className={`badge ${pill.cls}`}>{pill.label}</span>
                   </div>
 
-                  <div className="opp-title-row">
-                    <span className="opp-title">{opp.name}</span>
+                  <div className="opp-title">
+                    <span>{opp.name}</span>
                     {running && (
                       <span
                         className="live-pill"
                         style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          padding: "0.12rem 0.55rem",
+                          display: "inline-block",
+                          verticalAlign: "middle",
+                          marginLeft: "0.45rem",
+                          padding: "0.1rem 0.5rem",
                           borderRadius: "9999px",
                           backgroundColor: "var(--brand)",
                           color: "var(--on-brand)",
+                          fontFamily: "var(--font-body, system-ui, -apple-system, sans-serif)",
                           fontSize: "0.6875rem",
                           fontWeight: 700,
                           letterSpacing: "0.02em",
                           textTransform: "none",
                           lineHeight: "1.25",
                           whiteSpace: "nowrap",
-                          flexShrink: 0,
                         }}
                         title="Drive in progress"
                       >
