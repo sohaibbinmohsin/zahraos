@@ -32,7 +32,7 @@ export function ChangePasswordModal({
   const hasLower = /[a-z]/.test(newPassword);
   const hasUpper = /[A-Z]/.test(newPassword);
   const hasDigit = /[0-9]/.test(newPassword);
-  const hasSymbol = /[^a-zA-Z0-9]/.test(newPassword);
+  const hasSymbol = /[^a-zA-Z0-9\s]/.test(newPassword);
   const isMatch = newPassword.length > 0 && newPassword === confirmPassword;
 
   if (!isOpen) return null;

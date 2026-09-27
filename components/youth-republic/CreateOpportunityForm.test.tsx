@@ -15,17 +15,24 @@ vi.mock("@/components/shell/AppShell", () => ({
   useStaffClaims: vi.fn(),
 }));
 
+async function selectCustomOption(user: ReturnType<typeof userEvent.setup>, label: string | RegExp, optionName: string | RegExp) {
+  const trigger = screen.getByLabelText(label);
+  await user.click(trigger);
+  const opt = await screen.findByRole("option", { name: optionName });
+  await user.click(opt);
+}
+
 // Every Step 1 field is now mandatory before the form lets you advance.
 // This fills the ones a test doesn't set explicitly so it can reach Step 2.
 async function fillStep1(user: ReturnType<typeof userEvent.setup>) {
   const nameInput = screen.getByLabelText("Name") as HTMLInputElement;
   if (!nameInput.value) await user.type(nameInput, "Test Opportunity");
-  const cityInput = screen.getByLabelText("City & Venue");
-  if (!(cityInput as HTMLInputElement).value) {
+  const cityInput = screen.queryByLabelText("City");
+  if (cityInput && !(cityInput as HTMLInputElement).value) {
     await user.type(cityInput, "Karachi");
     await user.click(await screen.findByRole("option", { name: /^Karachi/ }));
   }
-  const cap = screen.getByLabelText("Target Volunteer Capacity");
+  const cap = screen.getByLabelText(/Target Volunteer Capacity/);
   await user.clear(cap);
   await user.type(cap, "25");
   for (const label of ["Applications Open", "Application Deadline", "Drive Start Date"]) {
@@ -75,7 +82,7 @@ describe("CreateOpportunityForm", () => {
     render(<CreateOpportunityForm organizationId="org-1" staffToken="staff-jwt" accessToken={null} onCreated={onCreated} />);
 
     await user.type(screen.getByLabelText("Name"), "Beach Cleanup");
-    await user.selectOptions(screen.getByLabelText("Type"), "environment");
+    await selectCustomOption(user, "Type", "Environment & Climate Action");
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
     // Publishing requires at least one Step 2 question.
@@ -243,7 +250,7 @@ describe("CreateOpportunityForm", () => {
     expect(screen.getByRole("button", { name: /Preview Live Volunteer Experience/i })).toBeInTheDocument();
   });
 
-  it("disables City & Venue with 'N/A' when Delivery Format is online, and allows city selection when onsite", async () => {
+  it("hides City and Venue when Delivery Format is online, and allows city selection when onsite", async () => {
     const user = userEvent.setup();
 
     render(
@@ -255,11 +262,10 @@ describe("CreateOpportunityForm", () => {
       />,
     );
 
-    const deliverySelect = screen.getByLabelText("Delivery Format");
-    const cityInput = screen.getByLabelText("City & Venue");
-
-    // Initially onsite: city input is editable
-    expect(cityInput).not.toBeDisabled();
+    // Initially onsite: city and venue inputs are visible
+    const cityInput = screen.getByLabelText("City");
+    expect(cityInput).toBeInTheDocument();
+    expect(screen.getByLabelText(/Venue/i)).toBeInTheDocument();
 
     // Type to filter cities
     await user.type(cityInput, "Laho");
@@ -268,15 +274,14 @@ describe("CreateOpportunityForm", () => {
     expect(cityInput).toHaveValue("Lahore");
 
     // Switch to Virtual / Online Volunteer Role
-    await user.selectOptions(deliverySelect, "online");
-    const disabledCityInput = screen.getByLabelText(/City & Venue/i);
-    expect(disabledCityInput).toBeDisabled();
-    expect(disabledCityInput).toHaveValue("N/A");
+    await selectCustomOption(user, "Delivery Format", "Virtual / Online Volunteer Role");
+    expect(screen.queryByLabelText("City")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Venue/i)).not.toBeInTheDocument();
 
     // Switch back to onsite
-    await user.selectOptions(deliverySelect, "onsite");
-    const reenabledCityInput = screen.getByLabelText(/City & Venue/i);
-    expect(reenabledCityInput).not.toBeDisabled();
+    await selectCustomOption(user, "Delivery Format", "On-Site (Physical Venue)");
+    expect(screen.getByLabelText("City")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Venue/i)).toBeInTheDocument();
   });
 
   it("ensures Step 1 bottom action buttons container is right-aligned", () => {
@@ -385,16 +390,15 @@ describe("CreateOpportunityForm", () => {
     );
 
     // Chapter options load from listChapters, filtered to the write scope.
-    await screen.findByRole("option", { name: "Rizq LUMS" });
     const chapterSelect = screen.getByLabelText("Chapter");
-    expect(chapterSelect).toBeRequired();
+    await user.click(chapterSelect);
+    await screen.findByRole("option", { name: "Rizq LUMS" });
     expect(screen.queryByRole("option", { name: "Rizq NUST" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /Org-wide/i })).not.toBeInTheDocument();
-
-    await waitFor(() => expect((chapterSelect as HTMLSelectElement).value).toBe("lums"));
+    await user.click(screen.getByRole("option", { name: "Rizq LUMS" }));
 
     await user.type(screen.getByLabelText("Name"), "LUMS Blood Drive");
-    await user.selectOptions(screen.getByLabelText("Type"), "health");
+    await selectCustomOption(user, "Type", "Healthcare & Emergency Relief");
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
     // Publishing requires at least one Step 2 question.
@@ -432,16 +436,15 @@ describe("CreateOpportunityForm", () => {
       />,
     );
 
+    const chapterSelect = screen.getByLabelText("Chapter");
+    await user.click(chapterSelect);
     await screen.findByRole("option", { name: "Rizq LUMS" });
     expect(screen.getByRole("option", { name: "Rizq NUST" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Org-wide (no chapter)" })).toBeInTheDocument();
-
-    const chapterSelect = screen.getByLabelText("Chapter") as HTMLSelectElement;
-    expect(chapterSelect).not.toBeRequired();
-    expect(chapterSelect.value).toBe("");
+    await user.click(screen.getByRole("option", { name: "Org-wide (no chapter)" }));
 
     await user.type(screen.getByLabelText("Name"), "National Tree Plantation");
-    await user.selectOptions(screen.getByLabelText("Type"), "environment");
+    await selectCustomOption(user, "Type", "Environment & Climate Action");
     await fillStep1(user);
     await user.click(screen.getByRole("button", { name: /Proceed to Application Form Builder/i }));
     // Publishing requires at least one Step 2 question.

@@ -16,6 +16,7 @@ export interface VolunteerApplyPreviewOpportunity {
   name: string;
   type: string;
   city?: string;
+  venue?: string;
   isOnline?: boolean;
   description?: string;
   about?: string;
@@ -176,6 +177,12 @@ export function VolunteerApplyPreview({
           <dd>{TYPE_LABEL[opportunity.type] ?? opportunity.type}</dd>
           <dt>Location</dt>
           <dd>{opportunity.isOnline ? "Online" : (opportunity.city || "—")}</dd>
+          {!opportunity.isOnline && opportunity.venue && (
+            <>
+              <dt>Venue</dt>
+              <dd>{opportunity.venue}</dd>
+            </>
+          )}
           {(start || end) && (
             <>
               <dt>Dates</dt>

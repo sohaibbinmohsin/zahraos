@@ -5,6 +5,7 @@ import { createOpportunity, updateOpportunity, type CreateOpportunityPayload } f
 import { listChapters, type ChapterRow } from "@/lib/platformFunctions";
 import { VolunteerApplyPreview } from "@/components/youth-republic/VolunteerApplyPreview";
 import { CityCombobox } from "@/components/youth-republic/CityCombobox";
+import { Select, type SelectOption } from "@/components/ui/Select";
 import type { FormDefinition, FieldDef, FieldType } from "@/lib/forms";
 import { useToast } from "@/components/shell/ToastContext";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
@@ -25,8 +26,10 @@ interface CreateOpportunityFormProps {
     type: string;
     description?: string;
     location?: string;
+    city?: string | null;
+    venue?: string | null;
     isOnline?: boolean;
-    capacity?: number;
+    capacity?: number | null;
     applicationOpenAt?: string;
     applicationDeadline?: string;
     activityStartAt?: string;
@@ -47,6 +50,28 @@ function toDateInput(iso?: string | null): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
 }
+
+const TYPE_OPTIONS: SelectOption[] = [
+  { value: "community", label: "Community Support & Welfare" },
+  { value: "education", label: "Education & Academic Tutoring" },
+  { value: "environment", label: "Environment & Climate Action" },
+  { value: "health", label: "Healthcare & Emergency Relief" },
+];
+
+const DELIVERY_FORMAT_OPTIONS: SelectOption[] = [
+  { value: "onsite", label: "On-Site (Physical Venue)" },
+  { value: "online", label: "Virtual / Online Volunteer Role" },
+];
+
+const FIELD_TYPE_OPTIONS: SelectOption[] = [
+  { value: "short_text", label: "Short Answer" },
+  { value: "long_text", label: "Paragraph / Long Text" },
+  { value: "select", label: "Dropdown Choice" },
+  { value: "multiselect", label: "Multiple Choice (Checkboxes)" },
+  { value: "radio", label: "Single Choice (Radio)" },
+  { value: "date", label: "Date Picker" },
+  { value: "file", label: "File / Document Upload" },
+];
 
 const DEFAULT_FORM_FIELDS: FieldDef[] = [
   {
@@ -112,14 +137,14 @@ export function CreateOpportunityForm({
   const [chapterId, setChapterId] = useState<string>(initialOpportunity?.chapterId ?? "");
 
   useEffect(() => {
-    if (isEditMode || !organizationId || !accessToken) return;
+    if (!organizationId || !accessToken) return;
     let cancelled = false;
     listChapters({ organizationId }, accessToken)
       .then((res) => {
         if (cancelled) return;
-        const active = res.chapters.filter((c) => c.status === "active");
+        const active = res.chapters.filter((c) => c.status === "active" || c.id === initialOpportunity?.chapterId);
         setChapters(active);
-        if (isChapterScoped && !initialOpportunity?.chapterId) {
+        if (isChapterScoped && !chapterId && !initialOpportunity?.chapterId) {
           const first = active.find((c) => writeScopeChapters!.includes(c.id));
           if (first) setChapterId(first.id);
         }
@@ -130,19 +155,38 @@ export function CreateOpportunityForm({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isEditMode, organizationId, accessToken]);
+  }, [organizationId, accessToken]);
 
   const chapterOptions = isChapterScoped
     ? chapters.filter((c) => writeScopeChapters!.includes(c.id))
     : chapters;
 
+  const knownChapters = [...chapterOptions];
+  if (chapterId && !knownChapters.some((c) => c.id === chapterId)) {
+    knownChapters.unshift({ id: chapterId, name: chapterId, status: "active", city: null } as ChapterRow);
+  }
+  const chapterSelectOptions: SelectOption[] = [
+    ...(!isChapterScoped ? [{ value: "", label: "Org-wide (no chapter)" }] : []),
+    ...knownChapters.map((c) => ({ value: c.id, label: c.name })),
+  ];
+
   // Step 1: Specs
   const [name, setName] = useState(initialOpportunity?.name ?? "");
   const [type, setType] = useState(initialOpportunity?.type ?? "environment");
-  const [location, setLocation] = useState(initialOpportunity?.location ?? "");
+  const [city, setCity] = useState(
+    initialOpportunity?.city ??
+      (initialOpportunity?.location ? initialOpportunity.location.split(" · ")[0] : "")
+  );
+  const [venue, setVenue] = useState(
+    initialOpportunity?.venue ??
+      (initialOpportunity?.location && initialOpportunity.location.includes(" · ")
+        ? initialOpportunity.location.split(" · ").slice(1).join(" · ")
+        : "")
+  );
   const [isOnline, setIsOnline] = useState(initialOpportunity?.isOnline ?? false);
-  const [capacity, setCapacity] = useState<number | undefined>(initialOpportunity?.capacity);
+  const [capacity, setCapacity] = useState<number | undefined>(
+    initialOpportunity?.capacity != null ? initialOpportunity.capacity : undefined
+  );
   const [applicationOpenAt, setApplicationOpenAt] = useState(toDateInput(initialOpportunity?.applicationOpenAt));
   const [applicationDeadline, setApplicationDeadline] = useState(toDateInput(initialOpportunity?.applicationDeadline));
   const [activityStartAt, setActivityStartAt] = useState(toDateInput(initialOpportunity?.activityStartAt));
@@ -341,8 +385,9 @@ export function CreateOpportunityForm({
       const lineCount = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean).length;
       const step1Incomplete =
         !name.trim() ||
-        (!isOnline && !location.trim()) ||
-        !capacity || Number(capacity) < 1 ||
+        (isChapterScoped && !chapterId) ||
+        (!isOnline && !city.trim()) ||
+        (capacity !== undefined && Number(capacity) < 1) ||
         !applicationOpenAt || !applicationDeadline || !activityStartAt ||
         !description.trim() || !about.trim() ||
         lineCount(dutiesStr) === 0 || lineCount(eligibilityStr) === 0 || lineCount(whatToBringStr) === 0;
@@ -369,9 +414,11 @@ export function CreateOpportunityForm({
       const isoOrUndef = (d: string) => (d ? new Date(d).toISOString() : undefined);
       const common = {
         description: description.trim() || undefined,
-        location: isOnline ? null : (location.trim() || null),
+        location: isOnline ? null : ([city.trim(), venue.trim()].filter(Boolean).join(" · ") || null),
+        city: isOnline ? null : (city.trim() || null),
+        venue: isOnline ? null : (venue.trim() || null),
         isOnline: Boolean(isOnline),
-        capacity: capacity ? Number(capacity) : undefined,
+        capacity: typeof capacity === "number" && capacity > 0 ? capacity : null,
         applicationOpenAt: isoOrUndef(applicationOpenAt),
         applicationDeadline: isoOrUndef(applicationDeadline),
         activityStartAt: isoOrUndef(activityStartAt),
@@ -390,6 +437,8 @@ export function CreateOpportunityForm({
             opportunityId: initialOpportunity.id,
             organizationId,
             name: name.trim(),
+            chapterId: chapterId || null,
+            type,
             ...(initialOpportunity.computedStatus === "draft" && !isDraft ? { statusOverride: "open" } : {}),
             ...common,
           },
@@ -425,8 +474,8 @@ export function CreateOpportunityForm({
   const step1Errors: Record<string, string> = {};
   if (!name.trim()) step1Errors.name = "Give the drive a name.";
   if (isChapterScoped && !chapterId) step1Errors.chapter = "Select a chapter.";
-  if (!isOnline && !location.trim()) step1Errors.location = "Add the city & venue for an on-site drive.";
-  if (!capacity || Number(capacity) < 1) step1Errors.capacity = "Set a volunteer capacity of 1 or more.";
+  if (!isOnline && !city.trim()) step1Errors.city = "Select a city for an on-site drive.";
+  if (capacity !== undefined && Number(capacity) < 1) step1Errors.capacity = "Set a volunteer capacity of 1 or more.";
   if (!applicationOpenAt) step1Errors.applicationOpenAt = "Pick a date.";
   if (!applicationDeadline) step1Errors.applicationDeadline = "Pick a date.";
   if (!activityStartAt) step1Errors.activityStartAt = "Pick a date.";
@@ -563,99 +612,106 @@ export function CreateOpportunityForm({
               <label htmlFor="oppType" className="form-label">
                 Type
               </label>
-              <select
+              <Select
                 id="oppType"
-                className="form-select"
                 value={type}
-                onChange={(e) => setType(e.target.value)}
-              >
-                <option value="community">Community Support &amp; Welfare</option>
-                <option value="education">Education &amp; Academic Tutoring</option>
-                <option value="environment">Environment &amp; Climate Action</option>
-                <option value="health">Healthcare &amp; Emergency Relief</option>
-              </select>
+                onChange={setType}
+                options={TYPE_OPTIONS}
+              />
             </div>
 
             <div className="form-group">
               <label htmlFor="oppChapter" className="form-label">
                 Chapter
               </label>
-              {isEditMode ? (
-                <input
-                  id="oppChapter"
-                  className="form-input"
-                  value={
-                    initialOpportunity?.chapterId
-                      ? chapters.find((c) => c.id === initialOpportunity?.chapterId)?.name ??
-                        initialOpportunity.chapterId
-                      : "Org-wide (no chapter)"
-                  }
-                  readOnly
-                  disabled
-                />
-              ) : (
-                <>
-                  <select
-                    id="oppChapter"
-                    className={`form-select${errClass("chapter")}`}
-                    value={chapterId}
-                    onChange={(e) => setChapterId(e.target.value)}
-                    required={isChapterScoped}
-                  >
-                    {!isChapterScoped && <option value="">Org-wide (no chapter)</option>}
-                    {chapterOptions.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                  {fieldError("chapter")}
-                </>
-              )}
+              <Select
+                id="oppChapter"
+                value={chapterId}
+                onChange={setChapterId}
+                options={chapterSelectOptions}
+              />
+              {fieldError("chapter")}
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="form-group">
-              <label htmlFor="oppDeliveryFormat" className="form-label">Delivery Format</label>
-              <select
-                id="oppDeliveryFormat"
-                className="form-select"
-                value={isOnline ? "online" : "onsite"}
-                onChange={(e) => setIsOnline(e.target.value === "online")}
-              >
-                <option value="onsite">On-Site (Physical Venue)</option>
-                <option value="online">Virtual / Online Volunteer Role</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="oppLocation" className="form-label">City &amp; Venue</label>
-              <div className={showStep1Errors && step1Errors.location ? "field-invalid" : undefined}>
-                <CityCombobox
-                  id="oppLocation"
-                  value={isOnline ? "N/A" : location}
-                  onChange={(c) => setLocation(c)}
-                  disabled={isOnline}
+          {isOnline ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-group">
+                <label htmlFor="oppDeliveryFormat" className="form-label">Delivery Format</label>
+                <Select
+                  id="oppDeliveryFormat"
+                  value="online"
+                  onChange={(val) => setIsOnline(val === "online")}
+                  options={DELIVERY_FORMAT_OPTIONS}
                 />
               </div>
-              {fieldError("location")}
-            </div>
 
-            <div className="form-group">
-              <label htmlFor="oppCapacity" className="form-label">Target Volunteer Capacity</label>
-              <input
-                id="oppCapacity"
-                type="number"
-                className={`form-input font-mono${errClass("capacity")}`}
-                value={capacity ?? ""}
-                onChange={(e) => setCapacity(e.target.value === "" ? undefined : Number(e.target.value))}
-                min="1"
-                max="5000"
-              />
-              {fieldError("capacity")}
+              <div className="form-group">
+                <label htmlFor="oppCapacity" className="form-label">Target Volunteer Capacity (Optional)</label>
+                <input
+                  id="oppCapacity"
+                  type="number"
+                  className={`form-input font-mono${errClass("capacity")}`}
+                  value={capacity ?? ""}
+                  onChange={(e) => setCapacity(e.target.value === "" ? undefined : Number(e.target.value))}
+                  min="1"
+                  max="5000"
+                  placeholder="Unlimited if left blank"
+                />
+                {fieldError("capacity")}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="form-group">
+                <label htmlFor="oppDeliveryFormat" className="form-label">Delivery Format</label>
+                <Select
+                  id="oppDeliveryFormat"
+                  value="onsite"
+                  onChange={(val) => setIsOnline(val === "online")}
+                  options={DELIVERY_FORMAT_OPTIONS}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="oppCity" className="form-label">City</label>
+                <div className={showStep1Errors && step1Errors.city ? "field-invalid" : undefined}>
+                  <CityCombobox
+                    id="oppCity"
+                    value={city}
+                    onChange={(c) => setCity(c)}
+                  />
+                </div>
+                {fieldError("city")}
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="oppVenue" className="form-label">Venue (Optional)</label>
+                <input
+                  id="oppVenue"
+                  className="form-input"
+                  value={venue}
+                  onChange={(e) => setVenue(e.target.value)}
+                  placeholder="e.g. Al-Hamra Hall / Sector F-7"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="oppCapacity" className="form-label">Target Volunteer Capacity (Optional)</label>
+                <input
+                  id="oppCapacity"
+                  type="number"
+                  className={`form-input font-mono${errClass("capacity")}`}
+                  value={capacity ?? ""}
+                  onChange={(e) => setCapacity(e.target.value === "" ? undefined : Number(e.target.value))}
+                  min="1"
+                  max="5000"
+                  placeholder="Unlimited if left blank"
+                />
+                {fieldError("capacity")}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="form-group">
@@ -692,7 +748,7 @@ export function CreateOpportunityForm({
               {fieldError("activityStartAt")}
             </div>
             <div className="form-group">
-              <label htmlFor="oppDriveEnd" className="form-label">Drive End Date <span className="font-normal text-[var(--ink-3)]">(optional — leave blank for an ongoing drive)</span></label>
+              <label htmlFor="oppDriveEnd" className="form-label">Drive End Date (Optional)</label>
               <input
                 id="oppDriveEnd"
                 type="date"
@@ -887,19 +943,12 @@ export function CreateOpportunityForm({
                   placeholder="Question text / prompt"
                 />
 
-                <select
-                  className="filter-select text-xs font-semibold"
+                <Select
+                  className="w-48 text-xs font-semibold"
                   value={field.type}
-                  onChange={(e) => handleFieldChange(idx, { type: e.target.value as FieldType })}
-                >
-                  <option value="short_text">Short Answer</option>
-                  <option value="long_text">Paragraph / Long Text</option>
-                  <option value="select">Dropdown Choice</option>
-                  <option value="multiselect">Multiple Choice (Checkboxes)</option>
-                  <option value="radio">Single Choice (Radio)</option>
-                  <option value="date">Date Picker</option>
-                  <option value="file">File / Document Upload</option>
-                </select>
+                  onChange={(v) => handleFieldChange(idx, { type: v as FieldType })}
+                  options={FIELD_TYPE_OPTIONS}
+                />
               </div>
 
               {/* Subtitle / Help text */}
@@ -1011,7 +1060,8 @@ export function CreateOpportunityForm({
               opportunity={{
                 name,
                 type,
-                city: location || undefined,
+                city: isOnline ? undefined : (city || undefined),
+                venue: isOnline ? undefined : (venue || undefined),
                 isOnline,
                 description: description || undefined,
                 about: about || undefined,
