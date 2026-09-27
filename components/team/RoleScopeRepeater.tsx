@@ -1,6 +1,7 @@
 "use client";
 
 import { Select } from "@/components/ui/Select";
+import type { RoleAssignmentInput } from "@/lib/platformFunctions";
 
 const ORG_WIDE_LABEL = "National / All Chapters";
 
@@ -22,7 +23,7 @@ export function makeRoleScopeRow(roleId: string): RoleScopeRow {
   };
 }
 
-export function rowsToAssignmentPayload(rows: RoleScopeRow[]) {
+export function rowsToAssignmentPayload(rows: RoleScopeRow[]): RoleAssignmentInput[] {
   return rows.map((r) => ({
     roleId: r.roleId,
     scopeKind: r.scopeKind,

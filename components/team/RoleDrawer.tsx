@@ -5,7 +5,7 @@ import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { createCustomRole, updateCustomRole } from "@/lib/platformFunctions";
 import {
-  CAPABILITY_KEYS, CAPABILITY_META, RESTRICTED_GRID, permissionKeysToGrid,
+  CAPABILITY_KEYS, CAPABILITY_META, RESTRICTED_GRID, permissionKeysToGrid, gridToPermissionKeys,
   type CapabilityGrid, type CapabilityKey, type CapabilityLevel,
 } from "@/lib/capabilityMap";
 import { LoadingButton } from "@/components/ui/LoadingButton";
@@ -15,6 +15,81 @@ const LEVEL_LABEL: Record<CapabilityLevel, string> = {
   granted: "Granted", read_only: "Read Only", restricted: "Restricted",
 };
 
+export interface RoleTemplate {
+  name: string;
+  description: string;
+  capabilities: CapabilityGrid;
+}
+
+export const ROLE_TEMPLATES: RoleTemplate[] = [
+  {
+    name: "Super Admin",
+    description: "Full platform control and unconstrained administrative privileges across all operational modules.",
+    capabilities: {
+      drive: "granted",
+      publish: "granted",
+      triage: "granted",
+      hours: "granted",
+      team: "granted",
+    },
+  },
+  {
+    name: "Org Admin",
+    description: "Full operational permissions and organization-wide team governance.",
+    capabilities: {
+      drive: "granted",
+      publish: "granted",
+      triage: "granted",
+      hours: "granted",
+      team: "granted",
+    },
+  },
+  {
+    name: "Operations Lead",
+    description: "Oversees local chapter operations, drive execution, applicant selection, and field shift oversight.",
+    capabilities: {
+      drive: "granted",
+      publish: "granted",
+      triage: "granted",
+      hours: "granted",
+      team: "restricted",
+    },
+  },
+  {
+    name: "Drive Coordinator",
+    description: "Manages on-ground drive shifts, volunteer gate attendance, and direct shift hours logging.",
+    capabilities: {
+      drive: "granted",
+      publish: "restricted",
+      triage: "granted",
+      hours: "granted",
+      team: "restricted",
+    },
+  },
+  {
+    name: "Application Reviewer",
+    description: "Screens and shortlists volunteer applicants, assesses question responses, and assigns candidate statuses.",
+    capabilities: {
+      drive: "restricted",
+      publish: "restricted",
+      triage: "granted",
+      hours: "restricted",
+      team: "restricted",
+    },
+  },
+  {
+    name: "Auditor",
+    description: "Read-only compliance officer auditing hours logs, certifications, and operational activity records.",
+    capabilities: {
+      drive: "restricted",
+      publish: "restricted",
+      triage: "read_only",
+      hours: "read_only",
+      team: "restricted",
+    },
+  },
+];
+
 export function RoleDrawer({
   request, onClose,
 }: {
@@ -23,7 +98,22 @@ export function RoleDrawer({
 }) {
   const { organizationId, accessToken, moduleId, roles, refresh } = useTeamAccess();
   const { showToast } = useToast();
-  const source = request?.roleId ? roles.find((r) => r.id === request.roleId) ?? null : null;
+  const source = request?.roleId
+    ? roles.find((r) => r.id === request.roleId)
+      ?? (() => {
+        const tmpl = ROLE_TEMPLATES.find(
+          (t) => t.name === request.roleId || `template-${t.name}` === request.roleId || t.name.toLowerCase() === request.roleId?.toLowerCase(),
+        );
+        if (!tmpl) return null;
+        return {
+          id: request.roleId,
+          name: tmpl.name,
+          description: tmpl.description,
+          isSystem: true,
+          permissionKeys: gridToPermissionKeys(tmpl.capabilities),
+        };
+      })()
+    : null;
   const readOnly = request?.mode === "view";
 
   const [name, setName] = useState("");
@@ -51,19 +141,43 @@ export function RoleDrawer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [request, source?.id]);
 
-  const templateOptions = useMemo(() => roles.filter((r) => r.isSystem), [roles]);
+  const templateOptions = useMemo(() => {
+    const list: Array<{ id: string; name: string }> = [];
+    const seen = new Set<string>();
+    for (const r of roles) {
+      if (r.isSystem) {
+        list.push({ id: r.id, name: r.name });
+        seen.add(r.name.toLowerCase());
+      }
+    }
+    for (const tmpl of ROLE_TEMPLATES) {
+      if (!seen.has(tmpl.name.toLowerCase())) {
+        list.push({ id: `template-${tmpl.name}`, name: tmpl.name });
+        seen.add(tmpl.name.toLowerCase());
+      }
+    }
+    return list;
+  }, [roles]);
 
-  function applyTemplate(roleId: string) {
-    const t = roles.find((r) => r.id === roleId);
-    if (t) {
-      setGrid(permissionKeysToGrid(t.permissionKeys));
-      if (!description) setDescription(t.description ?? "");
+  function applyTemplate(roleIdOrKey: string) {
+    const fromRoles = roles.find((r) => r.id === roleIdOrKey || r.name === roleIdOrKey);
+    if (fromRoles) {
+      setGrid(permissionKeysToGrid(fromRoles.permissionKeys));
+      if (!description) setDescription(fromRoles.description ?? "");
+      return;
+    }
+    const fromTmpl = ROLE_TEMPLATES.find(
+      (t) => t.name === roleIdOrKey || `template-${t.name}` === roleIdOrKey,
+    );
+    if (fromTmpl) {
+      setGrid(fromTmpl.capabilities);
+      if (!description) setDescription(fromTmpl.description);
     }
   }
 
-  function handleTemplateChange(roleId: string) {
-    setSelectedTemplate(roleId);
-    if (roleId) applyTemplate(roleId);
+  function handleTemplateChange(templateKey: string) {
+    setSelectedTemplate(templateKey);
+    if (templateKey) applyTemplate(templateKey);
   }
 
   async function save() {

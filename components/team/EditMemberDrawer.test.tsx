@@ -81,4 +81,24 @@ describe("EditMemberDrawer", () => {
     await user.click(screen.getByRole("button", { name: /Remove from Team/i }));
     await waitFor(() => expect(removeMember).toHaveBeenCalledWith({ staffId: "m1", organizationId: "org-1" }, "access-token"));
   });
+
+  it("persists chapter-scoped assignments with chapterId and scopeLabel", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<EditMemberDrawer memberId="m1" onClose={onClose} />);
+
+    await user.click(screen.getByRole("combobox", { name: "Scope" }));
+    await user.click(screen.getByRole("option", { name: "Lahore Chapter" }));
+    await user.click(screen.getByRole("button", { name: /Save Changes/i }));
+
+    await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
+    const [payload] = updateAccess.mock.calls[0];
+    expect(payload.roles[0]).toEqual({
+      roleId: "r1",
+      scopeKind: "chapter",
+      chapterId: "c1",
+      scopeLabel: "Lahore Chapter",
+    });
+    expect(onClose).toHaveBeenCalled();
+  });
 });

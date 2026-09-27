@@ -85,12 +85,14 @@ export function assignStaffOrgRole(payload: AssignStaffOrgRolePayload, accessTok
   return callFunction<AssignStaffOrgRoleResponse>("assign-staff-org-role", payload, accessToken);
 }
 
-export interface RoleAssignmentPayload {
+export interface RoleAssignmentInput {
   roleId: string;
   scopeKind: "org_wide" | "chapter";
   chapterId?: string | null;
   scopeLabel: string;
 }
+
+export type RoleAssignmentPayload = RoleAssignmentInput;
 
 export interface InviteStaffMemberPayload {
   organizationId: string;

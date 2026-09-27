@@ -373,7 +373,7 @@ export function AppShell({
     orgTier === "admin" ||
     orgTier === "super_admin" ||
     platformOwner ||
-    userRoles.some((r) => ["super admin", "admin"].includes(r.toLowerCase()));
+    userRoles.some((r) => ["super admin", "admin", "org admin", "organization admin"].includes(r.toLowerCase()));
 
   const showOrganizationsNav = Boolean(claims) && platformOwner;
 

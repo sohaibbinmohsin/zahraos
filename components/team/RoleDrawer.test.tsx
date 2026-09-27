@@ -76,4 +76,29 @@ describe("RoleDrawer", () => {
     await user.click(screen.getByRole("option", { name: "Clone from Operations Lead" }));
     expect(screen.getByRole("combobox", { name: "Approve Hours" })).toHaveTextContent("Granted");
   });
+
+  it("applies the Org Admin template with full capabilities across all modules", async () => {
+    const user = userEvent.setup();
+    render(<RoleDrawer request={{ mode: "create", roleId: null }} onClose={vi.fn()} />);
+    await user.click(screen.getByRole("combobox", { name: "Base Permission Template" }));
+    await user.click(screen.getByRole("option", { name: "Clone from Org Admin" }));
+
+    expect(screen.getByRole("combobox", { name: "Drive Creation" })).toHaveTextContent("Granted");
+    expect(screen.getByRole("combobox", { name: "Publish Noticeboard" })).toHaveTextContent("Granted");
+    expect(screen.getByRole("combobox", { name: "Triage Apps" })).toHaveTextContent("Granted");
+    expect(screen.getByRole("combobox", { name: "Approve Hours" })).toHaveTextContent("Granted");
+    expect(screen.getByRole("combobox", { name: "Team Management" })).toHaveTextContent("Granted");
+  });
+
+  it("opens the Org Admin role in view mode as a protected system specification", () => {
+    render(<RoleDrawer request={{ mode: "view", roleId: "Org Admin" }} onClose={vi.fn()} />);
+    expect(screen.getByText("System Role Specification")).toBeInTheDocument();
+    expect((screen.getByLabelText(/Role Title/i) as HTMLInputElement).value).toBe("Org Admin");
+    expect(screen.getByRole("combobox", { name: "Drive Creation" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Publish Noticeboard" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Triage Apps" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Approve Hours" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Team Management" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Save Role/i })).not.toBeInTheDocument();
+  });
 });

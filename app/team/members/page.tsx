@@ -10,7 +10,7 @@ import { StatGridSkeleton, TableSkeleton } from "@/components/ui/skeletons";
 
 const LEAD_ROLES = ["Operations Lead", "Drive Coordinator", "Regional Logistics Lead"];
 const REVIEWER_ROLES = ["Application Reviewer", "Auditor"];
-const ADMIN_ROLES = ["Super Admin"];
+const ADMIN_ROLES = ["Super Admin", "Org Admin"];
 
 export default function TeamMembersPage() {
   const { members, roles, chapters, loading, error } = useTeamAccess();
