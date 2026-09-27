@@ -32,10 +32,11 @@ describe("YouthRepublicOpportunitiesPage", () => {
     });
   });
 
-  it("lists opportunities with their computed status", async () => {
+  it("lists opportunities with their computed status and capitalized type tag", async () => {
     renderWithSwr(<YouthRepublicOpportunitiesPage />);
     expect(await screen.findByText("Beach Cleanup")).toBeInTheDocument();
     expect(screen.getAllByText("Open").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Environment").length).toBeGreaterThan(0);
   });
 
   it("refreshes the list after a new opportunity is created", async () => {
@@ -44,11 +45,13 @@ describe("YouthRepublicOpportunitiesPage", () => {
     expect(youthRepublicFunctions.listOpportunities).toHaveBeenCalledTimes(1);
   });
 
-  it("renders status filter with custom Select card", async () => {
+  it("renders status and type filters with custom Select cards", async () => {
     renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Beach Cleanup");
     expect(screen.getByRole("combobox", { name: "Filter by status" })).toBeInTheDocument();
     expect(screen.getByText("All Statuses")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filter by type" })).toBeInTheDocument();
+    expect(screen.getByText("All Types")).toBeInTheDocument();
   });
 
   it("filters drives by status dropdown", async () => {
@@ -107,6 +110,64 @@ describe("YouthRepublicOpportunitiesPage", () => {
     // Open Drive is filtered out, Completed Drive remains
     expect(screen.queryByText("Open Drive")).not.toBeInTheDocument();
     expect(screen.getByText("Completed Drive")).toBeInTheDocument();
+  });
+
+  it("filters drives by type dropdown", async () => {
+    vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+      opportunities: [
+        {
+          id: "opp-comm",
+          name: "Community Food Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "community",
+          city: "Lahore",
+          online: false,
+          computedStatus: "open",
+          description: "Distribute meals",
+          capacity: 10,
+          filledCount: 2,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        },
+        {
+          id: "opp-edu",
+          name: "Education Tutoring",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "education",
+          city: "Lahore",
+          online: false,
+          computedStatus: "open",
+          description: "Teach children",
+          capacity: null,
+          filledCount: 5,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        },
+      ],
+      total: 2,
+      facets: { cities: [], orgs: [] },
+    });
+
+    const user = userEvent.setup();
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Community Food Drive");
+    expect(screen.getByText("Education Tutoring")).toBeInTheDocument();
+
+    // Select Education type filter
+    const trigger = screen.getByRole("combobox", { name: "Filter by type" });
+    await user.click(trigger);
+    const eduOpt = await screen.findByRole("option", { name: "Education" });
+    await user.click(eduOpt);
+
+    // Community drive is filtered out, Education remains
+    expect(screen.queryByText("Community Food Drive")).not.toBeInTheDocument();
+    expect(screen.getByText("Education Tutoring")).toBeInTheDocument();
   });
 
   it("filters drives by Applications closed and shows Live pill on in-progress drives", async () => {

@@ -23,6 +23,21 @@ type EditTarget = NonNullable<
   React.ComponentProps<typeof CreateOpportunityForm>["initialOpportunity"]
 >;
 
+const TYPE_FILTER_OPTIONS: SelectOption[] = [
+  { value: "all", label: "All Types" },
+  { value: "community", label: "Community" },
+  { value: "education", label: "Education" },
+  { value: "environment", label: "Environment" },
+  { value: "health", label: "Health" },
+];
+
+const TYPE_LABELS: Record<string, string> = {
+  community: "Community",
+  education: "Education",
+  environment: "Environment",
+  health: "Health",
+};
+
 const STATUS_OPTIONS: SelectOption[] = [
   { value: "all", label: "All Statuses" },
   { value: "open", label: "Applications open" },
@@ -111,6 +126,7 @@ export default function YouthRepublicDrivesPage() {
   const staffToken = useShellStaffToken();
   const [busy, setBusy] = useState<{ id: string; action: "archive" | "delete" } | null>(null);
 
+  const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [statsTarget, setStatsTarget] = useState<OpportunitySummary | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -308,6 +324,10 @@ export default function YouthRepublicDrivesPage() {
   }
 
   const filteredOpportunities = opportunities.filter((opp) => {
+    if (typeFilter !== "all" && opp.type?.toLowerCase() !== typeFilter.toLowerCase()) {
+      return false;
+    }
+
     if (statusFilter === "all") return true;
     if (statusFilter === "archived") return Boolean(opp.deactivatedAt);
     if (opp.deactivatedAt) return false;
@@ -346,6 +366,12 @@ export default function YouthRepublicDrivesPage() {
         </div>
         <div className="page-toolbar flex items-center gap-3">
           <Select
+            aria-label="Filter by type"
+            value={typeFilter}
+            onChange={setTypeFilter}
+            options={TYPE_FILTER_OPTIONS}
+          />
+          <Select
             aria-label="Filter by status"
             value={statusFilter}
             onChange={setStatusFilter}
@@ -378,7 +404,7 @@ export default function YouthRepublicDrivesPage() {
               <div key={opp.id} className="opp-card" style={archived ? { opacity: 0.6 } : undefined}>
                 <div>
                   <div className="opp-head">
-                    <span className={`type-pill ${opp.type}`}>{opp.type}</span>
+                    <span className={`type-pill ${opp.type}`}>{TYPE_LABELS[opp.type] ?? opp.type}</span>
                     <span className={`badge ${pill.cls}`}>{pill.label}</span>
                   </div>
 

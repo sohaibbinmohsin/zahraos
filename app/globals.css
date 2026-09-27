@@ -915,7 +915,7 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 600;
   letter-spacing: .02em;
   border: 1px solid transparent;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .badge-pos { background: var(--st-pos-bg); color: var(--st-pos-fg); border-color: var(--st-pos-bd); }
@@ -933,8 +933,8 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 99px;
   font-size: var(--text-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: .04em;
+  text-transform: capitalize;
+  letter-spacing: .02em;
 }
 
 /* Youth Republic type colours: community=orange, education=blue,
