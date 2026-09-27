@@ -25,11 +25,11 @@ type EditTarget = NonNullable<
 
 const STATUS_OPTIONS: SelectOption[] = [
   { value: "all", label: "All Statuses" },
-  { value: "open", label: "Open" },
+  { value: "open", label: "Applications open" },
+  { value: "closed", label: "Applications closed" },
   { value: "in_progress", label: "In Progress" },
   { value: "coming_soon", label: "Coming Soon" },
   { value: "completed", label: "Completed" },
-  { value: "closed", label: "Closed" },
   { value: "draft", label: "Draft" },
   { value: "archived", label: "Archived" },
 ];
@@ -45,7 +45,7 @@ function fmtDateRange(start: string | null, end: string | null): string | null {
 }
 
 // The top-right pill is the *lifecycle / application* status; the brand-gold
-// blinking dot on the title separately marks a drive that is running now.
+// LIVE tag on the title separately marks a drive that is running now.
 // An in-progress drive can still have applications open or closed, so the two
 // are independent. Coming-soon / completed / archived always imply closed
 // applications, so their pill is just the lifecycle label.
@@ -66,17 +66,22 @@ function cardStatus(
     case "coming_soon":
       return { pill: { label: "Coming Soon", cls: "badge-pend" }, running: false };
     case "closed":
-      return { pill: { label: "Closed", cls: "badge-neu" }, running: false };
+      return { pill: { label: "Applications closed", cls: "badge-neu" }, running: false };
     case "in_progress":
       return {
         pill: deadlinePassed
-          ? { label: "Closed", cls: "badge-neu" }
-          : { label: "Open", cls: "badge-pos" },
+          ? { label: "Applications closed", cls: "badge-neu" }
+          : { label: "Applications open", cls: "badge-pos" },
         running: true,
       };
     case "open":
     default:
-      return { pill: { label: "Open", cls: "badge-pos" }, running: false };
+      return {
+        pill: deadlinePassed
+          ? { label: "Applications closed", cls: "badge-neu" }
+          : { label: "Applications open", cls: "badge-pos" },
+        running: false,
+      };
   }
 }
 
@@ -307,6 +312,26 @@ export default function YouthRepublicDrivesPage() {
     if (statusFilter === "archived") return Boolean(opp.deactivatedAt);
     if (opp.deactivatedAt) return false;
     if (statusFilter === "draft") return opp.computedStatus === "draft";
+    if (statusFilter === "completed") return opp.computedStatus === "completed";
+    if (statusFilter === "coming_soon") return opp.computedStatus === "coming_soon";
+    if (statusFilter === "in_progress") return opp.computedStatus === "in_progress";
+
+    const deadlinePassed = opp.applicationDeadline
+      ? new Date(opp.applicationDeadline).getTime() < Date.now()
+      : false;
+
+    if (statusFilter === "open") {
+      return (opp.computedStatus === "open" || opp.computedStatus === "in_progress") && !deadlinePassed;
+    }
+
+    if (statusFilter === "closed") {
+      if (opp.computedStatus === "closed") return true;
+      if (deadlinePassed && opp.computedStatus !== "draft" && opp.computedStatus !== "completed" && opp.computedStatus !== "coming_soon") {
+        return true;
+      }
+      return false;
+    }
+
     return opp.computedStatus === statusFilter;
   });
 
@@ -360,7 +385,9 @@ export default function YouthRepublicDrivesPage() {
                   <div className="opp-title">
                     {opp.name}
                     {running && (
-                      <span className="live-dot" aria-hidden="true" title="Drive in progress" />
+                      <span className="live-tag" title="Drive in progress">
+                        LIVE
+                      </span>
                     )}
                   </div>
                   {opp.description && <div className="opp-lead">{opp.description}</div>}

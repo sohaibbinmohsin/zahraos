@@ -35,7 +35,7 @@ describe("YouthRepublicOpportunitiesPage", () => {
   it("lists opportunities with their computed status", async () => {
     renderWithSwr(<YouthRepublicOpportunitiesPage />);
     expect(await screen.findByText("Beach Cleanup")).toBeInTheDocument();
-    expect(screen.getAllByText("Open").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Applications open").length).toBeGreaterThan(0);
   });
 
   it("refreshes the list after a new opportunity is created", async () => {
@@ -107,6 +107,84 @@ describe("YouthRepublicOpportunitiesPage", () => {
     // Open Drive is filtered out, Completed Drive remains
     expect(screen.queryByText("Open Drive")).not.toBeInTheDocument();
     expect(screen.getByText("Completed Drive")).toBeInTheDocument();
+  });
+
+  it("filters drives by Applications closed and shows LIVE tag on in-progress drives", async () => {
+    vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+      opportunities: [
+        {
+          id: "opp-live-closed",
+          name: "Live Drive Closed Apps",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "community",
+          city: "Lahore",
+          online: false,
+          computedStatus: "in_progress",
+          description: "Running drive with closed apps",
+          capacity: 10,
+          filledCount: 10,
+          applicationDeadline: "2020-01-01T00:00:00Z", // passed deadline
+          activityStartAt: "2020-01-02T00:00:00Z",
+          activityEndAt: "2099-01-01T00:00:00Z",
+          deactivatedAt: null,
+        },
+        {
+          id: "opp-standard-closed",
+          name: "Standard Closed Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "education",
+          city: "Karachi",
+          online: false,
+          computedStatus: "closed",
+          description: "Closed drive",
+          capacity: null,
+          filledCount: 0,
+          applicationDeadline: "2020-01-01T00:00:00Z",
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        },
+        {
+          id: "opp-open",
+          name: "Active Open Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "health",
+          city: "Islamabad",
+          online: false,
+          computedStatus: "open",
+          description: "Open drive",
+          capacity: 20,
+          filledCount: 2,
+          applicationDeadline: "2099-01-01T00:00:00Z",
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        },
+      ],
+      total: 3,
+      facets: { cities: [], orgs: [] },
+    });
+
+    const user = userEvent.setup();
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Live Drive Closed Apps");
+
+    // Live drive has LIVE tag
+    expect(screen.getByText("LIVE")).toBeInTheDocument();
+
+    // Select Applications closed status filter
+    const trigger = screen.getByRole("combobox", { name: "Filter by status" });
+    await user.click(trigger);
+    const closedOpt = await screen.findByRole("option", { name: "Applications closed" });
+    await user.click(closedOpt);
+
+    // Both closed drives are shown, active open drive is hidden
+    expect(screen.getByText("Live Drive Closed Apps")).toBeInTheDocument();
+    expect(screen.getByText("Standard Closed Drive")).toBeInTheDocument();
+    expect(screen.queryByText("Active Open Drive")).not.toBeInTheDocument();
   });
 
   it("renders Impact & Stats button instead of View Applicants on completed drives and opens modal", async () => {

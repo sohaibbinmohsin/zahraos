@@ -686,7 +686,7 @@ export function CreateOpportunityForm({
               </div>
 
               <div className="form-group">
-                <label htmlFor="oppVenue" className="form-label">Venue</label>
+                <label htmlFor="oppVenue" className="form-label">Venue (Optional)</label>
                 <input
                   id="oppVenue"
                   className="form-input"
@@ -748,7 +748,7 @@ export function CreateOpportunityForm({
               {fieldError("activityStartAt")}
             </div>
             <div className="form-group">
-              <label htmlFor="oppDriveEnd" className="form-label">Drive End Date <span className="font-normal text-[var(--ink-3)]">(optional — leave blank for an ongoing drive)</span></label>
+              <label htmlFor="oppDriveEnd" className="form-label">Drive End Date (Optional)</label>
               <input
                 id="oppDriveEnd"
                 type="date"
@@ -1061,6 +1061,7 @@ export function CreateOpportunityForm({
                 name,
                 type,
                 city: isOnline ? undefined : (city || undefined),
+                venue: isOnline ? undefined : (venue || undefined),
                 isOnline,
                 description: description || undefined,
                 about: about || undefined,

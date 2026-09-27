@@ -265,7 +265,7 @@ describe("CreateOpportunityForm", () => {
     // Initially onsite: city and venue inputs are visible
     const cityInput = screen.getByLabelText("City");
     expect(cityInput).toBeInTheDocument();
-    expect(screen.getByLabelText("Venue")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Venue/i)).toBeInTheDocument();
 
     // Type to filter cities
     await user.type(cityInput, "Laho");
@@ -276,12 +276,12 @@ describe("CreateOpportunityForm", () => {
     // Switch to Virtual / Online Volunteer Role
     await selectCustomOption(user, "Delivery Format", "Virtual / Online Volunteer Role");
     expect(screen.queryByLabelText("City")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Venue")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Venue/i)).not.toBeInTheDocument();
 
     // Switch back to onsite
     await selectCustomOption(user, "Delivery Format", "On-Site (Physical Venue)");
     expect(screen.getByLabelText("City")).toBeInTheDocument();
-    expect(screen.getByLabelText("Venue")).toBeInTheDocument();
+    expect(screen.getByLabelText(/Venue/i)).toBeInTheDocument();
   });
 
   it("ensures Step 1 bottom action buttons container is right-aligned", () => {
