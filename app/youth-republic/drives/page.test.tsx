@@ -44,11 +44,130 @@ describe("YouthRepublicOpportunitiesPage", () => {
     expect(youthRepublicFunctions.listOpportunities).toHaveBeenCalledTimes(1);
   });
 
-  it("does not render search or status filters", async () => {
+  it("renders status filter with custom Select card", async () => {
     renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Beach Cleanup");
-    expect(screen.queryByPlaceholderText(/Search by name/i)).not.toBeInTheDocument();
-    expect(screen.queryByText("All Statuses")).not.toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Filter by status" })).toBeInTheDocument();
+    expect(screen.getByText("All Statuses")).toBeInTheDocument();
+  });
+
+  it("filters drives by status dropdown", async () => {
+    vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+      opportunities: [
+        {
+          id: "opp-1",
+          name: "Open Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "environment",
+          city: "Lahore",
+          online: false,
+          computedStatus: "open",
+          description: "Open",
+          capacity: 10,
+          filledCount: 2,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        },
+        {
+          id: "opp-2",
+          name: "Completed Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "environment",
+          city: "Lahore",
+          online: false,
+          computedStatus: "completed",
+          description: "Completed",
+          capacity: null,
+          filledCount: 5,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        },
+      ],
+      total: 2,
+      facets: { cities: [], orgs: [] },
+    });
+
+    const user = userEvent.setup();
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Open Drive");
+    expect(screen.getByText("Completed Drive")).toBeInTheDocument();
+
+    // Select Completed status
+    const trigger = screen.getByRole("combobox", { name: "Filter by status" });
+    await user.click(trigger);
+    const completedOpt = await screen.findByRole("option", { name: "Completed" });
+    await user.click(completedOpt);
+
+    // Open Drive is filtered out, Completed Drive remains
+    expect(screen.queryByText("Open Drive")).not.toBeInTheDocument();
+    expect(screen.getByText("Completed Drive")).toBeInTheDocument();
+  });
+
+  it("renders Impact & Stats button instead of View Applicants on completed drives and opens modal", async () => {
+    vi.mocked(youthRepublicFunctions.listActivityHours).mockResolvedValue({
+      activity: [
+        {
+          id: "act-1",
+          volunteerName: "Ali",
+          opportunityName: "Tree Plantation Drive",
+          activityType: "environment",
+          role: null,
+          activityDate: "2026-05-01",
+          hoursSubmitted: 4,
+          hoursVerified: 4,
+          verificationStatus: "verified",
+          adminNotes: null,
+        },
+      ],
+      total: 1,
+    });
+    vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+      opportunities: [
+        {
+          id: "opp-completed",
+          name: "Tree Plantation Drive",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "environment",
+          city: "Lahore",
+          online: false,
+          computedStatus: "completed",
+          description: "All trees planted",
+          capacity: null,
+          filledCount: 15,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+          impactStats: { fundsCollected: "PKR 50,000" },
+        },
+      ],
+      total: 1,
+      facets: { cities: [], orgs: [] },
+    });
+
+    const user = userEvent.setup();
+    renderWithSwr(<YouthRepublicOpportunitiesPage />);
+    await screen.findByText("Tree Plantation Drive");
+
+    // Capacity is null, so capacity row and fill bar should NOT be shown
+    expect(screen.queryByText(/Capacity:/i)).not.toBeInTheDocument();
+
+    // Completed drive should have Impact & Stats button instead of View Applicants
+    expect(screen.queryByRole("link", { name: /View Applicants/i })).not.toBeInTheDocument();
+    const statsBtn = screen.getByRole("button", { name: /Impact & Stats/i });
+    expect(statsBtn).toBeInTheDocument();
+
+    // Click Impact & Stats
+    await user.click(statsBtn);
+    expect(await screen.findByRole("heading", { name: "Impact & Stats" })).toBeInTheDocument();
+    expect(screen.getByDisplayValue("PKR 50,000")).toBeInTheDocument();
   });
 
   it("shows capacity, edit and view applicants in footer, without archive button for active cards", async () => {

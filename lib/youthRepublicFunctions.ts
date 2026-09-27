@@ -96,7 +96,9 @@ export interface OpportunitySummary {
   orgName: string;
   orgLogoUrl: string | null;
   type: string;
+  chapterId?: string | null;
   city: string | null;
+  venue?: string | null;
   online: boolean;
   computedStatus: string;
   description: string | null;
@@ -106,6 +108,7 @@ export interface OpportunitySummary {
   activityStartAt: string | null;
   activityEndAt: string | null;
   deactivatedAt: string | null;
+  impactStats?: Record<string, unknown> | null;
 }
 export interface ListOpportunitiesPayload {
   organizationId: string;
@@ -141,7 +144,10 @@ export interface OpportunityDetail {
   eligibility: string[];
   whatToBring: string[];
   type: string;
+  chapterId?: string | null;
   location: string | null;
+  city?: string | null;
+  venue?: string | null;
   isOnline: boolean;
   applicationOpenAt: string | null;
   applicationDeadline: string | null;
@@ -154,6 +160,7 @@ export interface OpportunityDetail {
   orgAbout: string | null;
   orgLogoUrl: string | null;
   applicationForm: FormDefinition;
+  impactStats?: Record<string, unknown> | null;
 }
 export function getOpportunityDetail(payload: { opportunityId: string }, staffToken: string) {
   return callYouthRepublicFunction<OpportunityDetail>("get-opportunity-detail", payload, staffToken);
@@ -251,6 +258,8 @@ export interface CreateOpportunityPayload {
   chapterId?: string | null;
   description?: string;
   location?: string | null;
+  city?: string | null;
+  venue?: string | null;
   isOnline?: boolean;
   applicationOpenAt?: string;
   applicationDeadline?: string;
@@ -261,7 +270,7 @@ export interface CreateOpportunityPayload {
   eligibility?: string[];
   whatToBring?: string[];
   applicationForm?: FormDefinition;
-  capacity?: number;
+  capacity?: number | null;
   /** e.g. "draft" to create the opportunity hidden from the noticeboard. */
   statusOverride?: string;
 }
@@ -273,9 +282,12 @@ export interface UpdateOpportunityPayload {
   opportunityId: string;
   organizationId: string;
   name?: string;
+  type?: string;
   chapterId?: string | null;
   description?: string;
   location?: string | null;
+  city?: string | null;
+  venue?: string | null;
   isOnline?: boolean;
   applicationOpenAt?: string;
   applicationDeadline?: string;
@@ -286,10 +298,11 @@ export interface UpdateOpportunityPayload {
   eligibility?: string[];
   whatToBring?: string[];
   applicationForm?: FormDefinition;
-  capacity?: number;
+  capacity?: number | null;
   statusOverride?: string;
   deactivatedAt?: string | null;
   hardDelete?: boolean;
+  impactStats?: Record<string, unknown> | null;
 }
 export function updateOpportunity(payload: UpdateOpportunityPayload, staffToken: string) {
   return callYouthRepublicFunction<{ opportunityId: string }>("update-opportunity", payload, staffToken);

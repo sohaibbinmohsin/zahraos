@@ -12,6 +12,8 @@ import {
 import useSWR from "swr";
 import { useSelectedOrg, useShellAccessToken, useShellStaffToken } from "@/components/shell/AppShell";
 import { CreateOpportunityForm } from "@/components/youth-republic/CreateOpportunityForm";
+import { ImpactStatsModal } from "@/components/youth-republic/ImpactStatsModal";
+import { Select, type SelectOption } from "@/components/ui/Select";
 import { useToast } from "@/components/shell/ToastContext";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { LoadingButton } from "@/components/ui/LoadingButton";
@@ -20,6 +22,17 @@ import { CardGridSkeleton } from "@/components/ui/skeletons";
 type EditTarget = NonNullable<
   React.ComponentProps<typeof CreateOpportunityForm>["initialOpportunity"]
 >;
+
+const STATUS_OPTIONS: SelectOption[] = [
+  { value: "all", label: "All Statuses" },
+  { value: "open", label: "Open" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "coming_soon", label: "Coming Soon" },
+  { value: "completed", label: "Completed" },
+  { value: "closed", label: "Closed" },
+  { value: "draft", label: "Draft" },
+  { value: "archived", label: "Archived" },
+];
 
 function fmtDateRange(start: string | null, end: string | null): string | null {
   if (!start && !end) return null;
@@ -72,8 +85,7 @@ function cardStatus(
 function publishBlockers(d: OpportunityDetail): string[] {
   const missing: string[] = [];
   if (!d.name?.trim()) missing.push("a drive name");
-  if (!d.isOnline && !d.location?.trim()) missing.push("a city & venue");
-  if (!d.capacity || d.capacity < 1) missing.push("a volunteer capacity");
+  if (!d.isOnline && !d.city?.trim() && !d.location?.trim()) missing.push("a city");
   if (!d.applicationOpenAt) missing.push("an applications-open date");
   if (!d.applicationDeadline) missing.push("an application deadline");
   if (!d.activityStartAt) missing.push("a drive start date");
@@ -94,6 +106,8 @@ export default function YouthRepublicDrivesPage() {
   const staffToken = useShellStaffToken();
   const [busy, setBusy] = useState<{ id: string; action: "archive" | "delete" } | null>(null);
 
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [statsTarget, setStatsTarget] = useState<OpportunitySummary | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   const [openingEditorId, setOpeningEditorId] = useState<string | null>(null);
@@ -127,10 +141,13 @@ export default function YouthRepublicDrivesPage() {
       const summary = opportunities.find((o) => o.id === oppId);
       setEditTarget({
         id: d.id,
+        chapterId: d.chapterId ?? undefined,
         name: d.name,
         type: d.type,
         description: d.description ?? undefined,
         location: d.location ?? undefined,
+        city: d.city ?? undefined,
+        venue: d.venue ?? undefined,
         isOnline: d.isOnline,
         capacity: d.capacity ?? undefined,
         applicationOpenAt: d.applicationOpenAt ?? undefined,
@@ -285,6 +302,14 @@ export default function YouthRepublicDrivesPage() {
     );
   }
 
+  const filteredOpportunities = opportunities.filter((opp) => {
+    if (statusFilter === "all") return true;
+    if (statusFilter === "archived") return Boolean(opp.deactivatedAt);
+    if (opp.deactivatedAt) return false;
+    if (statusFilter === "draft") return opp.computedStatus === "draft";
+    return opp.computedStatus === statusFilter;
+  });
+
   return (
     <div className="space-y-6">
       <div className="page-header">
@@ -294,7 +319,13 @@ export default function YouthRepublicDrivesPage() {
             Manage active drives, customize multi-field application forms, and track volunteer capacity.
           </div>
         </div>
-        <div className="page-toolbar">
+        <div className="page-toolbar flex items-center gap-3">
+          <Select
+            aria-label="Filter by status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={STATUS_OPTIONS}
+          />
           <button type="button" className="btn btn-primary btn-sm" onClick={() => setIsCreating(true)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19" />
@@ -309,7 +340,7 @@ export default function YouthRepublicDrivesPage() {
         <CardGridSkeleton header={false} />
       ) : (
         <div className="opp-grid">
-          {opportunities.map((opp) => {
+          {filteredOpportunities.map((opp) => {
             const cap = opp.capacity ?? null;
             const filled = opp.filledCount;
             const percent = cap && cap > 0 ? Math.min(100, Math.round((filled / cap) * 100)) : 0;
@@ -365,17 +396,17 @@ export default function YouthRepublicDrivesPage() {
                     <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--ink-3)" }}>
                       Not published yet
                     </div>
-                  ) : (
+                  ) : cap != null ? (
                     <div>
                       <div style={{ fontSize: "var(--text-xs)", fontWeight: 600, color: "var(--ink)" }}>
-                        Capacity: {cap == null ? `${filled} confirmed` : `${filled} / ${cap}`}
+                        Capacity: {`${filled} / ${cap}`}
                       </div>
-                      {cap != null && (
-                        <div style={{ width: "90px", height: "5px", background: "var(--bg-page)", borderRadius: "99px", border: "1px solid var(--line)", marginTop: "3px", overflow: "hidden" }}>
-                          <div style={{ width: `${percent}%`, height: "100%", background: "var(--brand)" }} />
-                        </div>
-                      )}
+                      <div style={{ width: "90px", height: "5px", background: "var(--bg-page)", borderRadius: "99px", border: "1px solid var(--line)", marginTop: "3px", overflow: "hidden" }}>
+                        <div style={{ width: `${percent}%`, height: "100%", background: "var(--brand)" }} />
+                      </div>
                     </div>
+                  ) : (
+                    <div />
                   )}
 
                   {archived ? (
@@ -433,6 +464,21 @@ export default function YouthRepublicDrivesPage() {
                           </span>
                           <span>Publish drive</span>
                         </LoadingButton>
+                      ) : opp.computedStatus === "completed" ? (
+                        <button
+                          type="button"
+                          className="btn btn-dark btn-xs"
+                          onClick={() => setStatsTarget(opp)}
+                        >
+                          <span className="icon-svg">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M12 20V10" />
+                              <path d="M18 20V4" />
+                              <path d="M6 20v-4" />
+                            </svg>
+                          </span>
+                          <span>Impact & Stats</span>
+                        </button>
                       ) : (
                         <Link
                           href={`/youth-republic/applications?opportunityId=${opp.id}`}
@@ -456,12 +502,26 @@ export default function YouthRepublicDrivesPage() {
         </div>
       )}
 
-      {!loading && opportunities.length === 0 && (
+      {!loading && filteredOpportunities.length === 0 && (
         <div className="panel p-8 text-center">
           <p className="text-sm text-[var(--ink-2)]">
-            No drives yet. Use “Create Drive” to add one — it will appear on the volunteer noticeboard immediately.
+            {opportunities.length === 0
+              ? "No drives yet. Use “Create Drive” to add one — it will appear on the volunteer noticeboard immediately."
+              : "No drives match the selected status filter."}
           </p>
         </div>
+      )}
+
+      {/* Impact & Stats Modal */}
+      {staffToken && (
+        <ImpactStatsModal
+          isOpen={Boolean(statsTarget)}
+          onClose={() => setStatsTarget(null)}
+          opportunity={statsTarget}
+          organizationId={organizationId}
+          staffToken={staffToken}
+          onSaved={load}
+        />
       )}
     </div>
   );
