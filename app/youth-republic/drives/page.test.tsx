@@ -35,7 +35,7 @@ describe("YouthRepublicOpportunitiesPage", () => {
   it("lists opportunities with their computed status", async () => {
     renderWithSwr(<YouthRepublicOpportunitiesPage />);
     expect(await screen.findByText("Beach Cleanup")).toBeInTheDocument();
-    expect(screen.getAllByText("Applications open").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Open").length).toBeGreaterThan(0);
   });
 
   it("refreshes the list after a new opportunity is created", async () => {
@@ -109,7 +109,7 @@ describe("YouthRepublicOpportunitiesPage", () => {
     expect(screen.getByText("Completed Drive")).toBeInTheDocument();
   });
 
-  it("filters drives by Applications closed and shows LIVE tag on in-progress drives", async () => {
+  it("filters drives by Applications closed and shows Live pill on in-progress drives", async () => {
     vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
       opportunities: [
         {
@@ -172,8 +172,8 @@ describe("YouthRepublicOpportunitiesPage", () => {
     renderWithSwr(<YouthRepublicOpportunitiesPage />);
     await screen.findByText("Live Drive Closed Apps");
 
-    // Live drive has LIVE tag
-    expect(screen.getByText("LIVE")).toBeInTheDocument();
+    // Live drive has Live pill
+    expect(screen.getByText("Live")).toBeInTheDocument();
 
     // Select Applications closed status filter
     const trigger = screen.getByRole("combobox", { name: "Filter by status" });

@@ -66,20 +66,20 @@ function cardStatus(
     case "coming_soon":
       return { pill: { label: "Coming Soon", cls: "badge-pend" }, running: false };
     case "closed":
-      return { pill: { label: "Applications closed", cls: "badge-neu" }, running: false };
+      return { pill: { label: "Closed", cls: "badge-neu" }, running: false };
     case "in_progress":
       return {
         pill: deadlinePassed
-          ? { label: "Applications closed", cls: "badge-neu" }
-          : { label: "Applications open", cls: "badge-pos" },
+          ? { label: "Closed", cls: "badge-neu" }
+          : { label: "Open", cls: "badge-pos" },
         running: true,
       };
     case "open":
     default:
       return {
         pill: deadlinePassed
-          ? { label: "Applications closed", cls: "badge-neu" }
-          : { label: "Applications open", cls: "badge-pos" },
+          ? { label: "Closed", cls: "badge-neu" }
+          : { label: "Open", cls: "badge-pos" },
         running: false,
       };
   }
@@ -382,11 +382,30 @@ export default function YouthRepublicDrivesPage() {
                     <span className={`badge ${pill.cls}`}>{pill.label}</span>
                   </div>
 
-                  <div className="opp-title">
-                    {opp.name}
+                  <div className="opp-title-row">
+                    <span className="opp-title">{opp.name}</span>
                     {running && (
-                      <span className="live-tag" title="Drive in progress">
-                        LIVE
+                      <span
+                        className="live-pill"
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "0.12rem 0.55rem",
+                          borderRadius: "9999px",
+                          backgroundColor: "var(--brand)",
+                          color: "var(--on-brand)",
+                          fontSize: "0.6875rem",
+                          fontWeight: 700,
+                          letterSpacing: "0.02em",
+                          textTransform: "none",
+                          lineHeight: "1.25",
+                          whiteSpace: "nowrap",
+                          flexShrink: 0,
+                        }}
+                        title="Drive in progress"
+                      >
+                        Live
                       </span>
                     )}
                   </div>
