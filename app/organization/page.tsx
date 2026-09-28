@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { useSelectedOrg, useShellAccessToken, useIsOrgAdminOrAbove, useShellLoading } from "@/components/shell/AppShell";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
 import { useToast } from "@/components/shell/ToastContext";
 import { updateOrganization, listChapters, type ChapterRow } from "@/lib/platformFunctions";
 import { ChaptersPanel } from "@/components/team/ChaptersPanel";
@@ -24,6 +25,7 @@ export default function OrganizationPage() {
   const organizationId = useSelectedOrg();
   const accessToken = useShellAccessToken();
   const isOrgAdminOrAbove = useIsOrgAdminOrAbove();
+  const perms = useStaffPermissions();
   const shellLoading = useShellLoading();
   const { showToast } = useToast();
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -32,6 +34,8 @@ export default function OrganizationPage() {
   const [saving, setSaving] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const canAccess = Boolean(perms.canManageTeam || isOrgAdminOrAbove);
 
   const fetchAll = useCallback(async () => {
     if (!organizationId) return;
@@ -53,19 +57,19 @@ export default function OrganizationPage() {
   }, [organizationId, accessToken]);
 
   const load = useCallback(async () => {
-    if (!organizationId || shellLoading || !isOrgAdminOrAbove) { setLoading(false); return; }
+    if (!organizationId || shellLoading || !canAccess) { setLoading(false); return; }
     setLoading(true);
     try {
       await fetchAll();
     } finally {
       setLoading(false);
     }
-  }, [organizationId, shellLoading, isOrgAdminOrAbove, fetchAll]);
+  }, [organizationId, shellLoading, canAccess, fetchAll]);
 
   useEffect(() => { load(); }, [load]);
 
   async function pickLogo(file: File | undefined) {
-    if (!file || !profile || !organizationId) return;
+    if (!file || !profile || !organizationId || !perms.canManageOrgProfile) return;
     if (!file.type.startsWith("image/")) {
       showToast("Please choose an image file.");
       return;
@@ -95,7 +99,7 @@ export default function OrganizationPage() {
   }
 
   async function saveProfile() {
-    if (!organizationId || !accessToken || !profile) return;
+    if (!organizationId || !accessToken || !profile || !perms.canManageOrgProfile) return;
     setSaving(true);
     try {
       await updateOrganization({
@@ -113,7 +117,7 @@ export default function OrganizationPage() {
 
   if (!organizationId) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Select an organization.</p></div>;
   if (shellLoading) return <FormSkeleton />;
-  if (!isOrgAdminOrAbove) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">You need organization admin access to view this page.</p></div>;
+  if (!canAccess) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">You need organization or chapter admin access to view this page.</p></div>;
   if (loading || !profile) return <FormSkeleton />;
 
   return (
@@ -126,22 +130,30 @@ export default function OrganizationPage() {
       </div>
 
       <Card>
-        <h2 className="panel-title" style={{ marginBottom: ".75rem" }}>Profile</h2>
+        <div className="flex items-center justify-between gap-3" style={{ marginBottom: ".75rem" }}>
+          <h2 className="panel-title" style={{ margin: 0 }}>Profile</h2>
+          {!perms.canManageOrgProfile && (
+            <span className="badge badge-neutral">Read-only view for chapter leaders. Contact organization admins to modify platform details.</span>
+          )}
+        </div>
         <div className="grid-2col">
           <div className="form-group">
             <label className="form-label" htmlFor="org-name">Organization name</label>
             <input id="org-name" className="form-input" value={profile.name}
+              disabled={!perms.canManageOrgProfile || saving}
               onChange={(e) => setProfile({ ...profile, name: e.target.value })} />
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="org-brand">Brand color</label>
             <input id="org-brand" className="form-input" placeholder="#1A73E8" value={profile.brandColor}
+              disabled={!perms.canManageOrgProfile || saving}
               onChange={(e) => setProfile({ ...profile, brandColor: e.target.value })} />
           </div>
         </div>
         <div className="form-group">
           <label className="form-label" htmlFor="org-about">Description</label>
           <textarea id="org-about" className="form-textarea" rows={3} value={profile.about}
+            disabled={!perms.canManageOrgProfile || saving}
             onChange={(e) => setProfile({ ...profile, about: e.target.value })} />
         </div>
         <div className="form-group">
@@ -163,31 +175,37 @@ export default function OrganizationPage() {
                 No logo
               </div>
             )}
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/svg+xml"
-              className="hidden"
-              onChange={(e) => { pickLogo(e.target.files?.[0]); e.target.value = ""; }}
-            />
-            <LoadingButton className="btn btn-secondary btn-sm" disabled={logoUploading}
-              loading={logoUploading} loadingText="Uploading…"
-              onClick={() => logoInputRef.current?.click()}>
-              {isDisplayableLogo(profile.logoUrl) ? "Replace logo" : "Upload logo"}
-            </LoadingButton>
-            {isDisplayableLogo(profile.logoUrl) && !logoUploading && (
-              <button type="button" className="btn btn-danger btn-sm" onClick={() => setProfile({ ...profile, logoUrl: "" })}>
-                Remove
-              </button>
+            {perms.canManageOrgProfile && (
+              <>
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="hidden"
+                  onChange={(e) => { pickLogo(e.target.files?.[0]); e.target.value = ""; }}
+                />
+                <LoadingButton className="btn btn-secondary btn-sm" disabled={logoUploading}
+                  loading={logoUploading} loadingText="Uploading…"
+                  onClick={() => logoInputRef.current?.click()}>
+                  {isDisplayableLogo(profile.logoUrl) ? "Replace logo" : "Upload logo"}
+                </LoadingButton>
+                {isDisplayableLogo(profile.logoUrl) && !logoUploading && (
+                  <button type="button" className="btn btn-danger btn-sm" onClick={() => setProfile({ ...profile, logoUrl: "" })}>
+                    Remove
+                  </button>
+                )}
+              </>
             )}
           </div>
           <p style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: ".4rem" }}>
             PNG, JPG, WebP or SVG, up to 512 KB. Shown in the sidebar and on the volunteer-facing Youth Republic pages.
           </p>
         </div>
-        <div className="flex justify-end" style={{ marginTop: ".25rem" }}>
-          <LoadingButton className="btn btn-primary btn-sm" disabled={saving} loading={saving} loadingText="Saving…" onClick={saveProfile}>Save profile</LoadingButton>
-        </div>
+        {perms.canManageOrgProfile && (
+          <div className="flex justify-end" style={{ marginTop: ".25rem" }}>
+            <LoadingButton className="btn btn-primary btn-sm" disabled={saving} loading={saving} loadingText="Saving…" onClick={saveProfile}>Save profile</LoadingButton>
+          </div>
+        )}
       </Card>
 
       <ChaptersPanel

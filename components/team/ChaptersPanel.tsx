@@ -4,6 +4,8 @@ import { useToast } from "@/components/shell/ToastContext";
 import { createChapter, updateChapter, type ChapterRow } from "@/lib/platformFunctions";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Card } from "@/components/ui/Card";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
+import { EditChapterDrawer } from "./EditChapterDrawer";
 
 export function ChaptersPanel({
   organizationId, accessToken, chapters, onChanged,
@@ -14,10 +16,13 @@ export function ChaptersPanel({
   onChanged: () => void;
 }) {
   const { showToast } = useToast();
+  const perms = useStaffPermissions();
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [busy, setBusy] = useState<"add" | string | null>(null);
+  const [editingChapter, setEditingChapter] = useState<ChapterRow | null>(null);
+  const [isDrawerReadOnly, setIsDrawerReadOnly] = useState(false);
 
   function closeForm() {
     setShowForm(false);
@@ -59,14 +64,14 @@ export function ChaptersPanel({
             Sub-divisions of the organization. Assigning a role a chapter scope limits that admin to the chapter&apos;s opportunities.
           </p>
         </div>
-        {!showForm && (
+        {perms.canCreateChapters && !showForm && (
           <button type="button" className="btn btn-primary btn-sm flex-shrink-0" onClick={() => setShowForm(true)}>
             Add Chapter
           </button>
         )}
       </div>
 
-      {showForm && (
+      {perms.canCreateChapters && showForm && (
         <div className="rounded-lg border border-[var(--line)] bg-[var(--bg-page)] p-3 flex flex-wrap items-end gap-2" style={{ marginBottom: ".85rem" }}>
           <div className="form-group" style={{ margin: 0, flex: "1 1 200px" }}>
             <label className="form-label" htmlFor="chapter-name">Chapter name</label>
@@ -89,21 +94,64 @@ export function ChaptersPanel({
           <tbody>
             {chapters.length === 0 ? (
               <tr><td colSpan={4} style={{ textAlign: "center", padding: "1.5rem", color: "var(--ink-3)" }}>No chapters yet.</td></tr>
-            ) : chapters.map((c) => (
-              <tr key={c.id}>
-                <td style={{ fontWeight: 600 }}>{c.name}</td>
-                <td>{c.city ?? "—"}</td>
-                <td><span className={`badge ${c.status === "active" ? "badge-pos" : "badge-neg"}`}>{c.status === "active" ? "Active" : "Inactive"}</span></td>
-                <td style={{ textAlign: "right" }}>
-                  <LoadingButton className="btn btn-secondary btn-xs" disabled={busy !== null} loading={busy === c.id} loadingText={c.status === "active" ? "Deactivating…" : "Reactivating…"} onClick={() => toggle(c.id, c.status)}>
-                    {c.status === "active" ? "Deactivate" : "Reactivate"}
-                  </LoadingButton>
-                </td>
-              </tr>
-            ))}
+            ) : chapters.map((c) => {
+              const canEdit = perms.canEditChapter(c.id);
+              return (
+                <tr key={c.id}>
+                  <td style={{ fontWeight: 600 }}>{c.name}</td>
+                  <td>{c.city ?? "—"}</td>
+                  <td><span className={`badge ${c.status === "active" ? "badge-pos" : "badge-neg"}`}>{c.status === "active" ? "Active" : "Inactive"}</span></td>
+                  <td style={{ textAlign: "right" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: ".4rem", justifyContent: "flex-end" }}>
+                      {canEdit ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-xs"
+                            onClick={() => {
+                              setEditingChapter(c);
+                              setIsDrawerReadOnly(false);
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <LoadingButton className="btn btn-secondary btn-xs" disabled={busy !== null} loading={busy === c.id} loadingText={c.status === "active" ? "Deactivating…" : "Reactivating…"} onClick={() => toggle(c.id, c.status)}>
+                            {c.status === "active" ? "Deactivate" : "Reactivate"}
+                          </LoadingButton>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-xs"
+                          onClick={() => {
+                            setEditingChapter(c);
+                            setIsDrawerReadOnly(true);
+                          }}
+                        >
+                          View Details
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
+
+      <EditChapterDrawer
+        open={editingChapter !== null}
+        chapter={editingChapter}
+        readOnly={isDrawerReadOnly}
+        organizationId={organizationId}
+        accessToken={accessToken}
+        onClose={() => setEditingChapter(null)}
+        onSuccess={() => {
+          setEditingChapter(null);
+          onChanged();
+        }}
+      />
     </Card>
   );
 }

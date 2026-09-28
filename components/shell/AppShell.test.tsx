@@ -712,4 +712,80 @@ describe("AppShell", () => {
     expect(screen.getByText("Hours Verification")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Hours" })).toBeInTheDocument();
   });
+
+  it("shows Partner Inquiries link when canViewInquiries is true, and hides when false", async () => {
+    // 1. Staff with team:write and inquiries:read (or org admin) -> canViewInquiries is true
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "National Admin", platform_owner: false },
+        orgTierRows: [{ organization_id: "org-1", org_tier: "enterprise" }],
+        organizations: [{ id: "org-1", name: "Rizq" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({
+        actor_type: "staff",
+        staff_id: "s13",
+        platform_owner: false,
+        org_roles: [{ organization_id: "org-1", role_name: "admin" }],
+        module_access: [
+          {
+            organization_id: "org-1",
+            module: "youth-republic",
+            permissions: ["team:write", "inquiries:read"],
+          },
+        ],
+      }),
+    );
+
+    const { unmount } = render(
+      <AppShell>
+        <p>admin content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("National Admin")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Partner Inquiries" })).toBeInTheDocument();
+
+    unmount();
+
+    // 2. Chapter-scoped staff with team:write -> isChapterScoped = true, so canViewInquiries = false
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Chapter Lead", platform_owner: false },
+        orgTierRows: [],
+        organizations: [{ id: "org-1", name: "Rizq" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({
+        actor_type: "staff",
+        staff_id: "s14",
+        platform_owner: false,
+        org_roles: [],
+        module_access: [
+          {
+            organization_id: "org-1",
+            module: "youth-republic",
+            permissions: ["team:write"],
+            chapter_scopes: {
+              "team:write": ["c-1"],
+            },
+          },
+        ],
+      }),
+    );
+
+    render(
+      <AppShell>
+        <p>chapter lead content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Chapter Lead")).toBeInTheDocument());
+    // Organization link is shown because canManageTeam is true
+    expect(screen.getByRole("link", { name: "Organization" })).toBeInTheDocument();
+    // Partner Inquiries must be hidden
+    expect(screen.queryByRole("link", { name: "Partner Inquiries" })).not.toBeInTheDocument();
+  });
 });
