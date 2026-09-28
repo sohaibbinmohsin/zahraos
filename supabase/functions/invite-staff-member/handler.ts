@@ -60,9 +60,21 @@ export async function inviteStaffMember(
   const modId = orgModule.module_id as string;
 
   const roleIds = [...new Set(input.roles.map((r) => r.roleId))];
-  const { data: validRoles } = await supabase.from("roles").select("id")
+  const { data: validRoles } = await supabase.from("roles").select("id, name")
     .eq("organization_id", input.organizationId).eq("module_id", modId).in("id", roleIds);
   if ((validRoles ?? []).length !== roleIds.length) throw new Error("role_not_available");
+
+  const roleNameById = new Map<string, string>();
+  for (const r of validRoles ?? []) {
+    roleNameById.set(r.id, r.name);
+  }
+
+  for (const r of input.roles) {
+    const roleName = roleNameById.get(r.roleId);
+    if (roleName === "Super Admin" && (r.scopeKind === "chapter" || r.chapterId)) {
+      throw new Error("super_admin_cannot_be_scoped");
+    }
+  }
 
   const tempPassword = temporaryPassword();
   const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
@@ -87,6 +99,33 @@ export async function inviteStaffMember(
     })),
   );
   if (assignError) throw assignError;
+
+  // Sync staff_org_roles tier if assigned Super Admin (org-wide) or Org Admin (org-wide)
+  let targetTier: "super_admin" | "admin" | null = null;
+  const hasSuperAdminOrgWide = input.roles.some(
+    (r) => roleNameById.get(r.roleId) === "Super Admin" && r.scopeKind === "org_wide"
+  );
+  const hasOrgAdminOrgWide = input.roles.some(
+    (r) => roleNameById.get(r.roleId) === "Org Admin" && r.scopeKind === "org_wide"
+  );
+
+  if (hasSuperAdminOrgWide) {
+    targetTier = "super_admin";
+  } else if (hasOrgAdminOrgWide) {
+    targetTier = "admin";
+  }
+
+  if (targetTier) {
+    const { error: tierError } = await supabase.from("staff_org_roles").upsert(
+      {
+        staff_id: staff.id,
+        organization_id: input.organizationId,
+        org_tier: targetTier,
+      },
+      { onConflict: "staff_id,organization_id" },
+    );
+    if (tierError) throw tierError;
+  }
 
   // Kept as an audit trail of who added whom. No email/token flow any more.
   const { data: invite, error: inviteError } = await supabase.from("staff_invitations").insert({

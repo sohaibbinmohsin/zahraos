@@ -116,3 +116,67 @@ Deno.test("updateStaffAccess rejects an admin of org A acting on a staff member 
     Error, "forbidden",
   );
 });
+
+Deno.test("updateStaffAccess rejects Super Admin with chapter scope", async () => {
+  const { supabase, orgId, adminId, memberId, roleByName } = await setup();
+  const superAdmin = await roleByName("Super Admin");
+  const { data: chapter } = await supabase.from("chapters").insert({
+    organization_id: orgId, name: `KHI-${crypto.randomUUID()}`,
+  }).select("id").single();
+
+  await assertRejects(
+    async () => updateStaffAccess(supabase, adminId, false, {
+      staffId: memberId, organizationId: orgId, status: "active",
+      roles: [{ roleId: superAdmin, scopeKind: "chapter", chapterId: chapter!.id, scopeLabel: "Karachi" }],
+    }),
+    Error, "super_admin_cannot_be_scoped",
+  );
+});
+
+Deno.test("updateStaffAccess synchronizes staff_org_roles on promotion and deletes on demotion", async () => {
+  const { supabase, orgId, adminId, memberId, roleByName } = await setup();
+  const superAdmin = await roleByName("Super Admin");
+  const orgAdmin = await roleByName("Org Admin");
+  const opsLead = await roleByName("Operations Lead");
+
+  const { data: chapter } = await supabase.from("chapters").insert({
+    organization_id: orgId, name: `LHR-${crypto.randomUUID()}`,
+  }).select("id").single();
+
+  // 1. Promote to Super Admin org-wide -> staff_org_roles has 'super_admin'
+  await updateStaffAccess(supabase, adminId, false, {
+    staffId: memberId, organizationId: orgId, status: "active",
+    roles: [{ roleId: superAdmin, scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+  });
+  let { data: sor } = await supabase.from("staff_org_roles")
+    .select("org_tier").eq("staff_id", memberId).eq("organization_id", orgId).maybeSingle();
+  assertEquals(sor?.org_tier, "super_admin");
+
+  // 2. Demote to Chapter Admin (chapter-scoped Org Admin) -> staff_org_roles row deleted
+  await updateStaffAccess(supabase, adminId, false, {
+    staffId: memberId, organizationId: orgId, status: "active",
+    roles: [{ roleId: orgAdmin, scopeKind: "chapter", chapterId: chapter!.id, scopeLabel: "Lahore" }],
+  });
+  ({ data: sor } = await supabase.from("staff_org_roles")
+    .select("org_tier").eq("staff_id", memberId).eq("organization_id", orgId).maybeSingle());
+  assertEquals(sor, null);
+
+  // 3. Promote to Org Admin org-wide -> staff_org_roles has 'admin'
+  await updateStaffAccess(supabase, adminId, false, {
+    staffId: memberId, organizationId: orgId, status: "active",
+    roles: [{ roleId: orgAdmin, scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+  });
+  ({ data: sor } = await supabase.from("staff_org_roles")
+    .select("org_tier").eq("staff_id", memberId).eq("organization_id", orgId).maybeSingle());
+  assertEquals(sor?.org_tier, "admin");
+
+  // 4. Demote to Operations Lead -> staff_org_roles row deleted
+  await updateStaffAccess(supabase, adminId, false, {
+    staffId: memberId, organizationId: orgId, status: "active",
+    roles: [{ roleId: opsLead, scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+  });
+  ({ data: sor } = await supabase.from("staff_org_roles")
+    .select("org_tier").eq("staff_id", memberId).eq("organization_id", orgId).maybeSingle());
+  assertEquals(sor, null);
+});
+
