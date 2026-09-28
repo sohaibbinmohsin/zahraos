@@ -178,6 +178,8 @@ export interface ChapterRow {
   name: string;
   city: string | null;
   status: string;
+  logoUrl?: string | null;
+  about?: string | null;
 }
 export function listChapters(payload: { organizationId: string }, accessToken: string) {
   return callFunction<{ chapters: ChapterRow[] }>("list-chapters", payload, accessToken);
