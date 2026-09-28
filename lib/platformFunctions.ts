@@ -20,9 +20,12 @@ async function callFunction<TResponse>(
     signal: AbortSignal.timeout(8000),
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error ?? "request_failed");
+    if (response.status === 404 && (!data || !data.error)) {
+      throw new Error("not_found");
+    }
+    throw new Error(data?.error ?? "request_failed");
   }
   return data as TResponse;
 }
@@ -185,9 +188,81 @@ export function createChapter(
 ) {
   return callFunction<{ chapterId: string }>("create-chapter", payload, accessToken);
 }
+
+export interface ChapterTeamMemberPayload {
+  volunteerCode: string;
+  fullName: string;
+  email?: string | null;
+  avatarUrl?: string | null;
+  designation: string;
+  term?: string | null;
+  status: "active" | "alumni";
+}
+
+export interface UpdateChapterPayload {
+  chapterId: string;
+  name?: string;
+  city?: string | null;
+  status?: "active" | "inactive";
+  logoUrl?: string | null;
+  about?: string | null;
+  teamMembers?: ChapterTeamMemberPayload[];
+}
+
+export type UpdateChapterInput = UpdateChapterPayload;
+
 export function updateChapter(
-  payload: { chapterId: string; name?: string; city?: string | null; status?: "active" | "inactive" },
+  payload: UpdateChapterPayload,
   accessToken: string,
 ) {
   return callFunction<{ chapterId: string }>("update-chapter", payload, accessToken);
 }
+
+export interface ChapterTeamMemberRow {
+  id: string;
+  chapterId: string;
+  volunteerCode: string;
+  fullName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  designation: string;
+  term: string | null;
+  status: "active" | "alumni";
+  createdAt?: string;
+  createdBy?: string | null;
+}
+
+export function listChapterTeamMembers(
+  payload: { chapterId: string },
+  accessToken: string,
+) {
+  return callFunction<{ teamMembers: ChapterTeamMemberRow[] }>(
+    "list-chapter-team-members",
+    payload,
+    accessToken,
+  );
+}
+
+export interface LookupYouthRepublicMemberPayload {
+  organizationId: string;
+  youthRepublicId: string;
+}
+
+export interface YouthRepublicMemberLookupResult {
+  volunteerCode: string;
+  fullName: string;
+  email: string | null;
+  avatarUrl: string | null;
+}
+
+export function lookupYouthRepublicMember(
+  payload: LookupYouthRepublicMemberPayload,
+  accessToken: string,
+) {
+  return callFunction<YouthRepublicMemberLookupResult>(
+    "lookup-youth-republic-member",
+    payload,
+    accessToken,
+  );
+}
+

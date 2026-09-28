@@ -1,7 +1,7 @@
 import { getAdminClient } from "../_shared/supabaseAdmin.ts";
 import { verifyPlatformStaffSession } from "../_shared/verifyPlatformStaffSession.ts";
 import { corsHeaders, corsPreflightResponse } from "../_shared/cors.ts";
-import { updateChapter } from "./handler.ts";
+import { lookupYouthRepublicMember } from "./handler.ts";
 
 export async function handleRequest(req: Request): Promise<Response> {
   const preflight = corsPreflightResponse(req);
@@ -14,7 +14,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       req.headers.get("Authorization"),
     );
     const input = await req.json();
-    const result = await updateChapter(supabase, staffId, platformOwner, input);
+    const result = await lookupYouthRepublicMember(supabase, staffId, platformOwner, input);
     return new Response(JSON.stringify(result), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -26,7 +26,7 @@ export async function handleRequest(req: Request): Promise<Response> {
         ? 401
         : message === "forbidden"
         ? 403
-        : message === "not_found"
+        : message === "volunteer_not_found"
         ? 404
         : 400;
     return new Response(JSON.stringify({ error: message }), { status, headers: corsHeaders });
