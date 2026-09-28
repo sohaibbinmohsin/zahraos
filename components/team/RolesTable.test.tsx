@@ -34,4 +34,32 @@ describe("RolesTable", () => {
     await user.click(within(logisticsRow).getByRole("button", { name: "Edit" }));
     expect(onEdit).toHaveBeenCalledWith("r2");
   });
+
+  it("renders grouped multi-level column headers for Youth Republic and Team & Governance", () => {
+    render(<RolesTable roles={roles} assignmentCountByRoleId={counts} onView={vi.fn()} onEdit={vi.fn()} onClone={vi.fn()} onDelete={vi.fn()} />);
+
+    // Header row 1 module grouping
+    const yrHeader = screen.getByRole("columnheader", { name: "Youth Republic" });
+    expect(yrHeader).toBeInTheDocument();
+    expect(yrHeader).toHaveAttribute("colspan", "5");
+
+    const teamGovHeader = screen.getByRole("columnheader", { name: "Team & Governance" });
+    expect(teamGovHeader).toBeInTheDocument();
+    expect(teamGovHeader).toHaveAttribute("colspan", "5");
+
+    // Header row 2 specific capabilities
+    // Youth Republic capabilities
+    expect(screen.getByRole("columnheader", { name: "Drive Creation" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Publish Noticeboard" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Triage Apps" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Approve Hours" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Volunteer Directory" })).toBeInTheDocument();
+
+    // Team & Governance capabilities
+    expect(screen.getByRole("columnheader", { name: "Org Governance" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Team Members" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Roles & Permissions" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Audit Logs" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Partner Inquiries" })).toBeInTheDocument();
+  });
 });

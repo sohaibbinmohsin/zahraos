@@ -5,7 +5,7 @@ import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { createCustomRole, updateCustomRole } from "@/lib/platformFunctions";
 import {
-  CAPABILITY_KEYS, CAPABILITY_META, RESTRICTED_GRID, permissionKeysToGrid, gridToPermissionKeys,
+  MODULE_CAPABILITIES, CAPABILITY_META, RESTRICTED_GRID, permissionKeysToGrid, gridToPermissionKeys,
   type CapabilityGrid, type CapabilityKey, type CapabilityLevel,
 } from "@/lib/capabilityMap";
 import { LoadingButton } from "@/components/ui/LoadingButton";
@@ -31,6 +31,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       publish: "granted",
       triage: "granted",
       hours: "granted",
+      volunteers: "read_only",
+      org_governance: "granted",
+      members: "granted",
+      roles: "granted",
+      audit: "read_only",
+      inquiries: "granted",
       team: "granted",
     },
   },
@@ -43,7 +49,31 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       publish: "granted",
       triage: "granted",
       hours: "granted",
+      volunteers: "read_only",
+      org_governance: "granted",
+      members: "granted",
+      roles: "granted",
+      audit: "read_only",
+      inquiries: "granted",
       team: "granted",
+    },
+  },
+  {
+    name: "Chapter Admin",
+    description: "Full chapter-level operational permissions and local chapter roster governance.",
+    capabilities: {
+      ...RESTRICTED_GRID,
+      drive: "granted",
+      publish: "granted",
+      triage: "granted",
+      hours: "granted",
+      volunteers: "read_only",
+      org_governance: "granted",
+      members: "granted",
+      roles: "restricted",
+      audit: "read_only",
+      inquiries: "restricted",
+      team: "restricted",
     },
   },
   {
@@ -55,6 +85,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       publish: "granted",
       triage: "granted",
       hours: "granted",
+      volunteers: "restricted",
+      org_governance: "restricted",
+      members: "restricted",
+      roles: "restricted",
+      audit: "restricted",
+      inquiries: "restricted",
       team: "restricted",
     },
   },
@@ -67,6 +103,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       publish: "restricted",
       triage: "granted",
       hours: "granted",
+      volunteers: "restricted",
+      org_governance: "restricted",
+      members: "restricted",
+      roles: "restricted",
+      audit: "restricted",
+      inquiries: "restricted",
       team: "restricted",
     },
   },
@@ -79,6 +121,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       publish: "restricted",
       triage: "granted",
       hours: "restricted",
+      volunteers: "restricted",
+      org_governance: "restricted",
+      members: "restricted",
+      roles: "restricted",
+      audit: "restricted",
+      inquiries: "restricted",
       team: "restricted",
     },
   },
@@ -91,6 +139,12 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       publish: "restricted",
       triage: "read_only",
       hours: "read_only",
+      volunteers: "read_only",
+      org_governance: "restricted",
+      members: "restricted",
+      roles: "restricted",
+      audit: "read_only",
+      inquiries: "restricted",
       team: "restricted",
     },
   },
@@ -269,24 +323,54 @@ export function RoleDrawer({
 
               <div className="form-group">
                 <label className="form-label">Granular Module Permissions</label>
-                <div style={{ display: "flex", flexDirection: "column", gap: ".75rem" }}>
-                  {CAPABILITY_KEYS.map((cap: CapabilityKey) => (
-                    <div className="perm-matrix-group" key={cap}>
-                      <div className="perm-checkbox-row">
-                        <span>{CAPABILITY_META[cap].column}</span>
-                        <Select
-                          aria-label={CAPABILITY_META[cap].column}
-                          value={grid[cap]}
-                          disabled={readOnly}
-                          onChange={(val) => setGrid({ ...grid, [cap]: val as CapabilityLevel })}
-                          options={CAPABILITY_META[cap].levels.map((lvl) => ({
-                            value: lvl,
-                            label: LEVEL_LABEL[lvl],
-                          }))}
-                        />
-                      </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                  <fieldset className="perm-matrix-group" style={{ minWidth: 0 }}>
+                    <legend className="perm-matrix-group-title">Youth Republic Operations</legend>
+                    <div style={{ display: "flex", flexDirection: "column", gap: ".5rem" }}>
+                      {MODULE_CAPABILITIES["youth-republic"].map((cap) => (
+                        <div className="perm-checkbox-row" key={cap}>
+                          <span>{CAPABILITY_META[cap].column}</span>
+                          <Select
+                            aria-label={CAPABILITY_META[cap].column}
+                            value={grid[cap]}
+                            disabled={readOnly}
+                            onChange={(val) => setGrid({ ...grid, [cap]: val as CapabilityLevel })}
+                            options={CAPABILITY_META[cap].levels.map((lvl) => ({
+                              value: lvl,
+                              label: LEVEL_LABEL[lvl],
+                            }))}
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </fieldset>
+
+                  <fieldset className="perm-matrix-group" style={{ minWidth: 0 }}>
+                    <legend className="perm-matrix-group-title">Team &amp; Governance</legend>
+                    <div style={{ display: "flex", flexDirection: "column", gap: ".5rem" }}>
+                      {MODULE_CAPABILITIES["team-governance"].map((cap) => (
+                        <div className="perm-checkbox-row" key={cap}>
+                          <span>{CAPABILITY_META[cap].column}</span>
+                          <Select
+                            aria-label={CAPABILITY_META[cap].column}
+                            value={grid[cap]}
+                            disabled={readOnly}
+                            onChange={(val) => {
+                              const nextGrid = { ...grid, [cap]: val as CapabilityLevel };
+                              if (cap === "members") {
+                                nextGrid.team = val === "granted" ? "granted" : "restricted";
+                              }
+                              setGrid(nextGrid);
+                            }}
+                            options={CAPABILITY_META[cap].levels.map((lvl) => ({
+                              value: lvl,
+                              label: LEVEL_LABEL[lvl],
+                            }))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </fieldset>
                 </div>
               </div>
             </div>

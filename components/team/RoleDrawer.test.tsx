@@ -87,7 +87,9 @@ describe("RoleDrawer", () => {
     expect(screen.getByRole("combobox", { name: "Publish Noticeboard" })).toHaveTextContent("Granted");
     expect(screen.getByRole("combobox", { name: "Triage Apps" })).toHaveTextContent("Granted");
     expect(screen.getByRole("combobox", { name: "Approve Hours" })).toHaveTextContent("Granted");
-    expect(screen.getByRole("combobox", { name: "Team Management" })).toHaveTextContent("Granted");
+    expect(screen.getByRole("combobox", { name: "Team Members" })).toHaveTextContent("Granted");
+    expect(screen.getByRole("combobox", { name: "Roles & Permissions" })).toHaveTextContent("Granted");
+    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Granted");
   });
 
   it("opens the Org Admin role in view mode as a protected system specification", () => {
@@ -98,7 +100,39 @@ describe("RoleDrawer", () => {
     expect(screen.getByRole("combobox", { name: "Publish Noticeboard" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "Triage Apps" })).toBeDisabled();
     expect(screen.getByRole("combobox", { name: "Approve Hours" })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: "Team Management" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Team Members" })).toBeDisabled();
+    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: /Save Role/i })).not.toBeInTheDocument();
+  });
+
+  it("organizes capabilities into Youth Republic Operations and Team & Governance sections", () => {
+    render(<RoleDrawer request={{ mode: "create", roleId: null }} onClose={vi.fn()} />);
+    expect(screen.getByText("Youth Republic Operations")).toBeInTheDocument();
+    expect(screen.getByText("Team & Governance")).toBeInTheDocument();
+  });
+
+  it("restricts Partner Inquiries to Super Admin and National Org Admin templates", async () => {
+    const user = userEvent.setup();
+    render(<RoleDrawer request={{ mode: "create", roleId: null }} onClose={vi.fn()} />);
+
+    // 1. Super Admin template grants Partner Inquiries
+    await user.click(screen.getByRole("combobox", { name: "Base Permission Template" }));
+    await user.click(screen.getByRole("option", { name: "Clone from Super Admin" }));
+    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Granted");
+
+    // 2. Operations Lead template restricts Partner Inquiries
+    await user.click(screen.getByRole("combobox", { name: "Base Permission Template" }));
+    await user.click(screen.getByRole("option", { name: "Clone from Operations Lead" }));
+    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Restricted");
+
+    // 3. Chapter Admin template restricts Partner Inquiries
+    await user.click(screen.getByRole("combobox", { name: "Base Permission Template" }));
+    await user.click(screen.getByRole("option", { name: "Clone from Chapter Admin" }));
+    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Restricted");
+
+    // 4. Org Admin template grants Partner Inquiries
+    await user.click(screen.getByRole("combobox", { name: "Base Permission Template" }));
+    await user.click(screen.getByRole("option", { name: "Clone from Org Admin" }));
+    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Granted");
   });
 });
