@@ -1,29 +1,37 @@
-# Design Specification: Chapter Governance, Roster Management & Modular Roles Matrix
+# Design Specification: Chapter Governance, Roster Management & Modular Permissions Architecture
 
 **Date:** 2026-09-28  
 **Author:** Google DeepMind Pair Programming Assistant & ZahraOS Engineering  
-**Status:** Validated & Approved  
+**Status:** Approved & Ready for Implementation  
 **Target Branches:** `feat/access-controls-and-role-permissions` (ZahraOS) & `main` (Youth Republic)
 
 ---
 
 ## 1. Overview & Objectives
 
-This specification addresses administrative authorization, chapter management, and granular permission architecture in ZahraOS:
-1. **Dynamic Permission Synchronization & Demotion Lifecycle:** Eliminate synchronization drift between `staff_role_assignments` and `staff_org_roles` so that promotions (to Super Admin / Org Admin National) and demotions (to Chapter Admin or lower roles) immediately update database RLS, Edge Function authorization, and JWT tokens.
+This specification defines the complete architecture for administrative access control, chapter leadership governance, and granular permission management across ZahraOS and Youth Republic:
+1. **Dynamic Permission Synchronization & Demotion Lifecycle:**
+   - Eliminate synchronization drift between `staff_role_assignments` and `staff_org_roles`.
+   - When a staff member is promoted to **Super Admin** or **Org Admin (National)**, `staff_org_roles` is automatically synchronized with `org_tier = 'super_admin'` or `'admin'`, granting immediate Postgres RLS and backend Edge Function recognition.
+   - When a staff member is demoted to **Chapter Admin** or a lower role, any org-wide admin tier in `staff_org_roles` is immediately revoked, constraining their authority strictly to their assigned chapter.
 2. **Super Admin vs. Org Admin Scope Boundaries:**
-   - **Super Admin:** Locked to unconstrained, organization-wide access. No chapter dropdown or scope selection is presented in the UI or permitted by the backend.
-   - **Org Admin:** Configurable as either **National / All Chapters** (full organizational governance) or scoped to a specific chapter (**Chapter Admin**).
+   - **Super Admin:** Locked to unconstrained, organization-wide access. No chapter dropdown or scope selection is presented in the UI or accepted by backend Edge Functions. Profile badge displays **"Super Admin"**.
+   - **Org Admin:** Configurable as either **National / All Chapters** (profile badge **"Org Admin"**) or scoped to a specific chapter (profile badge **"Chapter Admin"**).
 3. **Chapter Profile & Leadership Roster Management:**
    - Extend `chapters` with custom emblems/logos and rich description/about text.
-   - Introduce `chapter_team_members` with tenure/term, active vs. alumni status, custom free-form designations, and verified Youth Republic IDs (`volunteer_code`).
-   - Create a dedicated Youth Republic ID verification endpoint ensuring only registered Youth Republic accounts can be added to chapter rosters.
-4. **Intra-Organizational Visibility & Rule-Based Controls:**
-   - Chapter Admins can view the organization profile (read-only) and view all chapters in the organization for cross-chapter awareness, but can only edit their own chapter. Chapter creation remains restricted to national leadership.
+   - Introduce `chapter_team_members` with tenure/term (e.g. *"2025–2026"*), active vs. alumni status, custom designations (e.g. *"President"*, *"Head of Outreach"*), and verified Youth Republic IDs (`volunteer_code`).
+   - Dedicated Youth Republic ID verification endpoint ensuring only registered Youth Republic accounts can be added to chapter rosters.
+4. **Intra-Organizational Visibility via Rules:**
+   - Chapter Admins can view the organization profile (read-only) and view all chapters in the organization (read-only) for cross-chapter awareness, but can only edit their own chapter. Chapter creation remains restricted to national leadership.
 5. **Modular Roles & Permissions Architecture:**
-   - Partition permissions and capabilities across two distinct modules in the UI and backend:
-     - **Youth Republic (Volunteer Operations):** Drive Creation/Read, Publish Noticeboard, Triage Applications, Hours Approval, Volunteers Directory.
-     - **Team & Governance:** Organization & Chapters, Team Members & Invitations, Roles & Permissions, Audit Log Inspection, and Partner Inquiries (strictly reserved for Super Admin and National Org Admin).
+   - Cleanly partition permissions across two distinct modules in the UI and backend:
+     - **Youth Republic (Volunteer Operations):** Drive Management (Write/Read), Noticeboard (Write/Read), Application Triage (Update/Read), Hours Verification (Update/Read), Volunteer Directory (Read).
+     - **Team & Governance:** Organization & Chapters, Team Members & Access, Custom Roles & Matrix, Audit Log Inspection, and **Partner Inquiries** (strictly reserved for Super Admin and National Org Admin).
+6. **Capability-Driven Operations Dashboard (Zero Forced Rules):**
+   - Eliminate arbitrary thresholds (e.g. legacy `grantedCount >= 3`).
+   - Access to the dashboard is granted if the user can view any operational domain (`canViewDrives || canViewApplications || canViewHours || canViewVolunteers`).
+   - Every dashboard card and widget is independently capability-gated.
+   - Chapter-scoped users automatically receive chapter-filtered telemetry and header context.
 
 ---
 
@@ -223,7 +231,7 @@ on conflict (module_id, resource, action) do nothing;
     - `MODULE_CAPABILITIES`:
       - **Youth Republic:**
         - `drive`: Drive Management (`granted` [write+read], `read_only` [read], `restricted`)
-        - `publish`: Publish Noticeboard (`granted` [write], `restricted`)
+        - `publish`: Publish Noticeboard (`granted` [write], `read_only` [read], `restricted`)
         - `triage`: Application Triage (`granted` [update+read], `read_only` [read], `restricted`)
         - `hours`: Hours Verification (`granted` [update+read], `read_only` [read], `restricted`)
         - `volunteers`: Volunteer Directory (`read_only` [read], `restricted`)
@@ -243,6 +251,22 @@ on conflict (module_id, resource, action) do nothing;
   - Chapter Admin template prefills Youth Republic capabilities as Granted, Organization & Chapters as Granted (scoped), Team Members as Granted (scoped), Partner Inquiries as Restricted, Roles as Restricted.
   - Partner Inquiries capability is restricted to Super Admin and National Org Admin.
 
+### 5.4 Capability-Driven Dashboard (`app/youth-republic/dashboard/page.tsx`)
+- **Unforced Access Rule:**
+  ```ts
+  canAccessDashboard = canViewDrives || canViewApplications || canViewHours || canViewVolunteers;
+  ```
+- **Fine-Grained Widget Gating:**
+  - `canViewDrives`: Renders Active Drives Stat Card & Volunteer Capacity Widget.
+  - `canViewApplications`: Renders Applications to Review Stat Card & Recent Applications Widget.
+  - `canViewHours`: Renders Hours to Verify Stat Card.
+  - `canViewVolunteers`: Renders Active Volunteers Stat Card & fetches `getKpiSummary`.
+- **Chapter Scoping:**
+  - Edge Functions automatically scope query results to user's chapter token claims.
+  - Subtitle dynamically shows chapter context:
+    - Org-wide: *"Organization-wide operations & telemetry across all chapters."*
+    - Chapter-scoped: *"Live operations & shift telemetry for [Chapter Name]."*
+
 ---
 
 ## 6. Testing & Quality Assurance Plan
@@ -253,6 +277,7 @@ on conflict (module_id, resource, action) do nothing;
    - `components/team/RoleDrawer.test.tsx`: Test modular sectioned rendering, capability level selections, and role cloning.
    - `components/team/ChaptersPanel.test.tsx`: Test chapter edit button vs view details button for chapter-scoped users vs national admins.
    - `components/team/EditChapterDrawer.test.tsx`: Test chapter profile editing, logo upload trigger, YR ID verification, custom designation input, and roster state changes (active to alumni).
+   - `app/youth-republic/dashboard/page.test.tsx`: Test capability-gated widget rendering (e.g. applications-only reviewer sees only applications card without 403 on KPIs).
    - `tests/permissions/rolesMatrix.test.tsx`: Verify all roles across the expanded modular matrix, confirming Partner Inquiries is accessible only to Super Admin and National Org Admin, and Chapter Admin has strictly chapter-scoped mutation rights.
 2. **End-to-End Build & Type Verification:**
    - Execute `npm test` verifying all suites pass.
@@ -264,8 +289,9 @@ on conflict (module_id, resource, action) do nothing;
 
 Following user approval of this specification, implementation will proceed via `subagent-driven-development` across structured tasks:
 - **Task 1:** Database migrations (`0017_chapter_profiles_and_roster.sql`), Edge Functions (`lookup-youth-republic-member`, updated `update-chapter`), and backend RLS/demotion sync in `update-staff-access`.
-- **Task 2:** Update `lib/capabilityMap.ts` and `useStaffPermissions.ts` for modular capabilities (Youth Republic + Team & Governance, Partner Inquiries gating, and chapter scoping rules).
+- **Task 2:** Update `lib/capabilityMap.ts` and `useStaffPermissions.ts` for modular capabilities (Youth Republic + Team & Governance, Partner Inquiries gating, chapter scoping rules, and unforced dashboard gating).
 - **Task 3:** Update `RoleScopeRepeater`, `RoleDrawer`, and `RolesTable` with modular module sections and Super Admin unconstrained scope enforcement.
 - **Task 4:** Implement `EditChapterDrawer` with Chapter Profile, Logo Upload, YR ID Account Verification, custom Designations, and Active/Alumni Roster.
 - **Task 5:** Wire `ChaptersPanel` and `/organization` with intra-org visibility rules (edit own chapter, view other chapters, read-only org profile for Chapter Admin).
-- **Task 6:** Automated test matrix and regression verification across all role profiles.
+- **Task 6:** Update `app/youth-republic/dashboard/page.tsx` for natural capability-driven widget gating and chapter subtitle telemetry.
+- **Task 7:** Comprehensive automated test matrix and regression verification across all role profiles.
