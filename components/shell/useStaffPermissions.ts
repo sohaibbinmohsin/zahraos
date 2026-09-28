@@ -30,6 +30,10 @@ export interface StaffPermissions {
 
   // Team & Governance
   canManageTeam: boolean;
+  canManageOrgProfile: boolean;
+  canCreateChapters: boolean;
+  canEditChapter: (chapterId: string) => boolean;
+  canViewInquiries: boolean;
 
   // Chapter Scope Helpers
   isChapterScoped: boolean;
@@ -92,19 +96,6 @@ export function useStaffPermissions(): StaffPermissions {
   const canViewVolunteers = isAdmin || hasPerm("volunteers:read");
   const canManageTeam = isAdmin || hasPerm("team:write");
 
-  // Dashboard Access: Org Admin or Operations Lead or Drive Coordinator or granted count >= 3
-  const grantedCount = [
-    canCreateDrives,
-    canPublishDrives,
-    canTriageApplications,
-    canApproveHours,
-    canManageTeam,
-  ].filter(Boolean).length;
-
-  const isOperationsLead = canCreateDrives && canPublishDrives && canTriageApplications && canApproveHours;
-  const isDriveCoordinator = canCreateDrives && canTriageApplications && canApproveHours;
-  const canAccessDashboard = Boolean(isAdmin || isOperationsLead || isDriveCoordinator || grantedCount >= 3);
-
   // Chapter scoping derivation
   const scopedChapterIds = useMemo(() => {
     if (isAdmin) return null;
@@ -143,6 +134,18 @@ export function useStaffPermissions(): StaffPermissions {
     [isAdmin, permissions, chapterScopes]
   );
 
+  // Dashboard Access: Unforced gating based on pure viewing capabilities
+  const canAccessDashboard = Boolean(canViewDrives || canViewApplications || canViewHours || canViewVolunteers);
+
+  // Team & Governance scoped rules
+  const canManageOrgProfile = !isChapterScoped && canManageTeam;
+  const canCreateChapters = !isChapterScoped && canManageTeam;
+  const canEditChapter = useCallback(
+    (chapterId: string) => hasChapterPermission("chapters:write", chapterId),
+    [hasChapterPermission]
+  );
+  const canViewInquiries = !isChapterScoped && (isAdmin || hasPerm("inquiries:read"));
+
   return useMemo<StaffPermissions>(
     () => ({
       canViewDrives,
@@ -155,6 +158,10 @@ export function useStaffPermissions(): StaffPermissions {
       canViewVolunteers,
       canAccessDashboard,
       canManageTeam,
+      canManageOrgProfile,
+      canCreateChapters,
+      canEditChapter,
+      canViewInquiries,
       isChapterScoped,
       scopedChapterIds,
       hasChapterPermission,
@@ -170,6 +177,10 @@ export function useStaffPermissions(): StaffPermissions {
       canViewVolunteers,
       canAccessDashboard,
       canManageTeam,
+      canManageOrgProfile,
+      canCreateChapters,
+      canEditChapter,
+      canViewInquiries,
       isChapterScoped,
       scopedChapterIds,
       hasChapterPermission,

@@ -26,6 +26,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Super Admin",
     description: "Full platform control and unconstrained administrative privileges across all operational modules.",
     capabilities: {
+      ...RESTRICTED_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
@@ -37,6 +38,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Org Admin",
     description: "Full operational permissions and organization-wide team governance.",
     capabilities: {
+      ...RESTRICTED_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
@@ -48,6 +50,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Operations Lead",
     description: "Oversees local chapter operations, drive execution, applicant selection, and field shift oversight.",
     capabilities: {
+      ...RESTRICTED_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
@@ -59,6 +62,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Drive Coordinator",
     description: "Manages on-ground drive shifts, volunteer gate attendance, and direct shift hours logging.",
     capabilities: {
+      ...RESTRICTED_GRID,
       drive: "granted",
       publish: "restricted",
       triage: "granted",
@@ -70,6 +74,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Application Reviewer",
     description: "Screens and shortlists volunteer applicants, assesses question responses, and assigns candidate statuses.",
     capabilities: {
+      ...RESTRICTED_GRID,
       drive: "restricted",
       publish: "restricted",
       triage: "granted",
@@ -81,6 +86,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Auditor",
     description: "Read-only compliance officer auditing hours logs, certifications, and operational activity records.",
     capabilities: {
+      ...RESTRICTED_GRID,
       drive: "restricted",
       publish: "restricted",
       triage: "read_only",
@@ -126,7 +132,7 @@ export function RoleDrawer({
     if (!request) return;
     if (request.mode === "create") {
       setName(""); setDescription(""); setSelectedTemplate("");
-      setGrid({ drive: "granted", publish: "restricted", triage: "granted", hours: "restricted", team: "restricted" });
+      setGrid({ ...RESTRICTED_GRID, drive: "granted", publish: "restricted", triage: "granted", hours: "restricted", team: "restricted" });
     } else if (source) {
       const g = permissionKeysToGrid(source.permissionKeys);
       setGrid(g);

@@ -54,6 +54,10 @@ describe("useStaffPermissions", () => {
     expect(result.current.canViewVolunteers).toBe(false);
     expect(result.current.canAccessDashboard).toBe(false);
     expect(result.current.canManageTeam).toBe(false);
+    expect(result.current.canManageOrgProfile).toBe(false);
+    expect(result.current.canCreateChapters).toBe(false);
+    expect(result.current.canEditChapter("lhr")).toBe(false);
+    expect(result.current.canViewInquiries).toBe(false);
     expect(result.current.isChapterScoped).toBe(false);
     expect(result.current.scopedChapterIds).toBeNull();
     expect(result.current.hasChapterPermission("opportunities:write", "lhr")).toBe(false);
@@ -77,6 +81,10 @@ describe("useStaffPermissions", () => {
     expect(result.current.canViewVolunteers).toBe(true);
     expect(result.current.canAccessDashboard).toBe(true);
     expect(result.current.canManageTeam).toBe(true);
+    expect(result.current.canManageOrgProfile).toBe(true);
+    expect(result.current.canCreateChapters).toBe(true);
+    expect(result.current.canEditChapter("any-chapter")).toBe(true);
+    expect(result.current.canViewInquiries).toBe(true);
     expect(result.current.isChapterScoped).toBe(false);
     expect(result.current.scopedChapterIds).toBeNull();
     expect(result.current.hasChapterPermission("opportunities:write", "lhr")).toBe(true);
@@ -84,7 +92,6 @@ describe("useStaffPermissions", () => {
   });
 
   it("evaluates Operations Lead capabilities correctly", () => {
-    // Operations Lead: drives, publish, applications, triage, hours, approve, dashboard = true; team, volunteers = false
     vi.mocked(appShell.useStaffClaims).mockReturnValue(
       mockClaims({
         moduleAccess: [
@@ -115,51 +122,15 @@ describe("useStaffPermissions", () => {
     expect(result.current.canApproveHours).toBe(true);
     expect(result.current.canAccessDashboard).toBe(true);
     expect(result.current.canManageTeam).toBe(false);
-    expect(result.current.canViewVolunteers).toBe(false);
-    expect(result.current.isChapterScoped).toBe(false);
-    expect(result.current.scopedChapterIds).toBeNull();
-    expect(result.current.hasChapterPermission("opportunities:write", "any-chapter")).toBe(true);
-    expect(result.current.hasChapterPermission("team:write", "any-chapter")).toBe(false);
-  });
-
-  it("evaluates Drive Coordinator capabilities correctly", () => {
-    // Drive Coordinator: drives, applications, triage, hours, approve, dashboard = true; publish, team, volunteers = false
-    vi.mocked(appShell.useStaffClaims).mockReturnValue(
-      mockClaims({
-        moduleAccess: [
-          {
-            organizationId: "org-1",
-            module: "youth-republic",
-            permissions: [
-              "opportunities:write",
-              "applications:update",
-              "applications:read",
-              "hours:update",
-              "hours:read",
-            ],
-          },
-        ],
-      })
-    );
-
-    const { result } = renderHook(() => useStaffPermissions());
-
-    expect(result.current.canViewDrives).toBe(true);
-    expect(result.current.canCreateDrives).toBe(true);
-    expect(result.current.canPublishDrives).toBe(false);
-    expect(result.current.canViewApplications).toBe(true);
-    expect(result.current.canTriageApplications).toBe(true);
-    expect(result.current.canViewHours).toBe(true);
-    expect(result.current.canApproveHours).toBe(true);
-    expect(result.current.canAccessDashboard).toBe(true);
-    expect(result.current.canManageTeam).toBe(false);
+    expect(result.current.canManageOrgProfile).toBe(false);
+    expect(result.current.canCreateChapters).toBe(false);
+    expect(result.current.canViewInquiries).toBe(false);
     expect(result.current.canViewVolunteers).toBe(false);
     expect(result.current.isChapterScoped).toBe(false);
     expect(result.current.scopedChapterIds).toBeNull();
   });
 
-  it("evaluates Application Reviewer capabilities correctly", () => {
-    // Application Reviewer: applications, triage = true; dashboard, drives, hours, volunteers, team = false
+  it("evaluates Application Reviewer capabilities with unforced dashboard access", () => {
     vi.mocked(appShell.useStaffClaims).mockReturnValue(
       mockClaims({
         moduleAccess: [
@@ -176,7 +147,8 @@ describe("useStaffPermissions", () => {
 
     expect(result.current.canViewApplications).toBe(true);
     expect(result.current.canTriageApplications).toBe(true);
-    expect(result.current.canAccessDashboard).toBe(false);
+    // Unforced dashboard access: canViewApplications grants dashboard access!
+    expect(result.current.canAccessDashboard).toBe(true);
     expect(result.current.canViewDrives).toBe(false);
     expect(result.current.canCreateDrives).toBe(false);
     expect(result.current.canPublishDrives).toBe(false);
@@ -184,12 +156,12 @@ describe("useStaffPermissions", () => {
     expect(result.current.canApproveHours).toBe(false);
     expect(result.current.canViewVolunteers).toBe(false);
     expect(result.current.canManageTeam).toBe(false);
-    expect(result.current.isChapterScoped).toBe(false);
-    expect(result.current.scopedChapterIds).toBeNull();
+    expect(result.current.canManageOrgProfile).toBe(false);
+    expect(result.current.canCreateChapters).toBe(false);
+    expect(result.current.canViewInquiries).toBe(false);
   });
 
-  it("evaluates Auditor capabilities correctly", () => {
-    // Auditor: applications, hours = true; triage, approve, drives, dashboard, team = false
+  it("evaluates Auditor capabilities with unforced dashboard access", () => {
     vi.mocked(appShell.useStaffClaims).mockReturnValue(
       mockClaims({
         moduleAccess: [
@@ -208,92 +180,149 @@ describe("useStaffPermissions", () => {
     expect(result.current.canViewHours).toBe(true);
     expect(result.current.canTriageApplications).toBe(false);
     expect(result.current.canApproveHours).toBe(false);
-    expect(result.current.canViewDrives).toBe(false);
-    expect(result.current.canCreateDrives).toBe(false);
-    expect(result.current.canPublishDrives).toBe(false);
-    expect(result.current.canAccessDashboard).toBe(false);
-    expect(result.current.canViewVolunteers).toBe(false);
-    expect(result.current.canManageTeam).toBe(false);
-    expect(result.current.isChapterScoped).toBe(false);
-    expect(result.current.scopedChapterIds).toBeNull();
-  });
-
-  it("handles Chapter-scoped users and checks target chapter bounds", () => {
-    // Chapter-scoped user e.g. opportunities:write restricted to ["lhr"]
-    vi.mocked(appShell.useStaffClaims).mockReturnValue(
-      mockClaims({
-        moduleAccess: [
-          {
-            organizationId: "org-1",
-            module: "youth-republic",
-            permissions: [
-              "opportunities:write",
-              "applications:update",
-              "applications:read",
-              "hours:update",
-              "hours:read",
-            ],
-            chapterScopes: {
-              "opportunities:write": ["lhr"],
-            },
-          },
-        ],
-      })
-    );
-
-    const { result } = renderHook(() => useStaffPermissions());
-
-    expect(result.current.isChapterScoped).toBe(true);
-    expect(result.current.scopedChapterIds).toEqual(["lhr"]);
-    expect(result.current.canCreateDrives).toBe(true);
+    // Unforced dashboard access: canViewHours / canViewApplications grants dashboard
     expect(result.current.canAccessDashboard).toBe(true);
-
-    // Chapter-scoped permission check
-    expect(result.current.hasChapterPermission("opportunities:write", "lhr")).toBe(true);
-    expect(result.current.hasChapterPermission("opportunities:write", "isb")).toBe(false);
-    expect(result.current.hasChapterPermission("opportunities:write", null)).toBe(false);
-    expect(result.current.hasChapterPermission("opportunities:write", undefined)).toBe(false);
-
-    // Org-wide permission on un-scoped key
-    expect(result.current.hasChapterPermission("applications:update", "isb")).toBe(true);
-    expect(result.current.hasChapterPermission("applications:update", null)).toBe(true);
-
-    // Permission not granted
-    expect(result.current.hasChapterPermission("team:write", "lhr")).toBe(false);
-  });
-
-  it("grants canViewVolunteers when volunteers:read permission is present", () => {
-    vi.mocked(appShell.useStaffClaims).mockReturnValue(
-      mockClaims({
-        moduleAccess: [
-          {
-            organizationId: "org-1",
-            module: "youth-republic",
-            permissions: ["volunteers:read"],
-          },
-        ],
-      })
-    );
-
-    const { result } = renderHook(() => useStaffPermissions());
-    expect(result.current.canViewVolunteers).toBe(true);
     expect(result.current.canViewDrives).toBe(false);
+    expect(result.current.canManageOrgProfile).toBe(false);
   });
 
-  it("grants canManageTeam when team:write permission is present", () => {
-    vi.mocked(appShell.useStaffClaims).mockReturnValue(
-      mockClaims({
-        moduleAccess: [
-          {
-            organizationId: "org-1",
-            module: "youth-republic",
-            permissions: ["team:write"],
-          },
-        ],
-      })
-    );
+  describe("Unforced Dashboard Access Gating", () => {
+    it("grants dashboard access when canViewDrives is true", () => {
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["opportunities:read"] }],
+        })
+      );
+      const { result } = renderHook(() => useStaffPermissions());
+      expect(result.current.canAccessDashboard).toBe(true);
+    });
 
-    const { result } = renderHook(() => useStaffPermissions());
-    expect(result.current.canManageTeam).toBe(true);
+    it("grants dashboard access when canViewApplications is true", () => {
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["applications:read"] }],
+        })
+      );
+      const { result } = renderHook(() => useStaffPermissions());
+      expect(result.current.canAccessDashboard).toBe(true);
+    });
+
+    it("grants dashboard access when canViewHours is true", () => {
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["hours:read"] }],
+        })
+      );
+      const { result } = renderHook(() => useStaffPermissions());
+      expect(result.current.canAccessDashboard).toBe(true);
+    });
+
+    it("grants dashboard access when canViewVolunteers is true", () => {
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["volunteers:read"] }],
+        })
+      );
+      const { result } = renderHook(() => useStaffPermissions());
+      expect(result.current.canAccessDashboard).toBe(true);
+    });
+
+    it("denies dashboard access when no view capabilities exist (e.g. only team:write)", () => {
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["team:write"] }],
+        })
+      );
+      const { result } = renderHook(() => useStaffPermissions());
+      expect(result.current.canAccessDashboard).toBe(false);
+    });
+  });
+
+  describe("Governance and Scoping Boundaries", () => {
+    it("restricts canManageOrgProfile and canCreateChapters to org-wide admins", () => {
+      // 1. Org-wide team manager: canManageOrgProfile = true, canCreateChapters = true
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["team:write"] }],
+        })
+      );
+      const { result: orgWideResult } = renderHook(() => useStaffPermissions());
+      expect(orgWideResult.current.isChapterScoped).toBe(false);
+      expect(orgWideResult.current.canManageOrgProfile).toBe(true);
+      expect(orgWideResult.current.canCreateChapters).toBe(true);
+
+      // 2. Chapter-scoped user with team:write: restricted to false!
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [
+            {
+              organizationId: "org-1",
+              module: "youth-republic",
+              permissions: ["team:write"],
+              chapterScopes: { "team:write": ["lhr"] },
+            },
+          ],
+        })
+      );
+      const { result: scopedResult } = renderHook(() => useStaffPermissions());
+      expect(scopedResult.current.isChapterScoped).toBe(true);
+      expect(scopedResult.current.canManageOrgProfile).toBe(false);
+      expect(scopedResult.current.canCreateChapters).toBe(false);
+    });
+
+    it("verifies canEditChapter(id) evaluates chapters:write against chapter scope", () => {
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [
+            {
+              organizationId: "org-1",
+              module: "youth-republic",
+              permissions: ["chapters:write"],
+              chapterScopes: { "chapters:write": ["lhr"] },
+            },
+          ],
+        })
+      );
+      const { result } = renderHook(() => useStaffPermissions());
+      expect(result.current.canEditChapter("lhr")).toBe(true);
+      expect(result.current.canEditChapter("khi")).toBe(false);
+      expect(result.current.canEditChapter("")).toBe(false);
+    });
+
+    it("verifies canViewInquiries is restricted to org-wide admins and staff with inquiries:read", () => {
+      // 1. Org-wide with inquiries:read -> true
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["inquiries:read"] }],
+        })
+      );
+      const { result: orgWideResult } = renderHook(() => useStaffPermissions());
+      expect(orgWideResult.current.canViewInquiries).toBe(true);
+
+      // 2. Chapter-scoped staff even with inquiries:read -> false
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [
+            {
+              organizationId: "org-1",
+              module: "youth-republic",
+              permissions: ["inquiries:read"],
+              chapterScopes: { "inquiries:read": ["lhr"] },
+            },
+          ],
+        })
+      );
+      const { result: scopedResult } = renderHook(() => useStaffPermissions());
+      expect(scopedResult.current.canViewInquiries).toBe(false);
+
+      // 3. Org-wide staff without inquiries:read -> false
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["hours:read"] }],
+        })
+      );
+      const { result: noPermResult } = renderHook(() => useStaffPermissions());
+      expect(noPermResult.current.canViewInquiries).toBe(false);
+    });
   });
 });

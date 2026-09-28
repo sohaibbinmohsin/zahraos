@@ -322,19 +322,19 @@ const ROLES: Record<string, RoleDefinition> = {
       canViewHours: false,
       canApproveHours: false,
       canViewVolunteers: false,
-      canAccessDashboard: false,
+      canAccessDashboard: true,
       canManageTeam: false,
       isChapterScoped: false,
       scopedChapterIds: null,
     },
     sidebar: {
-      expectedLinks: ["Applications"],
-      forbiddenLinks: ["Dashboard", "Drives", "Hours", "Volunteers", "Team Members"],
+      expectedLinks: ["Dashboard", "Applications"],
+      forbiddenLinks: ["Drives", "Hours", "Volunteers", "Team Members"],
       canSeeTeamAndGovernance: false,
     },
     layoutTabs: {
-      expected: ["Applications"],
-      forbidden: ["Dashboard", "Drives", "Hours", "Volunteers"],
+      expected: ["Dashboard", "Applications"],
+      forbidden: ["Drives", "Hours", "Volunteers"],
     },
     actions: {
       canCreateDrive: false,
@@ -343,7 +343,6 @@ const ROLES: Record<string, RoleDefinition> = {
       canApproveHours: false,
     },
     disallowedRoutes: [
-      "/youth-republic/dashboard",
       "/youth-republic/drives",
       "/youth-republic/hours",
       "/youth-republic/volunteers",
@@ -366,19 +365,19 @@ const ROLES: Record<string, RoleDefinition> = {
       canViewHours: true,
       canApproveHours: false,
       canViewVolunteers: false,
-      canAccessDashboard: false,
+      canAccessDashboard: true,
       canManageTeam: false,
       isChapterScoped: false,
       scopedChapterIds: null,
     },
     sidebar: {
-      expectedLinks: ["Applications", "Hours"],
-      forbiddenLinks: ["Dashboard", "Drives", "Volunteers", "Team Members"],
+      expectedLinks: ["Dashboard", "Applications", "Hours"],
+      forbiddenLinks: ["Drives", "Volunteers", "Team Members"],
       canSeeTeamAndGovernance: false,
     },
     layoutTabs: {
-      expected: ["Applications", "Hours"],
-      forbidden: ["Dashboard", "Drives", "Volunteers"],
+      expected: ["Dashboard", "Applications", "Hours"],
+      forbidden: ["Drives", "Volunteers"],
     },
     actions: {
       canCreateDrive: false,
@@ -387,7 +386,6 @@ const ROLES: Record<string, RoleDefinition> = {
       canApproveHours: false,
     },
     disallowedRoutes: [
-      "/youth-republic/dashboard",
       "/youth-republic/drives",
       "/youth-republic/volunteers",
     ],
@@ -946,41 +944,40 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
   // MATRIX 6: Route Protection & AccessDeniedGate Triggering
   // =========================================================================
   describe("Matrix 6: Unauthorized Route Navigation Protection (AccessDeniedGate)", () => {
-    it("Application Reviewer triggers AccessDeniedGate on Dashboard, Drives, Hours, and Volunteers", () => {
+    it("Application Reviewer triggers AccessDeniedGate on Drives, Hours, and Volunteers, but allowed on Dashboard and Applications", async () => {
       setupRoleEnvironment(ROLES.APPLICATION_REVIEWER);
 
-      // Dashboard
+      // Dashboard: Allowed
       renderWithSwr(<YouthRepublicDashboardPage />);
-      expect(screen.getByRole("alert")).toBeInTheDocument();
-      expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
-      expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText("Operations Command Center")).toBeInTheDocument());
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
-      // Drives
+      // Drives: Denied
       cleanup();
       renderWithSwr(<YouthRepublicOpportunitiesPage />);
       expect(screen.getByRole("alert")).toBeInTheDocument();
       expect(screen.getByText(/Drives/i)).toBeInTheDocument();
 
-      // Hours
+      // Hours: Denied
       cleanup();
       renderWithSwr(<YouthRepublicHoursPage />);
       expect(screen.getByRole("alert")).toBeInTheDocument();
       expect(screen.getByText(/Hours/i)).toBeInTheDocument();
 
-      // Volunteers
+      // Volunteers: Denied
       cleanup();
       renderWithSwr(<YouthRepublicVolunteersPage />);
       expect(screen.getByRole("alert")).toBeInTheDocument();
       expect(screen.getByText(/Volunteers/i)).toBeInTheDocument();
     });
 
-    it("Auditor triggers AccessDeniedGate on Dashboard, Drives, and Volunteers, but NOT on Applications or Hours", async () => {
+    it("Auditor triggers AccessDeniedGate on Drives and Volunteers, but NOT on Dashboard, Applications, or Hours", async () => {
       setupRoleEnvironment(ROLES.AUDITOR);
 
-      // Dashboard: Denied
+      // Dashboard: Allowed
       renderWithSwr(<YouthRepublicDashboardPage />);
-      expect(screen.getByRole("alert")).toBeInTheDocument();
-      expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByText("Operations Command Center")).toBeInTheDocument());
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 
       // Drives: Denied
       cleanup();
