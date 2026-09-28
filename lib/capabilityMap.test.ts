@@ -13,7 +13,7 @@ describe("capabilityMap", () => {
       drive: "granted", publish: "restricted", triage: "granted", hours: "read_only", team: "granted",
     };
     expect(gridToPermissionKeys(grid)).toEqual([
-      "applications:read", "applications:update", "hours:read", "opportunities:write", "team:write",
+      "applications:read", "applications:update", "hours:read", "opportunities:read", "opportunities:write", "team:write",
     ]);
   });
 

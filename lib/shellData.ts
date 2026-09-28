@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "./staffToken";
 import { resolveOrgSwitcherOptions, pickInitialOrgId } from "./selectedOrg";
+import { deriveRoleTitleFromPermissions } from "./capabilityMap";
 import { MODULE_REGISTRY } from "@/registry/modules";
 
 export interface OrgBrand {
@@ -70,7 +71,7 @@ export async function loadShellData(
   const [staffResult, tierResult, assignmentResult, orgResult] = await Promise.all([
     supabase.from("staff").select("full_name, platform_owner, email").eq("auth_user_id", authUserId).single(),
     supabase.from("staff_org_roles").select("organization_id, org_tier").eq("staff_id", claims.staffId),
-    supabase.from("staff_role_assignments").select("organization_id, roles(name)").eq("staff_id", claims.staffId),
+    supabase.from("staff_role_assignments").select("organization_id, scope_kind, scope_label, roles(name)").eq("staff_id", claims.staffId),
     scopedOrgIds === null
       ? supabase.from("organizations").select("id, name, logo_url, brand_color")
       : scopedOrgIds.length > 0
@@ -92,9 +93,19 @@ export async function loadShellData(
   if (!assignmentResult.error) {
     for (const a of (assignmentResult.data ?? []) as Array<Record<string, unknown>>) {
       const roles = a.roles as { name?: string } | Array<{ name?: string }> | null;
-      const roleName = Array.isArray(roles) ? roles[0]?.name : roles?.name;
+      let roleName = Array.isArray(roles) ? roles[0]?.name : roles?.name;
       const orgId = a.organization_id as string | undefined;
-      if (!roleName || !orgId) continue;
+      if (!orgId) continue;
+
+      if (!roleName) {
+        const modAccess = claims.moduleAccess.find((m) => m.organizationId === orgId);
+        if (modAccess) {
+          const isScoped = a.scope_kind === "chapter" || Boolean(modAccess.chapterScopes && Object.keys(modAccess.chapterScopes).length > 0);
+          roleName = deriveRoleTitleFromPermissions(modAccess.permissions, isScoped) ?? undefined;
+        }
+      }
+
+      if (!roleName) continue;
       const list = assignedRolesByOrg[orgId] ?? [];
       if (!list.includes(roleName)) list.push(roleName);
       assignedRolesByOrg[orgId] = list;

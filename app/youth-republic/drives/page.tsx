@@ -150,6 +150,8 @@ export default function YouthRepublicDrivesPage() {
       return result.opportunities.filter((o) => o.computedStatus !== "deleted");
     },
     {
+      shouldRetryOnError: false,
+      revalidateOnFocus: false,
       onError: (err) =>
         showToast(err instanceof Error ? `Could not load drives: ${err.message}` : "Could not load drives."),
     },

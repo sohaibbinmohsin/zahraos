@@ -15,6 +15,7 @@ import { loadShellData, type ShellData, type ShellSession } from "@/lib/shellDat
 import { MODULE_REGISTRY } from "@/registry/modules";
 import { isDisplayableLogo } from "@/lib/orgLogo";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
+import { deriveRoleTitleFromPermissions } from "@/lib/capabilityMap";
 import { useStaffPermissions } from "./useStaffPermissions";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
@@ -363,10 +364,18 @@ export function AppShell({
     uniqueRoles.sort((a, b) => getRoleRank(b) - getRoleRank(a));
 
     if (uniqueRoles.length === 0) {
+      const activeAccess = claims?.moduleAccess?.find((m) => !selectedOrgId || m.organizationId === selectedOrgId);
+      if (activeAccess) {
+        const isScoped = Boolean(activeAccess.chapterScopes && Object.keys(activeAccess.chapterScopes).length > 0);
+        const derived = deriveRoleTitleFromPermissions(activeAccess.permissions, isScoped);
+        if (derived) {
+          return [derived];
+        }
+      }
       return ["Staff"];
     }
     return uniqueRoles;
-  }, [platformOwner, orgTier, selectedOrgId, assignedRolesByOrg]);
+  }, [platformOwner, orgTier, selectedOrgId, assignedRolesByOrg, claims]);
 
   const primaryRole = userRoles[0];
   const isOrgAdminOrAbove =

@@ -115,6 +115,8 @@ function ApplicationsContent() {
     organizationId && staffToken && perms.canViewApplications ? ["listApplications", organizationId] : null,
     async () => (await listApplications({ organizationId: organizationId! }, staffToken!)).applications,
     {
+      shouldRetryOnError: false,
+      revalidateOnFocus: false,
       onError: (err) =>
         showToast(
           err instanceof Error ? `Could not load applications: ${err.message}` : "Could not load applications.",

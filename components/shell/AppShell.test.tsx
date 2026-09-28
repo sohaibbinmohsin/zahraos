@@ -667,7 +667,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Application Reviewer")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Application Reviewer").length).toBeGreaterThan(0));
 
     // Hours verification link must not be present
     expect(screen.queryByText("Hours Verification")).not.toBeInTheDocument();

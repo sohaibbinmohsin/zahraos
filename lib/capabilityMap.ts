@@ -17,7 +17,7 @@ export const RESTRICTED_GRID: CapabilityGrid = {
 };
 
 const RULES: Record<CapabilityKey, { granted: string[]; read_only: string[] }> = {
-  drive:   { granted: ["opportunities:write"],                     read_only: [] },
+  drive:   { granted: ["opportunities:write", "opportunities:read"], read_only: ["opportunities:read"] },
   publish: { granted: ["noticeboard:write"],                       read_only: [] },
   triage:  { granted: ["applications:update", "applications:read"], read_only: ["applications:read"] },
   hours:   { granted: ["hours:update", "hours:read"],              read_only: ["hours:read"] },
@@ -37,6 +37,12 @@ export function permissionKeysToGrid(keys: string[]): CapabilityGrid {
   const has = (k: string) => keys.includes(k);
   const grid = {} as CapabilityGrid;
   for (const cap of CAPABILITY_KEYS) {
+    if (cap === "drive") {
+      if (has("opportunities:write")) grid.drive = "granted";
+      else if (has("opportunities:read")) grid.drive = "read_only";
+      else grid.drive = "restricted";
+      continue;
+    }
     if (RULES[cap].granted.length > 0 && RULES[cap].granted.every(has)) grid[cap] = "granted";
     else if (RULES[cap].read_only.length > 0 && RULES[cap].read_only.every(has)) grid[cap] = "read_only";
     else grid[cap] = "restricted";
@@ -55,4 +61,27 @@ export function effectivePermissionTags(permissionKeyGroups: string[][]): string
   if (!all.has("applications:update") && all.has("applications:read")) tags.push("View Apps (Read Only)");
   if (!all.has("hours:update") && all.has("hours:read")) tags.push("View Hours (Read Only)");
   return tags;
+}
+
+export function deriveRoleTitleFromPermissions(permissions: string[], isChapterScoped = false): string | null {
+  const grid = permissionKeysToGrid(permissions);
+  if (grid.drive === "granted" && grid.publish === "granted" && grid.triage === "granted" && grid.hours === "granted" && grid.team === "granted") {
+    return "Org Admin";
+  }
+  if (grid.drive === "granted" && grid.publish === "granted" && grid.triage === "granted" && grid.hours === "granted") {
+    return isChapterScoped ? "Chapter Operations Lead" : "Operations Lead";
+  }
+  if (grid.drive === "granted" && grid.triage === "granted" && grid.hours === "granted") {
+    return isChapterScoped ? "Chapter Coordinator" : "Drive Coordinator";
+  }
+  if (grid.drive === "granted") {
+    return isChapterScoped ? "Chapter Coordinator" : "Drive Coordinator";
+  }
+  if (grid.triage === "granted") {
+    return "Application Reviewer";
+  }
+  if (grid.triage === "read_only" || grid.hours === "read_only") {
+    return "Auditor";
+  }
+  return null;
 }
