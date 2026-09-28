@@ -12,6 +12,9 @@ import YouthRepublicHoursPage from "@/app/youth-republic/hours/page";
 import YouthRepublicDashboardPage from "@/app/youth-republic/dashboard/page";
 import YouthRepublicVolunteersPage from "@/app/youth-republic/volunteers/page";
 import { CreateOpportunityForm } from "@/components/youth-republic/CreateOpportunityForm";
+import { ChaptersPanel } from "@/components/team/ChaptersPanel";
+import OrganizationPage from "@/app/organization/page";
+import { deriveRoleTitleFromPermissions } from "@/lib/capabilityMap";
 import * as shell from "@/components/shell/AppShell";
 import * as staffTokenModule from "@/lib/staffToken";
 import * as supabaseModule from "@/lib/supabase/browserClient";
@@ -56,6 +59,11 @@ vi.mock("@/lib/youthRepublicFunctions", () => ({
 
 vi.mock("@/lib/platformFunctions", () => ({
   listChapters: vi.fn(),
+  updateOrganization: vi.fn(),
+  createChapter: vi.fn(),
+  updateChapter: vi.fn(),
+  listChapterTeamMembers: vi.fn().mockResolvedValue({ teamMembers: [] }),
+  lookupYouthRepublicMember: vi.fn(),
 }));
 
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
@@ -68,6 +76,7 @@ vi.mock("@/components/shell/AppShell", async (importOriginal) => {
     useStaffClaims: vi.fn(),
     useIsOrgAdminOrAbove: vi.fn(),
     useOrgTier: vi.fn(),
+    useShellLoading: vi.fn(),
   };
 });
 
@@ -81,6 +90,7 @@ function mockSupabase(options: {
   staffRow: { full_name: string; platform_owner: boolean; email?: string };
   orgTierRows: Array<{ organization_id: string; org_tier: string }>;
   organizations: Array<{ id: string; name: string }>;
+  roleName?: string;
 }) {
   return {
     auth: {
@@ -115,6 +125,20 @@ function mockSupabase(options: {
       if (table === "organizations") {
         return {
           select: () => ({
+            eq: () => ({
+              single: () =>
+                Promise.resolve({
+                  data: options.organizations[0]
+                    ? {
+                        name: options.organizations[0].name,
+                        about: "Empowering communities across Pakistan",
+                        brand_color: "#1F2430",
+                        logo_url: null,
+                      }
+                    : null,
+                  error: null,
+                }),
+            }),
             in: () => Promise.resolve({ data: options.organizations, error: null }),
             then: (resolve: (value: { data: typeof options.organizations; error: null }) => void) =>
               resolve({ data: options.organizations, error: null }),
@@ -124,7 +148,17 @@ function mockSupabase(options: {
       if (table === "staff_role_assignments") {
         return {
           select: () => ({
-            eq: () => Promise.resolve({ data: [{ staff_id: "staff-1" }], error: null }),
+            eq: () =>
+              Promise.resolve({
+                data: [
+                  {
+                    staff_id: "staff-1",
+                    organization_id: "org-1",
+                    roles: options.roleName ? { name: options.roleName } : null,
+                  },
+                ],
+                error: null,
+              }),
           }),
         };
       }
@@ -156,6 +190,9 @@ interface RoleDefinition {
     canViewVolunteers: boolean;
     canAccessDashboard: boolean;
     canManageTeam: boolean;
+    canManageOrgProfile: boolean;
+    canCreateChapters: boolean;
+    canViewInquiries: boolean;
     isChapterScoped: boolean;
     scopedChapterIds: string[] | null;
   };
@@ -180,15 +217,15 @@ interface RoleDefinition {
 const ROLES: Record<string, RoleDefinition> = {
   SUPER_ADMIN: {
     id: "super_admin",
-    name: "Super Admin / Org Admin",
+    name: "Super Admin",
     isOrgAdminOrAbove: true,
-    platformOwner: true,
+    platformOwner: false,
     orgTier: "super_admin",
     userRoleName: "Super Admin",
     permissions: [
       "opportunities:read", "opportunities:write", "noticeboard:write",
       "applications:read", "applications:update", "hours:read", "hours:update",
-      "volunteers:read", "team:write",
+      "volunteers:read", "team:write", "chapters:write", "inquiries:read", "inquiries:write",
     ],
     expectedCapabilities: {
       canViewDrives: true,
@@ -201,11 +238,14 @@ const ROLES: Record<string, RoleDefinition> = {
       canViewVolunteers: true,
       canAccessDashboard: true,
       canManageTeam: true,
+      canManageOrgProfile: true,
+      canCreateChapters: true,
+      canViewInquiries: true,
       isChapterScoped: false,
       scopedChapterIds: null,
     },
     sidebar: {
-      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours", "Volunteers", "Team Members"],
+      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours", "Volunteers", "Team Members", "Partner Inquiries"],
       forbiddenLinks: [],
       canSeeTeamAndGovernance: true,
     },
@@ -220,6 +260,104 @@ const ROLES: Record<string, RoleDefinition> = {
       canApproveHours: true,
     },
     disallowedRoutes: [],
+  },
+  NATIONAL_ORG_ADMIN: {
+    id: "national_org_admin",
+    name: "National Org Admin",
+    isOrgAdminOrAbove: true,
+    platformOwner: false,
+    orgTier: "admin",
+    userRoleName: "Org Admin",
+    permissions: [
+      "opportunities:read", "opportunities:write", "noticeboard:write",
+      "applications:read", "applications:update", "hours:read", "hours:update",
+      "team:write", "chapters:write", "inquiries:read", "inquiries:write",
+    ],
+    expectedCapabilities: {
+      canViewDrives: true,
+      canCreateDrives: true,
+      canPublishDrives: true,
+      canViewApplications: true,
+      canTriageApplications: true,
+      canViewHours: true,
+      canApproveHours: true,
+      canViewVolunteers: true,
+      canAccessDashboard: true,
+      canManageTeam: true,
+      canManageOrgProfile: true,
+      canCreateChapters: true,
+      canViewInquiries: true,
+      isChapterScoped: false,
+      scopedChapterIds: null,
+    },
+    sidebar: {
+      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours", "Volunteers", "Team Members", "Partner Inquiries"],
+      forbiddenLinks: [],
+      canSeeTeamAndGovernance: true,
+    },
+    layoutTabs: {
+      expected: ["Dashboard", "Volunteers", "Drives", "Applications", "Hours"],
+      forbidden: [],
+    },
+    actions: {
+      canCreateDrive: true,
+      canPublishDrive: true,
+      canTriageApplications: true,
+      canApproveHours: true,
+    },
+    disallowedRoutes: [],
+  },
+  CHAPTER_ADMIN: {
+    id: "chapter_admin",
+    name: "Chapter Admin (Lahore)",
+    isOrgAdminOrAbove: false,
+    platformOwner: false,
+    orgTier: "member",
+    userRoleName: "Chapter Admin",
+    permissions: [
+      "opportunities:read", "opportunities:write", "noticeboard:write",
+      "applications:read", "applications:update", "hours:read", "hours:update",
+      "team:write", "chapters:write",
+    ],
+    chapterScopes: {
+      "opportunities:write": ["lhr"],
+      "applications:update": ["lhr"],
+      "hours:update": ["lhr"],
+      "chapters:write": ["lhr"],
+    },
+    expectedCapabilities: {
+      canViewDrives: true,
+      canCreateDrives: true,
+      canPublishDrives: true,
+      canViewApplications: true,
+      canTriageApplications: true,
+      canViewHours: true,
+      canApproveHours: true,
+      canViewVolunteers: false,
+      canAccessDashboard: true,
+      canManageTeam: true,
+      canManageOrgProfile: false,
+      canCreateChapters: false,
+      canViewInquiries: false,
+      isChapterScoped: true,
+      scopedChapterIds: ["lhr"],
+    },
+    sidebar: {
+      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours", "Organization", "Team Members"],
+      forbiddenLinks: ["Volunteers", "Partner Inquiries"],
+      canSeeTeamAndGovernance: true,
+    },
+    layoutTabs: {
+      expected: ["Dashboard", "Drives", "Applications", "Hours"],
+      forbidden: ["Volunteers"],
+    },
+    actions: {
+      canCreateDrive: true,
+      canPublishDrive: true,
+      canTriageApplications: true,
+      canApproveHours: true,
+    },
+    disallowedRoutes: ["/youth-republic/volunteers"],
   },
   OPERATIONS_LEAD: {
     id: "operations_lead",
@@ -243,12 +381,15 @@ const ROLES: Record<string, RoleDefinition> = {
       canViewVolunteers: false,
       canAccessDashboard: true,
       canManageTeam: false,
+      canManageOrgProfile: false,
+      canCreateChapters: false,
+      canViewInquiries: false,
       isChapterScoped: false,
       scopedChapterIds: null,
     },
     sidebar: {
       expectedLinks: ["Dashboard", "Drives", "Applications", "Hours"],
-      forbiddenLinks: ["Volunteers", "Team Members", "Roles & Permissions"],
+      forbiddenLinks: ["Volunteers", "Team Members", "Roles & Permissions", "Partner Inquiries"],
       canSeeTeamAndGovernance: false,
     },
     layoutTabs: {
@@ -285,12 +426,15 @@ const ROLES: Record<string, RoleDefinition> = {
       canViewVolunteers: false,
       canAccessDashboard: true,
       canManageTeam: false,
+      canManageOrgProfile: false,
+      canCreateChapters: false,
+      canViewInquiries: false,
       isChapterScoped: false,
       scopedChapterIds: null,
     },
     sidebar: {
       expectedLinks: ["Dashboard", "Drives", "Applications", "Hours"],
-      forbiddenLinks: ["Volunteers", "Team Members", "Roles & Permissions"],
+      forbiddenLinks: ["Volunteers", "Team Members", "Roles & Permissions", "Partner Inquiries"],
       canSeeTeamAndGovernance: false,
     },
     layoutTabs: {
@@ -324,12 +468,15 @@ const ROLES: Record<string, RoleDefinition> = {
       canViewVolunteers: false,
       canAccessDashboard: true,
       canManageTeam: false,
+      canManageOrgProfile: false,
+      canCreateChapters: false,
+      canViewInquiries: false,
       isChapterScoped: false,
       scopedChapterIds: null,
     },
     sidebar: {
       expectedLinks: ["Dashboard", "Applications"],
-      forbiddenLinks: ["Drives", "Hours", "Volunteers", "Team Members"],
+      forbiddenLinks: ["Drives", "Hours", "Volunteers", "Team Members", "Partner Inquiries"],
       canSeeTeamAndGovernance: false,
     },
     layoutTabs: {
@@ -367,12 +514,15 @@ const ROLES: Record<string, RoleDefinition> = {
       canViewVolunteers: false,
       canAccessDashboard: true,
       canManageTeam: false,
+      canManageOrgProfile: false,
+      canCreateChapters: false,
+      canViewInquiries: false,
       isChapterScoped: false,
       scopedChapterIds: null,
     },
     sidebar: {
       expectedLinks: ["Dashboard", "Applications", "Hours"],
-      forbiddenLinks: ["Drives", "Volunteers", "Team Members"],
+      forbiddenLinks: ["Drives", "Volunteers", "Team Members", "Partner Inquiries"],
       canSeeTeamAndGovernance: false,
     },
     layoutTabs: {
@@ -417,12 +567,15 @@ const ROLES: Record<string, RoleDefinition> = {
       canViewVolunteers: false,
       canAccessDashboard: true,
       canManageTeam: false,
+      canManageOrgProfile: false,
+      canCreateChapters: false,
+      canViewInquiries: false,
       isChapterScoped: true,
       scopedChapterIds: ["lhr"],
     },
     sidebar: {
       expectedLinks: ["Dashboard", "Drives", "Applications", "Hours"],
-      forbiddenLinks: ["Volunteers", "Team Members"],
+      forbiddenLinks: ["Volunteers", "Team Members", "Partner Inquiries"],
       canSeeTeamAndGovernance: false,
     },
     layoutTabs: {
@@ -466,6 +619,7 @@ function setupRoleEnvironment(role: RoleDefinition) {
   vi.mocked(shell.useStaffClaims).mockReturnValue(claims);
   vi.mocked(shell.useIsOrgAdminOrAbove).mockReturnValue(role.isOrgAdminOrAbove);
   vi.mocked(shell.useOrgTier).mockReturnValue(role.orgTier);
+  vi.mocked(shell.useShellLoading).mockReturnValue(false);
 
   // Supabase & staff token mocks for AppShell integration
   vi.mocked(supabaseModule.getBrowserSupabaseClient).mockReturnValue(
@@ -473,6 +627,7 @@ function setupRoleEnvironment(role: RoleDefinition) {
       staffRow: { full_name: `${role.name} User`, platform_owner: role.platformOwner },
       orgTierRows: [{ organization_id: "org-1", org_tier: role.orgTier }],
       organizations: [{ id: "org-1", name: "Rizq Foundation" }],
+      roleName: role.userRoleName,
     }) as never,
   );
   vi.mocked(staffTokenModule.fetchStaffToken).mockResolvedValue(
@@ -643,6 +798,9 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
         expect(result.current.canViewVolunteers).toBe(role.expectedCapabilities.canViewVolunteers);
         expect(result.current.canAccessDashboard).toBe(role.expectedCapabilities.canAccessDashboard);
         expect(result.current.canManageTeam).toBe(role.expectedCapabilities.canManageTeam);
+        expect(result.current.canManageOrgProfile).toBe(role.expectedCapabilities.canManageOrgProfile);
+        expect(result.current.canCreateChapters).toBe(role.expectedCapabilities.canCreateChapters);
+        expect(result.current.canViewInquiries).toBe(role.expectedCapabilities.canViewInquiries);
         expect(result.current.isChapterScoped).toBe(role.expectedCapabilities.isChapterScoped);
         expect(result.current.scopedChapterIds).toEqual(role.expectedCapabilities.scopedChapterIds);
       });
@@ -656,12 +814,26 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       expect(lhrResult.current.hasChapterPermission("opportunities:write", "khi")).toBe(false);
       expect(lhrResult.current.hasChapterPermission("opportunities:write", null)).toBe(false);
 
+      // Chapter Admin (Lahore)
+      setupRoleEnvironment(ROLES.CHAPTER_ADMIN);
+      const { result: chapterAdminResult } = renderHook(() => useStaffPermissions());
+      expect(chapterAdminResult.current.canEditChapter("lhr")).toBe(true);
+      expect(chapterAdminResult.current.canEditChapter("khi")).toBe(false);
+
+      // National Org Admin (unconstrained)
+      setupRoleEnvironment(ROLES.NATIONAL_ORG_ADMIN);
+      const { result: nationalResult } = renderHook(() => useStaffPermissions());
+      expect(nationalResult.current.canEditChapter("lhr")).toBe(true);
+      expect(nationalResult.current.canEditChapter("khi")).toBe(true);
+
       // Unscoped super admin
       setupRoleEnvironment(ROLES.SUPER_ADMIN);
       const { result: adminResult } = renderHook(() => useStaffPermissions());
       expect(adminResult.current.hasChapterPermission("opportunities:write", "lhr")).toBe(true);
       expect(adminResult.current.hasChapterPermission("opportunities:write", "khi")).toBe(true);
       expect(adminResult.current.hasChapterPermission("opportunities:write", null)).toBe(true);
+      expect(adminResult.current.canEditChapter("lhr")).toBe(true);
+      expect(adminResult.current.canEditChapter("khi")).toBe(true);
     });
   });
 
@@ -1035,6 +1207,188 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       renderWithSwr(<YouthRepublicVolunteersPage />);
       expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+  });
+
+  // =========================================================================
+  // MATRIX 7: Chapter Governance & Scoped Administration
+  // =========================================================================
+  describe("Matrix 7: Chapter Governance & Scoped Administration", () => {
+    it("Super Admin sees Partner Inquiries, has unconstrained scope, and displays 'Super Admin'", async () => {
+      // 1. Role title derivation
+      expect(deriveRoleTitleFromPermissions(ROLES.SUPER_ADMIN.permissions, false)).toBe("Super Admin");
+
+      // 2. Capabilities
+      setupRoleEnvironment(ROLES.SUPER_ADMIN);
+      const { result } = renderHook(() => useStaffPermissions());
+      expect(result.current.isChapterScoped).toBe(false);
+      expect(result.current.scopedChapterIds).toBeNull();
+      expect(result.current.canManageOrgProfile).toBe(true);
+      expect(result.current.canCreateChapters).toBe(true);
+      expect(result.current.canViewInquiries).toBe(true);
+      expect(result.current.canEditChapter("lhr")).toBe(true);
+      expect(result.current.canEditChapter("khi")).toBe(true);
+
+      // 3. AppShell rendering
+      render(
+        <AppShell>
+          <div data-testid="page-inner">Super Admin Content</div>
+        </AppShell>
+      );
+      await waitFor(() => expect(screen.getByTestId("page-inner")).toBeInTheDocument());
+
+      // Profile pill displays "Super Admin"
+      expect(screen.getByText("Super Admin")).toBeInTheDocument();
+
+      // Partner Inquiries is in sidebar
+      expect(screen.getByRole("link", { name: /Partner Inquiries/i })).toBeInTheDocument();
+      expect(screen.getByText("Team & Governance")).toBeInTheDocument();
+    });
+
+    it("National Org Admin sees Partner Inquiries, has unconstrained scope, and displays 'Org Admin'", async () => {
+      // 1. Role title derivation
+      expect(deriveRoleTitleFromPermissions(ROLES.NATIONAL_ORG_ADMIN.permissions, false)).toBe("Org Admin");
+
+      // 2. Capabilities
+      setupRoleEnvironment(ROLES.NATIONAL_ORG_ADMIN);
+      const { result } = renderHook(() => useStaffPermissions());
+      expect(result.current.isChapterScoped).toBe(false);
+      expect(result.current.scopedChapterIds).toBeNull();
+      expect(result.current.canManageOrgProfile).toBe(true);
+      expect(result.current.canCreateChapters).toBe(true);
+      expect(result.current.canViewInquiries).toBe(true);
+      expect(result.current.canEditChapter("lhr")).toBe(true);
+      expect(result.current.canEditChapter("khi")).toBe(true);
+
+      // 3. AppShell rendering
+      render(
+        <AppShell>
+          <div data-testid="page-inner">Org Admin Content</div>
+        </AppShell>
+      );
+      await waitFor(() => expect(screen.getByTestId("page-inner")).toBeInTheDocument());
+
+      // Profile pill displays "Org Admin"
+      expect(screen.getByText("Org Admin")).toBeInTheDocument();
+
+      // Partner Inquiries is in sidebar
+      expect(screen.getByRole("link", { name: /Partner Inquiries/i })).toBeInTheDocument();
+      expect(screen.getByText("Team & Governance")).toBeInTheDocument();
+    });
+
+    it("Chapter Admin does NOT see Partner Inquiries in sidebar, but sees Team & Governance and displays 'Chapter Admin'", async () => {
+      // 1. Role title derivation
+      expect(deriveRoleTitleFromPermissions(ROLES.CHAPTER_ADMIN.permissions, true)).toBe("Chapter Admin");
+
+      // 2. Capabilities
+      setupRoleEnvironment(ROLES.CHAPTER_ADMIN);
+      const { result } = renderHook(() => useStaffPermissions());
+      expect(result.current.isChapterScoped).toBe(true);
+      expect(result.current.scopedChapterIds).toEqual(["lhr"]);
+      expect(result.current.canManageOrgProfile).toBe(false);
+      expect(result.current.canCreateChapters).toBe(false);
+      expect(result.current.canViewInquiries).toBe(false);
+      expect(result.current.canEditChapter("lhr")).toBe(true);
+      expect(result.current.canEditChapter("khi")).toBe(false);
+
+      // 3. AppShell rendering
+      render(
+        <AppShell>
+          <div data-testid="page-inner">Chapter Admin Content</div>
+        </AppShell>
+      );
+      await waitFor(() => expect(screen.getByTestId("page-inner")).toBeInTheDocument());
+
+      // Profile pill displays "Chapter Admin"
+      expect(screen.getByText("Chapter Admin")).toBeInTheDocument();
+
+      // Partner Inquiries is strictly ABSENT from sidebar
+      expect(screen.queryByRole("link", { name: /Partner Inquiries/i })).not.toBeInTheDocument();
+
+      // Organization and Team Members are present under Team & Governance
+      expect(screen.getByText("Team & Governance")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^Organization$/i })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /^Team Members$/i })).toBeInTheDocument();
+    });
+
+    it("Chapter Admin in ChaptersPanel sees all chapters, Edit only for assigned chapter, View Details for others, and Add Chapter is absent", () => {
+      setupRoleEnvironment(ROLES.CHAPTER_ADMIN);
+
+      render(
+        <ChaptersPanel
+          organizationId="org-1"
+          accessToken="access-token"
+          chapters={[
+            { id: "lhr", name: "Lahore Chapter", city: "Lahore", status: "active" },
+            { id: "khi", name: "Karachi Chapter", city: "Karachi", status: "active" },
+          ]}
+          onChanged={vi.fn()}
+        />
+      );
+
+      // Intra-org visibility: Both chapters visible
+      expect(screen.getByText("Lahore Chapter")).toBeInTheDocument();
+      expect(screen.getByText("Karachi Chapter")).toBeInTheDocument();
+
+      // Add Chapter is strictly absent
+      expect(screen.queryByRole("button", { name: /Add Chapter/i })).not.toBeInTheDocument();
+
+      // Edit only for assigned chapter (Lahore)
+      expect(screen.getByRole("button", { name: /^Edit$/i })).toBeInTheDocument();
+
+      // View Details for unassigned chapter (Karachi)
+      expect(screen.getByRole("button", { name: /View Details/i })).toBeInTheDocument();
+    });
+
+    it("Chapter Admin on /organization has profile inputs disabled, read-only banner, and no Save profile button", async () => {
+      setupRoleEnvironment(ROLES.CHAPTER_ADMIN);
+
+      renderWithSwr(<OrganizationPage />);
+
+      // Wait for org profile data to load
+      await waitFor(() => expect(screen.getByDisplayValue("Rizq Foundation")).toBeInTheDocument());
+
+      // Read-only indicator banner
+      expect(screen.getByText(/Read-only view for chapter leaders/i)).toBeInTheDocument();
+
+      // Organization profile inputs are disabled
+      expect(screen.getByLabelText(/Organization name/i)).toBeDisabled();
+      expect(screen.getByLabelText(/Brand color/i)).toBeDisabled();
+      expect(screen.getByLabelText(/Description/i)).toBeDisabled();
+
+      // Save profile button and upload logo button are absent
+      expect(screen.queryByRole("button", { name: /Save profile/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Upload logo/i })).not.toBeInTheDocument();
+
+      // Chapters panel is rendered within the page
+      expect(screen.getByText("Lahore Chapter")).toBeInTheDocument();
+    });
+
+    it("Demotion lifecycle: demoting from National Org Admin to Chapter Admin revokes unconstrained org-tier capabilities", () => {
+      // 1. Initial state: National Org Admin
+      setupRoleEnvironment(ROLES.NATIONAL_ORG_ADMIN);
+      const { result: nationalResult, rerender } = renderHook(() => useStaffPermissions());
+
+      expect(nationalResult.current.isChapterScoped).toBe(false);
+      expect(nationalResult.current.canManageOrgProfile).toBe(true);
+      expect(nationalResult.current.canCreateChapters).toBe(true);
+      expect(nationalResult.current.canViewInquiries).toBe(true);
+      expect(nationalResult.current.canEditChapter("khi")).toBe(true);
+      expect(nationalResult.current.canEditChapter("lhr")).toBe(true);
+      expect(deriveRoleTitleFromPermissions(ROLES.NATIONAL_ORG_ADMIN.permissions, false)).toBe("Org Admin");
+
+      // 2. Demote to Chapter Admin (chapter-scoped to Lahore)
+      setupRoleEnvironment(ROLES.CHAPTER_ADMIN);
+      rerender();
+
+      expect(nationalResult.current.isChapterScoped).toBe(true);
+      expect(nationalResult.current.scopedChapterIds).toEqual(["lhr"]);
+      expect(nationalResult.current.canManageOrgProfile).toBe(false);
+      expect(nationalResult.current.canCreateChapters).toBe(false);
+      expect(nationalResult.current.canViewInquiries).toBe(false);
+      expect(nationalResult.current.canEditChapter("lhr")).toBe(true);
+      expect(nationalResult.current.canEditChapter("khi")).toBe(false);
+      expect(deriveRoleTitleFromPermissions(ROLES.CHAPTER_ADMIN.permissions, true)).toBe("Chapter Admin");
     });
   });
 });

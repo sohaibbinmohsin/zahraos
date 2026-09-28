@@ -94,9 +94,11 @@ export function getRoleRank(roleName: string): number {
   const norm = roleName.trim().toLowerCase().replace(/[-_]/g, " ");
   if (norm === "platform owner") return 100;
   if (norm === "super admin") return 90;
-  if (norm === "admin" || norm === "org admin" || norm === "organization admin") return 80;
-  if (norm === "operations lead") return 70;
-  if (norm === "drive coordinator") return 60;
+  if (norm === "org admin" || norm === "organization admin") return 85;
+  if (norm === "admin") return 80;
+  if (norm === "chapter admin") return 75;
+  if (norm === "operations lead" || norm === "chapter operations lead") return 70;
+  if (norm === "drive coordinator" || norm === "chapter coordinator") return 60;
   if (norm === "application reviewer") return 40;
   if (norm === "auditor") return 30;
   if (norm === "viewer") return 20;
@@ -339,7 +341,14 @@ export function AppShell({
     if (orgTier === "super_admin") {
       rawRoles.push("Super Admin");
     } else if (orgTier === "admin") {
-      rawRoles.push("Admin");
+      const activeAccess = claims?.moduleAccess?.find((m) => !selectedOrgId || m.organizationId === selectedOrgId);
+      const isScoped = Boolean(activeAccess?.chapterScopes && Object.keys(activeAccess.chapterScopes).length > 0);
+      const derived = activeAccess ? deriveRoleTitleFromPermissions(activeAccess.permissions, isScoped) : null;
+      if (derived === "Org Admin") {
+        rawRoles.push("Org Admin");
+      } else {
+        rawRoles.push("Admin");
+      }
     }
 
     const assigned = (selectedOrgId ? assignedRolesByOrg[selectedOrgId] : []) ?? [];
@@ -347,9 +356,9 @@ export function AppShell({
       rawRoles.push(formatRoleTitle(r));
     }
 
-    // If Super Admin is present, filter out generic "Admin"
-    const hasSuperAdmin = rawRoles.some((r) => r.toLowerCase() === "super admin");
-    const filtered = hasSuperAdmin ? rawRoles.filter((r) => r.toLowerCase() !== "admin") : rawRoles;
+    // If Super Admin or Org Admin is present, filter out generic "Admin"
+    const hasSpecificAdmin = rawRoles.some((r) => ["super admin", "org admin"].includes(r.toLowerCase()));
+    const filtered = hasSpecificAdmin ? rawRoles.filter((r) => r.toLowerCase() !== "admin") : rawRoles;
 
     const seen = new Set<string>();
     const uniqueRoles: string[] = [];
