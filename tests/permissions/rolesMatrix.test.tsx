@@ -872,11 +872,11 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       await screen.findByText("Karachi Beach Cleanup");
 
       // Lahore drive card has Edit button
-      const lhrCard = screen.getByText("Lahore Tree Drive").closest(".opp-card")!;
+      const lhrCard = screen.getByText("Lahore Tree Drive").closest(".opp-card") as HTMLElement;
       expect(within(lhrCard).getByRole("button", { name: "Edit" })).toBeInTheDocument();
 
       // Karachi drive card does NOT have Edit button
-      const khiCard = screen.getByText("Karachi Beach Cleanup").closest(".opp-card")!;
+      const khiCard = screen.getByText("Karachi Beach Cleanup").closest(".opp-card") as HTMLElement;
       expect(within(khiCard).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
     });
 
@@ -887,10 +887,10 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       await screen.findByText("Lahore Tree Drive");
       await screen.findByText("Karachi Beach Cleanup");
 
-      const lhrCard = screen.getByText("Lahore Tree Drive").closest(".opp-card")!;
+      const lhrCard = screen.getByText("Lahore Tree Drive").closest(".opp-card") as HTMLElement;
       expect(within(lhrCard).getByRole("button", { name: "Edit" })).toBeInTheDocument();
 
-      const khiCard = screen.getByText("Karachi Beach Cleanup").closest(".opp-card")!;
+      const khiCard = screen.getByText("Karachi Beach Cleanup").closest(".opp-card") as HTMLElement;
       expect(within(khiCard).getByRole("button", { name: "Edit" })).toBeInTheDocument();
     });
 

@@ -17,6 +17,7 @@ async function callFunction<TResponse>(
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000),
   });
 
   const data = await response.json();

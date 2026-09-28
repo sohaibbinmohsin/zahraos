@@ -13,6 +13,7 @@ async function callYouthRepublicFunction<TResponse>(name: string, body: unknown,
       Authorization: `Bearer ${staffToken}`,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000),
   });
 
   const data = await response.json();
