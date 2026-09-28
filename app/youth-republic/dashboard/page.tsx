@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import {
@@ -11,7 +12,9 @@ import {
   type ApplicationListRow,
   type ActivityListRow,
 } from "@/lib/youthRepublicFunctions";
-import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
+import { listChapters, type ChapterRow } from "@/lib/platformFunctions";
+import { useSelectedOrg, useShellStaffToken, useShellAccessToken } from "@/components/shell/AppShell";
+import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { useToast } from "@/components/shell/ToastContext";
 import { DashboardSkeleton } from "@/components/ui/skeletons";
 import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
@@ -46,17 +49,73 @@ function timeAgo(iso: string): string {
 export default function YouthRepublicDashboardPage() {
   const organizationId = useSelectedOrg();
   const staffToken = useShellStaffToken();
+  const shellAccessToken = useShellAccessToken();
   const perms = useStaffPermissions();
   const { showToast } = useToast();
+
+  const token = shellAccessToken || staffToken;
+
+  const { data: chapters } = useSWR(
+    perms.isChapterScoped && organizationId && token
+      ? ["chapters", organizationId]
+      : null,
+    async () => {
+      try {
+        const res = await listChapters({ organizationId: organizationId! }, token!);
+        return res.chapters ?? [];
+      } catch {
+        try {
+          const supabase = getBrowserSupabaseClient();
+          if (typeof supabase?.from === "function") {
+            const { data } = await supabase
+              .from("chapters")
+              .select("id, name")
+              .eq("organization_id", organizationId!);
+            return (data as ChapterRow[]) ?? [];
+          }
+        } catch {
+          // ignore
+        }
+        return [];
+      }
+    }
+  );
+
+  const chapterSubtitle = useMemo(() => {
+    if (!perms.isChapterScoped) {
+      return "Organization-wide operations & telemetry across all chapters.";
+    }
+    const scopedIds = perms.scopedChapterIds;
+    if (!scopedIds || scopedIds.length === 0) {
+      return "Live operations & shift telemetry for Assigned Chapter";
+    }
+    const names = scopedIds
+      .map((id) => chapters?.find((c) => c.id === id)?.name || id)
+      .filter(Boolean);
+    const resolvedName = names.length > 0 ? names.join(", ") : "Assigned Chapter";
+    return `Live operations & shift telemetry for ${resolvedName}`;
+  }, [perms.isChapterScoped, perms.scopedChapterIds, chapters]);
+
   const {
     data,
     isLoading: loading,
     mutate: loadData,
   } = useSWR(
-    organizationId && staffToken && perms.canAccessDashboard ? ["dashboard", organizationId] : null,
+    organizationId && staffToken && perms.canAccessDashboard
+      ? [
+          "dashboard",
+          organizationId,
+          perms.canViewDrives,
+          perms.canViewApplications,
+          perms.canViewHours,
+          perms.canViewVolunteers,
+        ]
+      : null,
     async () => {
       const results = await Promise.allSettled([
-        getKpiSummary({ organizationId: organizationId! }, staffToken!),
+        perms.canViewVolunteers
+          ? getKpiSummary({ organizationId: organizationId! }, staffToken!)
+          : Promise.resolve(null),
         perms.canViewDrives
           ? listOpportunities({ organizationId: organizationId!, limit: 100 }, staffToken!)
           : Promise.resolve({ opportunities: [] }),
@@ -68,9 +127,12 @@ export default function YouthRepublicDashboardPage() {
           : Promise.resolve({ activity: [] }),
       ]);
       const kpis = results[0].status === "fulfilled" ? results[0].value : null;
-      const opps = results[1].status === "fulfilled" ? results[1].value.opportunities : [];
-      const apps = results[2].status === "fulfilled" ? results[2].value.applications : [];
-      const hours = results[3].status === "fulfilled" ? results[3].value.activity : [];
+      const opps =
+        results[1].status === "fulfilled" && results[1].value ? results[1].value.opportunities ?? [] : [];
+      const apps =
+        results[2].status === "fulfilled" && results[2].value ? results[2].value.applications ?? [] : [];
+      const hours =
+        results[3].status === "fulfilled" && results[3].value ? results[3].value.activity ?? [] : [];
       return {
         kpis,
         opps,
@@ -148,7 +210,7 @@ export default function YouthRepublicDashboardPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Operations Command Center</h1>
-          <div className="page-subtitle">Live volunteer drive telemetry, verification pipeline and shift metrics.</div>
+          <div className="page-subtitle">{chapterSubtitle}</div>
         </div>
         <div className="page-toolbar">
           <button
@@ -168,152 +230,162 @@ export default function YouthRepublicDashboardPage() {
       </div>
 
       <div className="stat-grid">
-        <div className="stat-card">
-          <div className="stat-label">Active drives</div>
-          <div className="stat-value">{activeOpps.length}</div>
-          <div className="stat-sub">{liveOpps.length} live · {opps.length - liveOpps.length} archived</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Applications to review</div>
-          <div className="stat-value">{pendingApps.length}</div>
-          <div className="stat-sub">{selectedApps.length} selected · {apps.length} total</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Hours to verify</div>
-          <div className="stat-value">{hoursToVerify.length}</div>
-          <div className="stat-sub">{kpis?.totalVerifiedHours ?? 0} hours verified so far</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Active volunteers</div>
-          <div className="stat-value">{kpis?.active ?? 0}</div>
-          <div className="stat-sub">{kpis?.completedParticipations ?? 0} completed drives</div>
-        </div>
+        {perms.canViewDrives && (
+          <div className="stat-card">
+            <div className="stat-label">Active drives</div>
+            <div className="stat-value">{activeOpps.length}</div>
+            <div className="stat-sub">{liveOpps.length} live · {opps.length - liveOpps.length} archived</div>
+          </div>
+        )}
+        {perms.canViewApplications && (
+          <div className="stat-card">
+            <div className="stat-label">Applications to review</div>
+            <div className="stat-value">{pendingApps.length}</div>
+            <div className="stat-sub">{selectedApps.length} selected · {apps.length} total</div>
+          </div>
+        )}
+        {perms.canViewHours && (
+          <div className="stat-card">
+            <div className="stat-label">Hours to verify</div>
+            <div className="stat-value">{hoursToVerify.length}</div>
+            <div className="stat-sub">{kpis?.totalVerifiedHours ?? 0} hours verified so far</div>
+          </div>
+        )}
+        {perms.canViewVolunteers && (
+          <div className="stat-card">
+            <div className="stat-label">Active volunteers</div>
+            <div className="stat-value">{kpis?.active ?? 0}</div>
+            <div className="stat-sub">{kpis?.completedParticipations ?? 0} completed drives</div>
+          </div>
+        )}
       </div>
 
-      <div className="panel-grid">
-        <div className="panel">
-          <div className="panel-head">
-            <span className="panel-title">Volunteer capacity</span>
-            {perms.canViewDrives && (
-              <Link href="/youth-republic/drives" className="text-xs font-semibold text-[var(--ink)] hover:underline">
-                View all &rarr;
-              </Link>
-            )}
-          </div>
-          <div className="flex flex-col gap-3.5">
-            {capacityRows.length === 0 ? (
-              <p className="text-xs text-[var(--ink-3)]">No drives with a capacity quota yet.</p>
-            ) : (
-              capacityRows.map((r) => (
-                <div key={r.name}>
-                  <div className="flex justify-between items-baseline gap-2 text-[var(--text-sm)]">
-                    <span className="font-medium text-[var(--ink)] truncate min-w-0">{r.name}</span>
-                    <b className="font-mono text-xs shrink-0 whitespace-nowrap">{r.filled} / {r.cap} ({r.percent}%)</b>
-                  </div>
-                  <div className="meter-bar">
-                    <div className="meter-fill" style={{ width: `${r.percent}%` }} />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-head">
-            <span className="panel-title">Recent applications</span>
-            {perms.canViewApplications && (
-              <Link href="/youth-republic/applications" className="text-xs font-semibold text-[var(--ink)] hover:underline">
-                Triage all &rarr;
-              </Link>
-            )}
-          </div>
-          <div className="flex flex-col gap-2.5">
-            {recentApps.length === 0 ? (
-              <p className="text-xs text-[var(--ink-3)]">No applications yet.</p>
-            ) : (
-              recentApps.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--bg-page)] border border-[var(--line-subtle)] flex-wrap"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-[var(--text-sm)] text-[var(--ink)] truncate">
-                      {a.applicantName ?? a.volunteerName}
+      {(perms.canViewDrives || perms.canViewApplications) && (
+        <div className="panel-grid">
+          {perms.canViewDrives && (
+            <div className="panel">
+              <div className="panel-head">
+                <span className="panel-title">Volunteer capacity</span>
+                <Link href="/youth-republic/drives" className="text-xs font-semibold text-[var(--ink)] hover:underline">
+                  View all &rarr;
+                </Link>
+              </div>
+              <div className="flex flex-col gap-3.5">
+                {capacityRows.length === 0 ? (
+                  <p className="text-xs text-[var(--ink-3)]">No drives with a capacity quota yet.</p>
+                ) : (
+                  capacityRows.map((r) => (
+                    <div key={r.name}>
+                      <div className="flex justify-between items-baseline gap-2 text-[var(--text-sm)]">
+                        <span className="font-medium text-[var(--ink)] truncate min-w-0">{r.name}</span>
+                        <b className="font-mono text-xs shrink-0 whitespace-nowrap">{r.filled} / {r.cap} ({r.percent}%)</b>
+                      </div>
+                      <div className="meter-bar">
+                        <div className="meter-fill" style={{ width: `${r.percent}%` }} />
+                      </div>
                     </div>
-                    <div className="text-[var(--text-xs)] text-[var(--ink-2)] truncate">
-                      {a.opportunityName} · {timeAgo(a.appliedAt)}
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          {perms.canViewApplications && (
+            <div className="panel">
+              <div className="panel-head">
+                <span className="panel-title">Recent applications</span>
+                <Link href="/youth-republic/applications" className="text-xs font-semibold text-[var(--ink)] hover:underline">
+                  Triage all &rarr;
+                </Link>
+              </div>
+              <div className="flex flex-col gap-2.5">
+                {recentApps.length === 0 ? (
+                  <p className="text-xs text-[var(--ink-3)]">No applications yet.</p>
+                ) : (
+                  recentApps.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center justify-between gap-2 p-2.5 rounded-lg bg-[var(--bg-page)] border border-[var(--line-subtle)] flex-wrap"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-[var(--text-sm)] text-[var(--ink)] truncate">
+                          {a.applicantName ?? a.volunteerName}
+                        </div>
+                        <div className="text-[var(--text-xs)] text-[var(--ink-2)] truncate">
+                          {a.opportunityName} · {timeAgo(a.appliedAt)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`badge ${APP_STATUS_BADGE[a.status] ?? "badge-neu"}`}>
+                          {APP_STATUS_LABEL[a.status] ?? a.status}
+                        </span>
+                        <Link
+                          href={`/youth-republic/applications?opportunityId=${a.opportunityId}`}
+                          className="btn btn-secondary btn-xs"
+                        >
+                          Review
+                        </Link>
+                      </div>
                     </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {perms.canViewVolunteers && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="panel">
+            <div className="panel-head"><span className="panel-title text-sm">Volunteers by city</span></div>
+            <div className="flex flex-col gap-2">
+              {kpis?.byCity && Object.keys(kpis.byCity).length > 0 ? (
+                Object.entries(kpis.byCity).sort((a, b) => b[1] - a[1]).map(([city, count]) => (
+                  <div key={city} className="flex justify-between items-center text-sm py-1 border-b border-[var(--line-subtle)] last:border-none">
+                    <span className="text-[var(--ink-2)]">{city}</span>
+                    <span className="font-semibold font-mono text-xs">{count}</span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`badge ${APP_STATUS_BADGE[a.status] ?? "badge-neu"}`}>
-                      {APP_STATUS_LABEL[a.status] ?? a.status}
-                    </span>
-                    {perms.canViewApplications && (
-                      <Link
-                        href={`/youth-republic/applications?opportunityId=${a.opportunityId}`}
-                        className="btn btn-secondary btn-xs"
-                      >
-                        Review
-                      </Link>
-                    )}
+                ))
+              ) : (
+                <p className="text-xs text-[var(--ink-3)]">No geographic data yet.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-head"><span className="panel-title text-sm">Top institutions</span></div>
+            <div className="flex flex-col gap-2">
+              {kpis?.byInstitution && Object.keys(kpis.byInstitution).length > 0 ? (
+                Object.entries(kpis.byInstitution).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([inst, count]) => (
+                  <div key={inst} className="flex justify-between items-center text-sm py-1 border-b border-[var(--line-subtle)] last:border-none">
+                    <span className="text-[var(--ink-2)] truncate">{inst}</span>
+                    <span className="font-semibold font-mono text-xs shrink-0">{count}</span>
                   </div>
-                </div>
-              ))
-            )}
+                ))
+              ) : (
+                <p className="text-xs text-[var(--ink-3)]">No academic records yet.</p>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="panel">
-          <div className="panel-head"><span className="panel-title text-sm">Volunteers by city</span></div>
-          <div className="flex flex-col gap-2">
-            {kpis?.byCity && Object.keys(kpis.byCity).length > 0 ? (
-              Object.entries(kpis.byCity).sort((a, b) => b[1] - a[1]).map(([city, count]) => (
-                <div key={city} className="flex justify-between items-center text-sm py-1 border-b border-[var(--line-subtle)] last:border-none">
-                  <span className="text-[var(--ink-2)]">{city}</span>
-                  <span className="font-semibold font-mono text-xs">{count}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-[var(--ink-3)]">No geographic data yet.</p>
-            )}
+          <div className="panel">
+            <div className="panel-head"><span className="panel-title text-sm">By activity domain</span></div>
+            <div className="flex flex-col gap-2">
+              {kpis?.participationByActivityType && Object.keys(kpis.participationByActivityType).length > 0 ? (
+                Object.entries(kpis.participationByActivityType).sort((a, b) => b[1] - a[1]).map(([act, count]) => (
+                  <div key={act} className="flex justify-between items-center text-sm py-1 border-b border-[var(--line-subtle)] last:border-none">
+                    <span className="capitalize text-[var(--ink-2)]">{act}</span>
+                    <span className="font-semibold font-mono text-xs">{count}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-[var(--ink-3)]">No domain breakdown yet.</p>
+              )}
+            </div>
           </div>
         </div>
-
-        <div className="panel">
-          <div className="panel-head"><span className="panel-title text-sm">Top institutions</span></div>
-          <div className="flex flex-col gap-2">
-            {kpis?.byInstitution && Object.keys(kpis.byInstitution).length > 0 ? (
-              Object.entries(kpis.byInstitution).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([inst, count]) => (
-                <div key={inst} className="flex justify-between items-center text-sm py-1 border-b border-[var(--line-subtle)] last:border-none">
-                  <span className="text-[var(--ink-2)] truncate">{inst}</span>
-                  <span className="font-semibold font-mono text-xs shrink-0">{count}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-[var(--ink-3)]">No academic records yet.</p>
-            )}
-          </div>
-        </div>
-
-        <div className="panel">
-          <div className="panel-head"><span className="panel-title text-sm">By activity domain</span></div>
-          <div className="flex flex-col gap-2">
-            {kpis?.participationByActivityType && Object.keys(kpis.participationByActivityType).length > 0 ? (
-              Object.entries(kpis.participationByActivityType).sort((a, b) => b[1] - a[1]).map(([act, count]) => (
-                <div key={act} className="flex justify-between items-center text-sm py-1 border-b border-[var(--line-subtle)] last:border-none">
-                  <span className="capitalize text-[var(--ink-2)]">{act}</span>
-                  <span className="font-semibold font-mono text-xs">{count}</span>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-[var(--ink-3)]">No domain breakdown yet.</p>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
     </AccessDeniedGate>
   );
