@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useToast } from "@/components/shell/ToastContext";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import {
   listChapterTeamMembers,
   lookupYouthRepublicMember,
+  searchYouthRepublicMembers,
   requestPublicAssetUpload,
   updateChapter,
   type ChapterRow,
@@ -85,15 +86,67 @@ export function EditChapterDrawer({
   const [activeTab, setActiveTab] = useState<"active" | "alumni">("active");
 
   // Add Member state
-  const [yrIdInput, setYrIdInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<YouthRepublicMemberLookupResult[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [yrVerifying, setYrVerifying] = useState(false);
   const [verifiedVolunteer, setVerifiedVolunteer] = useState<YouthRepublicMemberLookupResult | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [designationInput, setDesignationInput] = useState("");
   const [termInput, setTermInput] = useState(getDefaultTerm);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Submission state
   const [saving, setSaving] = useState(false);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // Debounced search autocomplete (300ms)
+  useEffect(() => {
+    const trimmed = searchQuery.trim();
+    if (verifiedVolunteer && `${verifiedVolunteer.fullName} (${verifiedVolunteer.volunteerCode})` === trimmed) {
+      setIsDropdownOpen(false);
+      return;
+    }
+
+    if (trimmed.length < 2 || !organizationId) {
+      setSearchResults([]);
+      setIsSearching(false);
+      setIsDropdownOpen(false);
+      return;
+    }
+
+    setIsSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await searchYouthRepublicMembers(
+          { organizationId, query: trimmed },
+          accessToken
+        );
+        setSearchResults(res.members || []);
+        setIsDropdownOpen(true);
+      } catch {
+        setSearchResults([]);
+        setIsDropdownOpen(true);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, organizationId, accessToken, verifiedVolunteer]);
 
   useEffect(() => {
     if (open && chapter) {
@@ -104,7 +157,10 @@ export function EditChapterDrawer({
       setLogoUrl(existingLogo);
       setVerifiedVolunteer(null);
       setLookupError(null);
-      setYrIdInput("");
+      setSearchQuery("");
+      setSearchResults([]);
+      setIsSearching(false);
+      setIsDropdownOpen(false);
       setDesignationInput("");
       setTermInput(getDefaultTerm());
       setActiveTab("active");
@@ -167,17 +223,30 @@ export function EditChapterDrawer({
     }
   }
 
+  function handleSelectMember(selected: YouthRepublicMemberLookupResult) {
+    setVerifiedVolunteer(selected);
+    setSearchQuery(`${selected.fullName} (${selected.volunteerCode})`);
+    setIsDropdownOpen(false);
+    setLookupError(null);
+    const designationInputEl = document.getElementById("designation-input");
+    designationInputEl?.focus();
+  }
+
   async function handleVerifyId() {
-    const query = yrIdInput.trim();
+    const query = searchQuery.trim();
     if (!query || !organizationId) return;
 
     setYrVerifying(true);
     setLookupError(null);
     setVerifiedVolunteer(null);
+    setIsDropdownOpen(false);
 
     try {
+      const codeMatch = query.match(/\((YR-[^)]+)\)/i);
+      const youthRepublicId = codeMatch ? codeMatch[1] : query;
+
       const res = await lookupYouthRepublicMember(
-        { organizationId, youthRepublicId: query },
+        { organizationId, youthRepublicId },
         accessToken
       );
       if (!res || !res.volunteerCode) {
@@ -213,7 +282,9 @@ export function EditChapterDrawer({
 
     setRoster((prev) => [...prev, newMember]);
     setVerifiedVolunteer(null);
-    setYrIdInput("");
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsDropdownOpen(false);
     setDesignationInput("");
     setActiveTab("active");
   }
@@ -583,8 +654,8 @@ export function EditChapterDrawer({
                   Add Team Member
                 </div>
 
-                {/* YR ID Verification Input */}
-                <div className="form-group" style={{ marginBottom: ".75rem" }}>
+                {/* YR ID Verification & Autocomplete Input */}
+                <div ref={dropdownRef} className="form-group" style={{ position: "relative", marginBottom: ".75rem" }}>
                   <label className="form-label" htmlFor="yr-id-input">
                     Verify Youth Republic ID
                   </label>
@@ -594,16 +665,27 @@ export function EditChapterDrawer({
                       aria-label="Youth Republic ID"
                       type="text"
                       className="form-input"
-                      placeholder="e.g. YR-2026-000001"
-                      value={yrIdInput}
+                      placeholder="Search by name, email, or YR ID..."
+                      value={searchQuery}
                       onChange={(e) => {
-                        setYrIdInput(e.target.value);
+                        setSearchQuery(e.target.value);
                         if (lookupError) setLookupError(null);
+                      }}
+                      onFocus={() => {
+                        if (searchQuery.trim().length >= 2 && searchResults.length > 0) {
+                          setIsDropdownOpen(true);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleVerifyId();
+                        }
                       }}
                     />
                     <LoadingButton
                       className="btn btn-secondary btn-sm"
-                      disabled={yrVerifying || !yrIdInput.trim()}
+                      disabled={yrVerifying || !searchQuery.trim()}
                       loading={yrVerifying}
                       loadingText="Verifying…"
                       onClick={handleVerifyId}
@@ -611,6 +693,128 @@ export function EditChapterDrawer({
                       Verify ID
                     </LoadingButton>
                   </div>
+
+                  {/* Floating Autocomplete Dropdown */}
+                  {isDropdownOpen && searchQuery.trim().length >= 2 && (
+                    <div
+                      role="listbox"
+                      aria-label="Volunteer search results"
+                      style={{
+                        position: "absolute",
+                        top: "100%",
+                        left: 0,
+                        right: 0,
+                        zIndex: 50,
+                        marginTop: "4px",
+                        backgroundColor: "#ffffff",
+                        border: "1px solid var(--line, #e2e8f0)",
+                        borderRadius: "12px",
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
+                        maxHeight: "260px",
+                        overflowY: "auto",
+                      }}
+                      className="absolute z-50 mt-1 w-full bg-white border rounded-xl shadow-lg"
+                    >
+                      {isSearching ? (
+                        <div style={{ padding: "0.75rem 1rem", fontSize: "var(--text-sm)", color: "var(--ink-2)" }}>
+                          Searching members…
+                        </div>
+                      ) : searchResults.length === 0 ? (
+                        <div
+                          style={{ padding: "0.75rem 1rem", fontSize: "var(--text-sm)", color: "var(--ink-2)" }}
+                        >
+                          {"No active verified members found matching '" + searchQuery.trim() + "'"}
+                        </div>
+                      ) : (
+                        searchResults.map((m) => (
+                          <div
+                            key={m.volunteerCode}
+                            role="option"
+                            aria-selected={verifiedVolunteer?.volunteerCode === m.volunteerCode}
+                            tabIndex={0}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                            }}
+                            onClick={() => handleSelectMember(m)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                handleSelectMember(m);
+                              }
+                            }}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "0.6rem 0.85rem",
+                              cursor: "pointer",
+                              borderBottom: "1px solid var(--line, #f1f5f9)",
+                            }}
+                            className="search-result-item hover:bg-[var(--surface-sunken,#f8fafc)]"
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
+                              {m.avatarUrl ? (
+                                <img
+                                  src={m.avatarUrl}
+                                  alt={m.fullName}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                  style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }}
+                                />
+                              ) : (
+                                <div
+                                  className="avatar"
+                                  style={{
+                                    width: 32,
+                                    height: 32,
+                                    borderRadius: "50%",
+                                    backgroundColor: "var(--surface-sunken, #f1f5f9)",
+                                    display: "grid",
+                                    placeItems: "center",
+                                    fontSize: "var(--text-xs)",
+                                    fontWeight: 600,
+                                    color: "var(--ink-2)",
+                                  }}
+                                >
+                                  {initials(m.fullName)}
+                                </div>
+                              )}
+                              <div style={{ minWidth: 0 }}>
+                                <div
+                                  className="font-bold text-sm text-[var(--ink)]"
+                                  style={{ fontWeight: 600, fontSize: "var(--text-sm)", color: "var(--ink)" }}
+                                >
+                                  {m.fullName}
+                                </div>
+                                {m.email && (
+                                  <div
+                                    className="text-xs text-[var(--ink-2)]"
+                                    style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)" }}
+                                  >
+                                    {m.email}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <span
+                              className="font-mono text-xs bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border"
+                              style={{
+                                fontFamily: "monospace",
+                                fontSize: "11px",
+                                padding: "2px 6px",
+                                borderRadius: "4px",
+                                border: "1px solid var(--line, #e2e8f0)",
+                                background: "var(--surface-sunken, #f8fafc)",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {m.volunteerCode}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+
                   {lookupError && (
                     <div style={{ color: "var(--red, #e11d48)", fontSize: "var(--text-xs)", marginTop: ".35rem" }}>
                       {lookupError}

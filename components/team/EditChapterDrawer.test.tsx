@@ -4,6 +4,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const listChapterTeamMembers = vi.fn();
 const lookupYouthRepublicMember = vi.fn();
+const searchYouthRepublicMembers = vi.fn();
 const updateChapter = vi.fn();
 const requestPublicAssetUpload = vi.fn();
 const showToast = vi.fn();
@@ -11,6 +12,7 @@ const showToast = vi.fn();
 vi.mock("@/lib/platformFunctions", () => ({
   listChapterTeamMembers: (...a: unknown[]) => listChapterTeamMembers(...a),
   lookupYouthRepublicMember: (...a: unknown[]) => lookupYouthRepublicMember(...a),
+  searchYouthRepublicMembers: (...a: unknown[]) => searchYouthRepublicMembers(...a),
   updateChapter: (...a: unknown[]) => updateChapter(...a),
   requestPublicAssetUpload: (...a: unknown[]) => requestPublicAssetUpload(...a),
 }));
@@ -66,6 +68,16 @@ describe("EditChapterDrawer", () => {
       fullName: "Zainab Tariq",
       email: "zainab@example.com",
       avatarUrl: "https://example.com/zainab.png",
+    });
+    searchYouthRepublicMembers.mockResolvedValue({
+      members: [
+        {
+          volunteerCode: "YR-2026-000100",
+          fullName: "Zainab Tariq",
+          email: "zainab@example.com",
+          avatarUrl: "https://example.com/zainab.png",
+        },
+      ],
     });
     requestPublicAssetUpload.mockResolvedValue({
       uploadUrl: "https://r2.example.com/chapter-put-signed-url",
@@ -425,5 +437,170 @@ describe("EditChapterDrawer", () => {
     expect(showToast).toHaveBeenCalledWith("Chapter saved successfully.");
     expect(onSuccess).toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("debounces omni-search and queries searchYouthRepublicMembers when >= 2 characters typed", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditChapterDrawer
+        open={true}
+        onClose={vi.fn()}
+        chapter={mockChapter}
+        organizationId="org-1"
+        accessToken="access-token"
+      />
+    );
+
+    const yrInput = screen.getByLabelText(/Youth Republic ID/i);
+    // Type 1 character - should not trigger search
+    await user.type(yrInput, "Z");
+    expect(searchYouthRepublicMembers).not.toHaveBeenCalled();
+
+    // Type 2nd character - triggers debounce
+    await user.type(yrInput, "a");
+
+    await waitFor(
+      () => {
+        expect(searchYouthRepublicMembers).toHaveBeenCalledWith(
+          { organizationId: "org-1", query: "Za" },
+          "access-token"
+        );
+      },
+      { timeout: 1000 }
+    );
+  });
+
+  it("renders matching volunteer cards with avatars/initials and ID badges in autocomplete dropdown", async () => {
+    const user = userEvent.setup();
+    searchYouthRepublicMembers.mockResolvedValueOnce({
+      members: [
+        {
+          volunteerCode: "YR-2026-000888",
+          fullName: "Hamza Abbasi",
+          email: "hamza@example.com",
+          avatarUrl: "https://example.com/hamza.jpg",
+        },
+        {
+          volunteerCode: "YR-2026-000999",
+          fullName: "Fatima Farooq",
+          email: "fatima@example.com",
+          avatarUrl: null,
+        },
+      ],
+    });
+
+    render(
+      <EditChapterDrawer
+        open={true}
+        onClose={vi.fn()}
+        chapter={mockChapter}
+        organizationId="org-1"
+        accessToken="access-token"
+      />
+    );
+
+    const yrInput = screen.getByLabelText(/Youth Republic ID/i);
+    await user.type(yrInput, "Abbasi");
+
+    await waitFor(() => {
+      expect(screen.getByRole("listbox")).toBeInTheDocument();
+    });
+
+    expect(screen.getByText("Hamza Abbasi")).toBeInTheDocument();
+    expect(screen.getByText("YR-2026-000888")).toBeInTheDocument();
+    expect(screen.getByText("hamza@example.com")).toBeInTheDocument();
+    expect(screen.getByAltText("Hamza Abbasi")).toHaveAttribute("src", "https://example.com/hamza.jpg");
+
+    expect(screen.getByText("Fatima Farooq")).toBeInTheDocument();
+    expect(screen.getByText("YR-2026-000999")).toBeInTheDocument();
+    expect(screen.getByText("fatima@example.com")).toBeInTheDocument();
+    expect(screen.getByText("FF")).toBeInTheDocument(); // Initials fallback
+  });
+
+  it("displays friendly message when no matching verified volunteers are found", async () => {
+    const user = userEvent.setup();
+    searchYouthRepublicMembers.mockResolvedValueOnce({ members: [] });
+
+    render(
+      <EditChapterDrawer
+        open={true}
+        onClose={vi.fn()}
+        chapter={mockChapter}
+        organizationId="org-1"
+        accessToken="access-token"
+      />
+    );
+
+    const yrInput = screen.getByLabelText(/Youth Republic ID/i);
+    await user.type(yrInput, "UnknownPerson");
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No active verified members found matching 'UnknownPerson'")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("selects volunteer from autocomplete and adds to roster with designation and term", async () => {
+    const user = userEvent.setup();
+    searchYouthRepublicMembers.mockResolvedValueOnce({
+      members: [
+        {
+          volunteerCode: "YR-2026-000777",
+          fullName: "Bilal Siddiqui",
+          email: "bilal.s@example.com",
+          avatarUrl: "https://example.com/bilal.png",
+        },
+      ],
+    });
+
+    render(
+      <EditChapterDrawer
+        open={true}
+        onClose={vi.fn()}
+        chapter={mockChapter}
+        organizationId="org-1"
+        accessToken="access-token"
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("Sara Noor")).toBeInTheDocument());
+
+    const yrInput = screen.getByLabelText(/Youth Republic ID/i);
+    await user.type(yrInput, "Bilal");
+
+    await waitFor(() => {
+      expect(screen.getByText("Bilal Siddiqui")).toBeInTheDocument();
+    });
+
+    // Click on autocomplete dropdown item
+    const option = screen.getByRole("option");
+    await user.click(option);
+
+    // Dropdown closes and input is populated
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(yrInput).toHaveValue("Bilal Siddiqui (YR-2026-000777)");
+
+    // Verified card is visible
+    expect(screen.getByText("Verified YR Member")).toBeInTheDocument();
+    expect(screen.getByAltText("Bilal Siddiqui")).toHaveAttribute("src", "https://example.com/bilal.png");
+
+    // Designation input is focused
+    const designationInput = screen.getByLabelText(/Designation/i);
+    expect(designationInput).toHaveFocus();
+
+    // Type designation and term
+    await user.type(designationInput, "Vice President");
+    const termInput = screen.getByLabelText(/Tenure \/ Term/i);
+    await user.clear(termInput);
+    await user.type(termInput, "2026-2027");
+
+    // Add to roster
+    await user.click(screen.getByRole("button", { name: /Add to Chapter Roster/i }));
+
+    // Added to active roster list
+    expect(screen.getByText("Vice President")).toBeInTheDocument();
+    expect(screen.getByText("YR-2026-000777")).toBeInTheDocument();
+    expect(screen.getByText("2026-2027")).toBeInTheDocument();
   });
 });

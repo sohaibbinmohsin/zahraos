@@ -9,6 +9,7 @@ import {
   deactivateStaff,
   updateChapter,
   lookupYouthRepublicMember,
+  searchYouthRepublicMembers,
   listChapterTeamMembers,
   requestPublicAssetUpload,
 } from "./platformFunctions";
@@ -223,6 +224,69 @@ describe("lookupYouthRepublicMember", () => {
         "session-token",
       ),
     ).rejects.toThrow("volunteer_not_found");
+  });
+});
+
+describe("searchYouthRepublicMembers", () => {
+  it("posts to lookup-youth-republic-member with query and limit and returns members list", async () => {
+    const mockMembers = [
+      {
+        volunteerCode: "YR-2026-000001",
+        fullName: "Ayesha Malik",
+        email: "ayesha@example.com",
+        avatarUrl: "https://example.com/ayesha.jpg",
+      },
+      {
+        volunteerCode: "YR-2026-000002",
+        fullName: "Bilal Malik",
+        email: "bilal@example.com",
+        avatarUrl: null,
+      },
+    ];
+    mockOk({ members: mockMembers });
+
+    const result = await searchYouthRepublicMembers(
+      { organizationId: "org-1", query: "Malik", limit: 5 },
+      "session-token",
+    );
+
+    expect(result).toEqual({ members: mockMembers });
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe(`${FUNCTIONS_URL}/lookup-youth-republic-member`);
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      organizationId: "org-1",
+      query: "Malik",
+      limit: 5,
+    });
+  });
+
+  it("prioritizes NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL when set", async () => {
+    process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL = "https://yr-functions.supabase.co/functions/v1";
+    mockOk({ members: [] });
+
+    await searchYouthRepublicMembers(
+      { organizationId: "org-1", query: "test" },
+      "session-token",
+    );
+
+    const [url] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("https://yr-functions.supabase.co/functions/v1/lookup-youth-republic-member");
+
+    delete process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL;
+  });
+
+  it("throws error when API returns error", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ error: "forbidden" }), { status: 403 }),
+    );
+
+    await expect(
+      searchYouthRepublicMembers(
+        { organizationId: "org-1", query: "test" },
+        "session-token",
+      ),
+    ).rejects.toThrow("forbidden");
   });
 });
 

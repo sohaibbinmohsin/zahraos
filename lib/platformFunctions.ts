@@ -288,6 +288,40 @@ export async function lookupYouthRepublicMember(
   return data as YouthRepublicMemberLookupResult;
 }
 
+export interface SearchYouthRepublicMembersPayload {
+  organizationId: string;
+  query: string;
+  limit?: number;
+}
+
+export async function searchYouthRepublicMembers(
+  payload: SearchYouthRepublicMembersPayload,
+  accessToken: string,
+): Promise<{ members: YouthRepublicMemberLookupResult[] }> {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL ||
+    process.env.NEXT_PUBLIC_FUNCTIONS_URL;
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
+  }
+
+  const response = await fetch(`${baseUrl}/lookup-youth-republic-member`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error ?? "request_failed");
+  }
+  return data as { members: YouthRepublicMemberLookupResult[] };
+}
+
 export interface RequestPublicAssetUploadPayload {
   domain: "avatar" | "logo";
   contentType: string;
