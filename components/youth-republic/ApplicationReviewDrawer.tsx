@@ -94,8 +94,15 @@ export function ApplicationReviewDrawer({
                 <span className="text-[var(--text-2xs)] font-bold text-[var(--ink-3)]">
                   Applicant Profile
                 </span>
-                <div className="text-lg font-bold text-[var(--ink)] mt-0.5">
-                  {application.applicantName || application.volunteerName}
+                <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                  <span className="text-lg font-bold text-[var(--ink)]">
+                    {application.applicantName || application.volunteerName}
+                  </span>
+                  {application.volunteerCode && (
+                    <span className="font-mono text-xs font-semibold text-[var(--ink-2)] bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border border-[var(--line)]">
+                      {application.volunteerCode}
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-[var(--ink-2)] mt-0.5">
                   {application.applicantEmail && <span>{application.applicantEmail}</span>}

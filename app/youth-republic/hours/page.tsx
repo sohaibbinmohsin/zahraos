@@ -91,7 +91,11 @@ export default function YouthRepublicHoursPage() {
           staffToken,
         );
         setParticipants(
-          result.participants.map((p) => ({ participationId: p.participationId, volunteerName: p.volunteerName })),
+          result.participants.map((p) => ({
+            participationId: p.participationId,
+            volunteerCode: p.volunteerCode ?? null,
+            volunteerName: p.volunteerName,
+          })),
         );
       } catch (err) {
         console.error(err);
@@ -152,10 +156,13 @@ export default function YouthRepublicHoursPage() {
   const driveNames = [...new Set(activity.map((a) => a.opportunityName).filter(Boolean))].sort();
 
   const filtered = activity.filter((a) => {
+    const q = searchQuery.toLowerCase().trim();
+    const volunteerCode = a.volunteerCode || "";
     const matchesSearch =
-      !searchQuery ||
-      a.volunteerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.opportunityName.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      a.volunteerName.toLowerCase().includes(q) ||
+      volunteerCode.toLowerCase().includes(q) ||
+      a.opportunityName.toLowerCase().includes(q);
     const matchesStatus =
       selectedStatus === "all" ||
       a.verificationStatus === selectedStatus ||
@@ -184,7 +191,7 @@ export default function YouthRepublicHoursPage() {
           <input
             type="text"
             className="search-input"
-            placeholder="Search volunteer or drive name..."
+            placeholder="Search volunteer name, ID or drive..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -251,8 +258,15 @@ export default function YouthRepublicHoursPage() {
                   <tr key={a.id}>
                     <td>
                       <div>
-                        <div className="font-bold text-[var(--ink)]">{a.volunteerName}</div>
-                        <div className="text-xs text-[var(--ink-2)]">{a.role ?? "General Volunteer"}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-[var(--ink)]">{a.volunteerName}</span>
+                          {a.volunteerCode && (
+                            <span className="font-mono text-[11px] font-semibold text-[var(--ink-2)] bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border border-[var(--line)]">
+                              {a.volunteerCode}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-[var(--ink-2)] mt-0.5">{a.role ?? "General Volunteer"}</div>
                       </div>
                     </td>
                     <td>

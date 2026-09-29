@@ -168,8 +168,21 @@ export function getOpportunityDetail(payload: { opportunityId: string }, staffTo
 }
 
 export interface ParticipationForOpportunityResponse {
-  applicants: Array<{ applicationId: string; volunteerId: string; volunteerName: string; status: string; appliedAt: string }>;
-  participants: Array<{ participationId: string; volunteerId: string; volunteerName: string; status: string }>;
+  applicants: Array<{
+    applicationId: string;
+    volunteerId: string;
+    volunteerCode?: string | null;
+    volunteerName: string;
+    status: string;
+    appliedAt: string;
+  }>;
+  participants: Array<{
+    participationId: string;
+    volunteerId: string;
+    volunteerCode?: string | null;
+    volunteerName: string;
+    status: string;
+  }>;
 }
 export function listParticipationForOpportunity(
   payload: { organizationId: string; opportunityId: string },
@@ -181,6 +194,7 @@ export function listParticipationForOpportunity(
 export interface ApplicationListRow {
   id: string;
   volunteerId: string;
+  volunteerCode?: string | null;
   volunteerName: string;
   opportunityId: string;
   opportunityName: string;
@@ -210,6 +224,7 @@ export function listApplications(payload: ListApplicationsPayload, staffToken: s
 
 export interface ActivityListRow {
   id: string;
+  volunteerCode?: string | null;
   volunteerName: string;
   opportunityName: string;
   activityType: string;

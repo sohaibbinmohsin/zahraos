@@ -169,11 +169,14 @@ function ApplicationsContent() {
 
   const filtered = applications.filter((a) => {
     const candidateName = a.applicantName || a.volunteerName || "";
+    const volunteerCode = a.volunteerCode || "";
     const oppName = a.opportunityName || "";
+    const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
-      !searchQuery ||
-      candidateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      oppName.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      candidateName.toLowerCase().includes(q) ||
+      volunteerCode.toLowerCase().includes(q) ||
+      oppName.toLowerCase().includes(q);
     const matchesStatus =
       statusFilter === "all" ||
       a.status === statusFilter ||
@@ -196,7 +199,7 @@ function ApplicationsContent() {
           <input
             type="text"
             className="search-input"
-            placeholder="Search candidate name or drive..."
+            placeholder="Search candidate name, ID or drive..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -252,13 +255,20 @@ function ApplicationsContent() {
                   <tr key={a.id}>
                     <td>
                       <div>
-                        <button
-                          type="button"
-                          className="font-bold text-[var(--ink)] hover:underline text-left cursor-pointer"
-                          onClick={() => setSelectedApp(a)}
-                        >
-                          {displayName}
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            className="font-bold text-[var(--ink)] hover:underline text-left cursor-pointer"
+                            onClick={() => setSelectedApp(a)}
+                          >
+                            {displayName}
+                          </button>
+                          {a.volunteerCode && (
+                            <span className="font-mono text-[11px] font-semibold text-[var(--ink-2)] bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border border-[var(--line)]">
+                              {a.volunteerCode}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-[var(--ink-2)] mt-0.5">
                           {a.applicantEmail ?? "Verified Profile"}
                         </div>

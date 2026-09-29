@@ -209,5 +209,51 @@ describe("YouthRepublicHoursPage", () => {
       expect(screen.queryByRole("button", { name: /Approve & Accredit Hours/i })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: /Reject Shift/i })).not.toBeInTheDocument();
     });
+
+    it("renders volunteerCode and filters activity hours by volunteerCode search", async () => {
+      vi.mocked(youthRepublicFunctions.listActivityHours).mockResolvedValue({
+        activity: [
+          {
+            id: "ah-1",
+            volunteerCode: "YR-2026-000053",
+            volunteerName: "Sohaib Bin Mohsin",
+            opportunityName: "Tree Plantation",
+            activityType: "environment",
+            role: "Planter",
+            activityDate: "2026-02-01",
+            hoursSubmitted: 4,
+            hoursVerified: null,
+            verificationStatus: "pending",
+            adminNotes: null,
+          },
+          {
+            id: "ah-2",
+            volunteerCode: "YR-2026-000099",
+            volunteerName: "Sohaib Bin Mohsin",
+            opportunityName: "Tree Plantation",
+            activityType: "environment",
+            role: "Planter",
+            activityDate: "2026-02-01",
+            hoursSubmitted: 4,
+            hoursVerified: null,
+            verificationStatus: "pending",
+            adminNotes: null,
+          },
+        ],
+        total: 2,
+      });
+
+      const user = userEvent.setup();
+      renderWithSwr(<YouthRepublicHoursPage />);
+
+      expect(await screen.findByText("YR-2026-000053")).toBeInTheDocument();
+      expect(screen.getByText("YR-2026-000099")).toBeInTheDocument();
+
+      const searchInput = screen.getByPlaceholderText(/Search volunteer name, ID or drive/i);
+      await user.type(searchInput, "000053");
+
+      expect(screen.getByText("YR-2026-000053")).toBeInTheDocument();
+      expect(screen.queryByText("YR-2026-000099")).not.toBeInTheDocument();
+    });
   });
 });

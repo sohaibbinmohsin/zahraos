@@ -233,5 +233,57 @@ describe("YouthRepublicApplicationsPage", () => {
       // Close button should be present
       expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
     });
+
+    it("renders volunteerCode and filters applications by volunteerCode search", async () => {
+      vi.mocked(youthRepublicFunctions.listApplications).mockResolvedValue({
+        applications: [
+          {
+            id: "app-1",
+            volunteerId: "vol-1",
+            volunteerCode: "YR-2026-000053",
+            volunteerName: "Sohaib Bin Mohsin",
+            opportunityId: "opp-1",
+            opportunityName: "Tree Plantation",
+            status: "pending_review",
+            appliedAt: "2026-01-01T00:00:00Z",
+            applicantName: "Sohaib Bin Mohsin",
+            applicantEmail: "sohaib@example.com",
+            applicantPhone: "0300-1111111",
+            answers: {},
+            formSnapshot: null,
+            attachmentIdsByField: {},
+          },
+          {
+            id: "app-2",
+            volunteerId: "vol-2",
+            volunteerCode: "YR-2026-000099",
+            volunteerName: "Sohaib Bin Mohsin",
+            opportunityId: "opp-1",
+            opportunityName: "Tree Plantation",
+            status: "pending_review",
+            appliedAt: "2026-01-01T00:00:00Z",
+            applicantName: "Sohaib Bin Mohsin",
+            applicantEmail: "other@example.com",
+            applicantPhone: "0300-2222222",
+            answers: {},
+            formSnapshot: null,
+            attachmentIdsByField: {},
+          },
+        ],
+        total: 2,
+      });
+
+      const user = userEvent.setup();
+      renderWithSwr(<YouthRepublicApplicationsPage />);
+
+      expect(await screen.findByText("YR-2026-000053")).toBeInTheDocument();
+      expect(screen.getByText("YR-2026-000099")).toBeInTheDocument();
+
+      const searchInput = screen.getByPlaceholderText(/Search candidate name, ID or drive/i);
+      await user.type(searchInput, "000053");
+
+      expect(screen.getByText("YR-2026-000053")).toBeInTheDocument();
+      expect(screen.queryByText("YR-2026-000099")).not.toBeInTheDocument();
+    });
   });
 });
