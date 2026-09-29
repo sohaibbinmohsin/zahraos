@@ -288,3 +288,42 @@ export async function lookupYouthRepublicMember(
   return data as YouthRepublicMemberLookupResult;
 }
 
+export interface RequestPublicAssetUploadPayload {
+  domain: "avatar" | "logo";
+  contentType: string;
+  fileName?: string;
+}
+
+export interface RequestPublicAssetUploadResponse {
+  uploadUrl: string;
+  publicUrl: string;
+  objectKey: string;
+}
+
+export async function requestPublicAssetUpload(
+  payload: RequestPublicAssetUploadPayload,
+  accessToken: string,
+): Promise<RequestPublicAssetUploadResponse> {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL ||
+    process.env.NEXT_PUBLIC_FUNCTIONS_URL;
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
+  }
+
+  const response = await fetch(`${baseUrl}/upload-public-asset`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error ?? "request_failed");
+  }
+  return data as RequestPublicAssetUploadResponse;
+}

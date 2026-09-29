@@ -10,6 +10,7 @@ import {
   updateChapter,
   lookupYouthRepublicMember,
   listChapterTeamMembers,
+  requestPublicAssetUpload,
 } from "./platformFunctions";
 import { RESTRICTED_GRID } from "./capabilityMap";
 
@@ -249,6 +250,82 @@ describe("listChapterTeamMembers", () => {
     const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
     expect(url).toBe(`${FUNCTIONS_URL}/list-chapter-team-members`);
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({ chapterId: "chap-1" });
+  });
+});
+
+describe("requestPublicAssetUpload", () => {
+  it("posts to upload-public-asset and returns uploadUrl, publicUrl, objectKey", async () => {
+    mockOk({
+      uploadUrl: "https://r2.example.com/signed-put-url",
+      publicUrl: "https://cdn.example.com/logos/org-1/uuid.png",
+      objectKey: "logos/org-1/uuid.png",
+    });
+
+    const result = await requestPublicAssetUpload(
+      { domain: "logo", contentType: "image/png" },
+      "session-token",
+    );
+
+    expect(result).toEqual({
+      uploadUrl: "https://r2.example.com/signed-put-url",
+      publicUrl: "https://cdn.example.com/logos/org-1/uuid.png",
+      objectKey: "logos/org-1/uuid.png",
+    });
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe(`${FUNCTIONS_URL}/upload-public-asset`);
+    expect((init as RequestInit).method).toBe("POST");
+    expect((init as RequestInit).headers).toEqual({
+      "Content-Type": "application/json",
+      Authorization: "Bearer session-token",
+    });
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      domain: "logo",
+      contentType: "image/png",
+    });
+  });
+
+  it("prioritizes NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL when set", async () => {
+    process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL = "https://yr-functions.supabase.co/functions/v1";
+    mockOk({
+      uploadUrl: "https://r2.example.com/signed-put-url",
+      publicUrl: "https://cdn.example.com/logos/uuid.jpg",
+      objectKey: "logos/uuid.jpg",
+    });
+
+    await requestPublicAssetUpload(
+      { domain: "logo", contentType: "image/jpeg", fileName: "logo.jpg" },
+      "session-token",
+    );
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("https://yr-functions.supabase.co/functions/v1/upload-public-asset");
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      domain: "logo",
+      contentType: "image/jpeg",
+      fileName: "logo.jpg",
+    });
+
+    delete process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL;
+  });
+
+  it("throws error when neither functions URL env var is configured", async () => {
+    delete process.env.NEXT_PUBLIC_FUNCTIONS_URL;
+    delete process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL;
+
+    await expect(
+      requestPublicAssetUpload({ domain: "logo", contentType: "image/png" }, "token"),
+    ).rejects.toThrow("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
+  });
+
+  it("throws error when API returns error", async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockResolvedValue(
+      new Response(JSON.stringify({ error: "invalid_content_type" }), { status: 400 }),
+    );
+
+    await expect(
+      requestPublicAssetUpload({ domain: "logo", contentType: "application/pdf" }, "token"),
+    ).rejects.toThrow("invalid_content_type");
   });
 });
 

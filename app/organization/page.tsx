@@ -5,7 +5,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { useSelectedOrg, useShellAccessToken, useIsOrgAdminOrAbove, useShellLoading } from "@/components/shell/AppShell";
 import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
 import { useToast } from "@/components/shell/ToastContext";
-import { updateOrganization, listChapters, type ChapterRow } from "@/lib/platformFunctions";
+import { updateOrganization, listChapters, requestPublicAssetUpload, type ChapterRow } from "@/lib/platformFunctions";
 import { ChaptersPanel } from "@/components/team/ChaptersPanel";
 import { isDisplayableLogo } from "@/lib/orgLogo";
 import { LoadingButton } from "@/components/ui/LoadingButton";
@@ -69,7 +69,7 @@ export default function OrganizationPage() {
   useEffect(() => { load(); }, [load]);
 
   async function pickLogo(file: File | undefined) {
-    if (!file || !profile || !organizationId || !perms.canManageOrgProfile) return;
+    if (!file || !profile || !organizationId || !perms.canManageOrgProfile || !accessToken) return;
     if (!file.type.startsWith("image/")) {
       showToast("Please choose an image file.");
       return;
@@ -80,17 +80,19 @@ export default function OrganizationPage() {
     }
     setLogoUploading(true);
     try {
-      const supabase = getBrowserSupabaseClient();
-      const ext = (file.name.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
-      const path = `${organizationId}/logo-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("org-logos").upload(path, file, {
-        cacheControl: "3600",
-        upsert: true,
-        contentType: file.type,
+      const { uploadUrl, publicUrl } = await requestPublicAssetUpload(
+        { domain: "logo", contentType: file.type },
+        accessToken,
+      );
+      const res = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
       });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("org-logos").getPublicUrl(path);
-      setProfile({ ...profile, logoUrl: pub.publicUrl });
+      if (!res.ok) {
+        throw new Error("Failed to upload image file to storage.");
+      }
+      setProfile({ ...profile, logoUrl: publicUrl });
     } catch (err) {
       showToast(err instanceof Error ? `Logo upload failed: ${err.message}` : "Logo upload failed.");
     } finally {

@@ -3,10 +3,10 @@
 import { useEffect, useId, useState } from "react";
 import { useToast } from "@/components/shell/ToastContext";
 import { LoadingButton } from "@/components/ui/LoadingButton";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import {
   listChapterTeamMembers,
   lookupYouthRepublicMember,
+  requestPublicAssetUpload,
   updateChapter,
   type ChapterRow,
   type ChapterTeamMemberPayload,
@@ -146,17 +146,19 @@ export function EditChapterDrawer({
     }
     setLogoUploading(true);
     try {
-      const supabase = getBrowserSupabaseClient();
-      const ext = (file.name.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "") || "png";
-      const path = `${organizationId}/chapters/${chapter.id}/logo-${Date.now()}.${ext}`;
-      const { error: upErr } = await supabase.storage.from("org-logos").upload(path, file, {
-        cacheControl: "3600",
-        upsert: true,
-        contentType: file.type,
+      const { uploadUrl, publicUrl } = await requestPublicAssetUpload(
+        { domain: "logo", contentType: file.type },
+        accessToken,
+      );
+      const res = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
       });
-      if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from("org-logos").getPublicUrl(path);
-      setLogoUrl(pub.publicUrl);
+      if (!res.ok) {
+        throw new Error("Failed to upload image file to storage.");
+      }
+      setLogoUrl(publicUrl);
       showToast("Logo uploaded successfully.");
     } catch (err) {
       showToast(err instanceof Error ? `Logo upload failed: ${err.message}` : "Logo upload failed.");

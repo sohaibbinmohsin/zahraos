@@ -5,29 +5,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const listChapterTeamMembers = vi.fn();
 const lookupYouthRepublicMember = vi.fn();
 const updateChapter = vi.fn();
+const requestPublicAssetUpload = vi.fn();
 const showToast = vi.fn();
-const mockUpload = vi.fn();
-const mockGetPublicUrl = vi.fn();
 
 vi.mock("@/lib/platformFunctions", () => ({
   listChapterTeamMembers: (...a: unknown[]) => listChapterTeamMembers(...a),
   lookupYouthRepublicMember: (...a: unknown[]) => lookupYouthRepublicMember(...a),
   updateChapter: (...a: unknown[]) => updateChapter(...a),
+  requestPublicAssetUpload: (...a: unknown[]) => requestPublicAssetUpload(...a),
 }));
 
 vi.mock("@/components/shell/ToastContext", () => ({
   useToast: () => ({ showToast }),
-}));
-
-vi.mock("@/lib/supabase/browserClient", () => ({
-  getBrowserSupabaseClient: () => ({
-    storage: {
-      from: vi.fn().mockReturnValue({
-        upload: (...a: unknown[]) => mockUpload(...a),
-        getPublicUrl: (...a: unknown[]) => mockGetPublicUrl(...a),
-      }),
-    },
-  }),
 }));
 
 import { EditChapterDrawer } from "./EditChapterDrawer";
@@ -70,6 +59,7 @@ const mockExistingMembers: ChapterTeamMemberRow[] = [
 describe("EditChapterDrawer", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 200 })));
     listChapterTeamMembers.mockResolvedValue({ teamMembers: [...mockExistingMembers] });
     lookupYouthRepublicMember.mockResolvedValue({
       volunteerCode: "YR-2026-000100",
@@ -77,8 +67,11 @@ describe("EditChapterDrawer", () => {
       email: "zainab@example.com",
       avatarUrl: "https://example.com/zainab.png",
     });
-    mockUpload.mockResolvedValue({ data: { path: "some/path" }, error: null });
-    mockGetPublicUrl.mockReturnValue({ data: { publicUrl: "https://example.com/uploaded-logo.png" } });
+    requestPublicAssetUpload.mockResolvedValue({
+      uploadUrl: "https://r2.example.com/chapter-put-signed-url",
+      publicUrl: "https://cdn.example.com/logos/chapters/uploaded-logo.png",
+      objectKey: "logos/chapters/uploaded-logo.png",
+    });
     updateChapter.mockResolvedValue({ chapterId: "c1" });
   });
 
@@ -109,7 +102,7 @@ describe("EditChapterDrawer", () => {
     expect(screen.queryByText("Ali Ahmed")).not.toBeInTheDocument(); // Ali is alumni
   });
 
-  it("handles logo file upload to Supabase storage and previews new logo", async () => {
+  it("handles logo file upload to Cloudflare R2 and previews new logo", async () => {
     const user = userEvent.setup();
     render(
       <EditChapterDrawer
@@ -126,10 +119,21 @@ describe("EditChapterDrawer", () => {
     await user.upload(fileInput, file);
 
     await waitFor(() => {
-      expect(mockUpload).toHaveBeenCalled();
+      expect(requestPublicAssetUpload).toHaveBeenCalledWith(
+        { domain: "logo", contentType: "image/png" },
+        "access-token",
+      );
     });
-    expect(mockGetPublicUrl).toHaveBeenCalled();
-    expect(screen.getByAltText("Chapter logo")).toHaveAttribute("src", "https://example.com/uploaded-logo.png");
+    expect(fetch).toHaveBeenCalledWith("https://r2.example.com/chapter-put-signed-url", {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": "image/png" },
+    });
+    expect(screen.getByAltText("Chapter logo")).toHaveAttribute(
+      "src",
+      "https://cdn.example.com/logos/chapters/uploaded-logo.png",
+    );
+    expect(showToast).toHaveBeenCalledWith("Logo uploaded successfully.");
   });
 
   it("verifies Youth Republic ID and displays volunteer confirmation card", async () => {
