@@ -183,8 +183,14 @@ export function EditChapterDrawer({
       } else {
         setVerifiedVolunteer(res);
       }
-    } catch {
-      setLookupError("No verified Youth Republic account found with this ID.");
+    } catch (err) {
+      if (err instanceof Error && err.message === "volunteer_pending_verification") {
+        setLookupError(
+          "This Youth Republic account has pending verification. Only verified members can be added to chapter leadership."
+        );
+      } else {
+        setLookupError("No verified Youth Republic account found with this ID.");
+      }
     } finally {
       setYrVerifying(false);
     }

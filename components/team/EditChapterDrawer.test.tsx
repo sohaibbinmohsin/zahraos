@@ -186,6 +186,34 @@ describe("EditChapterDrawer", () => {
     expect(screen.queryByText("Verified YR Member")).not.toBeInTheDocument();
   });
 
+  it("shows specific error when YR ID has pending verification", async () => {
+    const user = userEvent.setup();
+    lookupYouthRepublicMember.mockRejectedValueOnce(new Error("volunteer_pending_verification"));
+
+    render(
+      <EditChapterDrawer
+        open={true}
+        onClose={vi.fn()}
+        chapter={mockChapter}
+        organizationId="org-1"
+        accessToken="access-token"
+      />
+    );
+
+    const yrInput = screen.getByLabelText(/Youth Republic ID/i);
+    await user.type(yrInput, "YR-2026-000053");
+    await user.click(screen.getByRole("button", { name: /Verify ID/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          "This Youth Republic account has pending verification. Only verified members can be added to chapter leadership."
+        )
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText("Verified YR Member")).not.toBeInTheDocument();
+  });
+
   it("adds verified volunteer to roster with custom designation and term", async () => {
     const user = userEvent.setup();
     render(
