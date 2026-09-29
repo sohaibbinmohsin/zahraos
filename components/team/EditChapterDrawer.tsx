@@ -115,6 +115,7 @@ export function EditChapterDrawer({
 
   // Debounced search autocomplete (300ms)
   useEffect(() => {
+    let cancelled = false;
     const trimmed = searchQuery.trim();
     if (verifiedVolunteer && `${verifiedVolunteer.fullName} (${verifiedVolunteer.volunteerCode})` === trimmed) {
       setIsDropdownOpen(false);
@@ -135,17 +136,26 @@ export function EditChapterDrawer({
           { organizationId, query: trimmed },
           accessToken
         );
-        setSearchResults(res.members || []);
-        setIsDropdownOpen(true);
+        if (!cancelled) {
+          setSearchResults(res.members || []);
+          setIsDropdownOpen(true);
+        }
       } catch {
-        setSearchResults([]);
-        setIsDropdownOpen(true);
+        if (!cancelled) {
+          setSearchResults([]);
+          setIsDropdownOpen(true);
+        }
       } finally {
-        setIsSearching(false);
+        if (!cancelled) {
+          setIsSearching(false);
+        }
       }
     }, 300);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [searchQuery, organizationId, accessToken, verifiedVolunteer]);
 
   useEffect(() => {
