@@ -257,14 +257,34 @@ export interface YouthRepublicMemberLookupResult {
   avatarUrl: string | null;
 }
 
-export function lookupYouthRepublicMember(
+export async function lookupYouthRepublicMember(
   payload: LookupYouthRepublicMemberPayload,
   accessToken: string,
-) {
-  return callFunction<YouthRepublicMemberLookupResult>(
-    "lookup-youth-republic-member",
-    payload,
-    accessToken,
-  );
+): Promise<YouthRepublicMemberLookupResult> {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL ||
+    process.env.NEXT_PUBLIC_FUNCTIONS_URL;
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
+  }
+
+  const response = await fetch(`${baseUrl}/lookup-youth-republic-member`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 404 || data?.error === "volunteer_not_found") {
+      throw new Error("volunteer_not_found");
+    }
+    throw new Error(data?.error ?? "request_failed");
+  }
+  return data as YouthRepublicMemberLookupResult;
 }
 
