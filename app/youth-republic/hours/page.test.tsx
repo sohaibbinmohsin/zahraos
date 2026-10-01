@@ -3,23 +3,49 @@ import { renderWithSwr } from "@/tests/renderWithSwr";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import YouthRepublicHoursPage from "./page";
+import { AdjustHoursDrawer } from "@/components/youth-republic/AdjustHoursDrawer";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
 import * as shell from "@/components/shell/AppShell";
+import { useStaffPermissions, type StaffPermissions } from "@/components/shell/useStaffPermissions";
 
 vi.mock("@/lib/supabase/browserClient");
 vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");
+vi.mock("@/components/shell/useStaffPermissions", () => ({
+  useStaffPermissions: vi.fn(),
+}));
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
   return { ...actual, useSelectedOrg: vi.fn(), useShellStaffToken: vi.fn() };
 });
 
+const allPerms: StaffPermissions = {
+  canAccessDashboard: true,
+  canViewDrives: true,
+  canCreateDrives: true,
+  canPublishDrives: true,
+  canViewApplications: true,
+  canTriageApplications: true,
+  canViewHours: true,
+  canApproveHours: true,
+  canViewVolunteers: true,
+  canManageTeam: true,
+  canManageOrgProfile: true,
+  canCreateChapters: true,
+  canEditChapter: () => true,
+  canViewInquiries: true,
+  isChapterScoped: false,
+  scopedChapterIds: null,
+  hasChapterPermission: () => true,
+};
+
 describe("YouthRepublicHoursPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
     vi.mocked(shell.useShellStaffToken).mockReturnValue("staff-jwt");
+    vi.mocked(useStaffPermissions).mockReturnValue(allPerms);
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
@@ -110,14 +136,124 @@ describe("YouthRepublicHoursPage", () => {
     const user = userEvent.setup();
     await user.click(await screen.findByRole("button", { name: /Bulk-Assign Hours/ }));
 
-    await screen.findAllByText("Beach Cleanup", { selector: "option" });
-    await user.selectOptions(screen.getByLabelText("Opportunity / drive"), "opp-1");
+    await user.click(await screen.findByRole("combobox", { name: "Opportunity / drive" }));
+    await user.click(await screen.findByRole("option", { name: "Beach Cleanup" }));
 
     await waitFor(() => {
       expect(youthRepublicFunctions.listParticipationForOpportunity).toHaveBeenCalledWith(
         { organizationId: "org-1", opportunityId: "opp-1" },
         "staff-jwt",
       );
+    });
+  });
+
+  it("renders AccessDeniedGate when user lacks hours viewing permissions", () => {
+    vi.mocked(useStaffPermissions).mockReturnValue({ ...allPerms, canViewHours: false });
+    renderWithSwr(<YouthRepublicHoursPage />);
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
+    expect(screen.getByText(/Hours/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Youth Republic/i })).toHaveAttribute("href", "/youth-republic");
+  });
+
+  describe("action button permissions gating", () => {
+    it("hides Bulk-Assign Hours button when user lacks canApproveHours", async () => {
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canApproveHours: false,
+      });
+      renderWithSwr(<YouthRepublicHoursPage />);
+
+      expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Bulk-Assign Hours/i })).not.toBeInTheDocument();
+    });
+
+    it("hides row actions (Verify, Adjust Hours) and renders Read-only badge when user lacks canApproveHours", async () => {
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canApproveHours: false,
+      });
+      renderWithSwr(<YouthRepublicHoursPage />);
+
+      expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Verify" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Adjust Hours" })).not.toBeInTheDocument();
+      expect(screen.getByText("Read-only")).toBeInTheDocument();
+    });
+
+    it("hides save button in AdjustHoursDrawer when canApprove is false", () => {
+      renderWithSwr(
+        <AdjustHoursDrawer
+          activityRow={{
+            id: "ah-1",
+            volunteerName: "Aisha Khan",
+            opportunityName: "Beach Cleanup",
+            activityDate: "2026-02-01",
+            hoursSubmitted: 5,
+            hoursVerified: null,
+            verificationStatus: "pending",
+            activityType: "community",
+            role: "Lead",
+            adminNotes: null,
+          }}
+          isOpen={true}
+          onClose={vi.fn()}
+          onSave={vi.fn()}
+          canApprove={false}
+        />
+      );
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Approve & Accredit Hours/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Reject Shift/i })).not.toBeInTheDocument();
+    });
+
+    it("renders volunteerCode and filters activity hours by volunteerCode search", async () => {
+      vi.mocked(youthRepublicFunctions.listActivityHours).mockResolvedValue({
+        activity: [
+          {
+            id: "ah-1",
+            volunteerCode: "YR-2026-000053",
+            volunteerName: "Sohaib Bin Mohsin",
+            opportunityName: "Tree Plantation",
+            activityType: "environment",
+            role: "Planter",
+            activityDate: "2026-02-01",
+            hoursSubmitted: 4,
+            hoursVerified: null,
+            verificationStatus: "pending",
+            adminNotes: null,
+          },
+          {
+            id: "ah-2",
+            volunteerCode: "YR-2026-000099",
+            volunteerName: "Sohaib Bin Mohsin",
+            opportunityName: "Tree Plantation",
+            activityType: "environment",
+            role: "Planter",
+            activityDate: "2026-02-01",
+            hoursSubmitted: 4,
+            hoursVerified: null,
+            verificationStatus: "pending",
+            adminNotes: null,
+          },
+        ],
+        total: 2,
+      });
+
+      const user = userEvent.setup();
+      renderWithSwr(<YouthRepublicHoursPage />);
+
+      expect(await screen.findByText("YR-2026-000053")).toBeInTheDocument();
+      expect(screen.getByText("YR-2026-000099")).toBeInTheDocument();
+
+      const searchInput = screen.getByPlaceholderText(/Search volunteer name, ID or drive/i);
+      await user.type(searchInput, "000053");
+
+      expect(screen.getByText("YR-2026-000053")).toBeInTheDocument();
+      expect(screen.queryByText("YR-2026-000099")).not.toBeInTheDocument();
     });
   });
 });

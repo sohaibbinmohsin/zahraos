@@ -14,6 +14,8 @@ import { ApplicationReviewDrawer } from "@/components/youth-republic/Application
 import { useToast } from "@/components/shell/ToastContext";
 import { Select } from "@/components/ui/Select";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
+import { AccessDeniedGate } from "@/components/shell/AccessDeniedGate";
 
 // Statuses that still need a triage decision. The backend now emits a single
 // "pending_review"; the two legacy values are kept here so older rows still
@@ -101,6 +103,7 @@ function ApplicationsContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending_review");
   const [driveFilter, setDriveFilter] = useState(opportunityIdParam ?? "all");
+  const perms = useStaffPermissions();
 
   // Cached per org; the drive/status filters are applied client-side so
   // switching them never refetches.
@@ -109,9 +112,11 @@ function ApplicationsContent() {
     isLoading: loading,
     mutate: load,
   } = useSWR(
-    organizationId && staffToken ? ["listApplications", organizationId] : null,
+    organizationId && staffToken && perms.canViewApplications ? ["listApplications", organizationId] : null,
     async () => (await listApplications({ organizationId: organizationId! }, staffToken!)).applications,
     {
+      shouldRetryOnError: false,
+      revalidateOnFocus: false,
       onError: (err) =>
         showToast(
           err instanceof Error ? `Could not load applications: ${err.message}` : "Could not load applications.",
@@ -164,11 +169,14 @@ function ApplicationsContent() {
 
   const filtered = applications.filter((a) => {
     const candidateName = a.applicantName || a.volunteerName || "";
+    const volunteerCode = a.volunteerCode || "";
     const oppName = a.opportunityName || "";
+    const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
-      !searchQuery ||
-      candidateName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      oppName.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      candidateName.toLowerCase().includes(q) ||
+      volunteerCode.toLowerCase().includes(q) ||
+      oppName.toLowerCase().includes(q);
     const matchesStatus =
       statusFilter === "all" ||
       a.status === statusFilter ||
@@ -191,7 +199,7 @@ function ApplicationsContent() {
           <input
             type="text"
             className="search-input"
-            placeholder="Search candidate name or drive..."
+            placeholder="Search candidate name, ID or drive..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -247,13 +255,20 @@ function ApplicationsContent() {
                   <tr key={a.id}>
                     <td>
                       <div>
-                        <button
-                          type="button"
-                          className="font-bold text-[var(--ink)] hover:underline text-left cursor-pointer"
-                          onClick={() => setSelectedApp(a)}
-                        >
-                          {displayName}
-                        </button>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <button
+                            type="button"
+                            className="font-bold text-[var(--ink)] hover:underline text-left cursor-pointer"
+                            onClick={() => setSelectedApp(a)}
+                          >
+                            {displayName}
+                          </button>
+                          {a.volunteerCode && (
+                            <span className="font-mono text-[11px] font-semibold text-[var(--ink-2)] bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border border-[var(--line)]">
+                              {a.volunteerCode}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-[var(--ink-2)] mt-0.5">
                           {a.applicantEmail ?? "Verified Profile"}
                         </div>
@@ -298,45 +313,49 @@ function ApplicationsContent() {
                               Review Answers
                             </button>
 
-                            {showDecisionButtons ? (
-                              <>
-                                <DecisionButton
-                                  decision="selected"
-                                  loading={rowBusy && busy?.decision === "selected"}
-                                  disabled={rowBusy}
-                                  onClick={() => decideFromRow(a.id, "selected")}
-                                />
-                                <DecisionButton
-                                  decision="waitlisted"
-                                  loading={rowBusy && busy?.decision === "waitlisted"}
-                                  disabled={rowBusy}
-                                  onClick={() => decideFromRow(a.id, "waitlisted")}
-                                />
-                                <DecisionButton
-                                  decision="rejected"
-                                  loading={rowBusy && busy?.decision === "rejected"}
-                                  disabled={rowBusy}
-                                  onClick={() => decideFromRow(a.id, "rejected")}
-                                />
-                                {isReconsidering && !isPending && (
-                                  <button
-                                    type="button"
-                                    className="btn btn-secondary btn-xs"
-                                    onClick={() => setReconsideringId(null)}
+                            {perms.canTriageApplications ? (
+                              showDecisionButtons ? (
+                                <>
+                                  <DecisionButton
+                                    decision="selected"
+                                    loading={rowBusy && busy?.decision === "selected"}
                                     disabled={rowBusy}
-                                  >
-                                    Cancel
-                                  </button>
-                                )}
-                              </>
+                                    onClick={() => decideFromRow(a.id, "selected")}
+                                  />
+                                  <DecisionButton
+                                    decision="waitlisted"
+                                    loading={rowBusy && busy?.decision === "waitlisted"}
+                                    disabled={rowBusy}
+                                    onClick={() => decideFromRow(a.id, "waitlisted")}
+                                  />
+                                  <DecisionButton
+                                    decision="rejected"
+                                    loading={rowBusy && busy?.decision === "rejected"}
+                                    disabled={rowBusy}
+                                    onClick={() => decideFromRow(a.id, "rejected")}
+                                  />
+                                  {isReconsidering && !isPending && (
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-xs"
+                                      onClick={() => setReconsideringId(null)}
+                                      disabled={rowBusy}
+                                    >
+                                      Cancel
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn btn-primary btn-xs"
+                                  onClick={() => setReconsideringId(a.id)}
+                                >
+                                  Reconsider
+                                </button>
+                              )
                             ) : (
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-xs"
-                                onClick={() => setReconsideringId(a.id)}
-                              >
-                                Reconsider
-                              </button>
+                              <span className="badge badge-neu text-xs">Read-only</span>
                             )}
                           </div>
                         );
@@ -362,15 +381,24 @@ function ApplicationsContent() {
         isOpen={Boolean(selectedApp)}
         onClose={() => setSelectedApp(null)}
         onDecide={handleDecide}
+        canTriage={perms.canTriageApplications}
       />
     </div>
   );
 }
 
 export default function YouthRepublicApplicationsPage() {
+  const perms = useStaffPermissions();
   return (
-    <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={3} />}>
-      <ApplicationsContent />
-    </Suspense>
+    <AccessDeniedGate
+      allowed={perms.canViewApplications}
+      sectionName="Applications"
+      fallbackRoute="/youth-republic"
+      fallbackLabel="Youth Republic"
+    >
+      <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={3} />}>
+        <ApplicationsContent />
+      </Suspense>
+    </AccessDeniedGate>
   );
 }

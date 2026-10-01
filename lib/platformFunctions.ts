@@ -17,11 +17,15 @@ async function callFunction<TResponse>(
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000),
   });
 
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error ?? "request_failed");
+    if (response.status === 404 && (!data || !data.error)) {
+      throw new Error("not_found");
+    }
+    throw new Error(data?.error ?? "request_failed");
   }
   return data as TResponse;
 }
@@ -85,12 +89,14 @@ export function assignStaffOrgRole(payload: AssignStaffOrgRolePayload, accessTok
   return callFunction<AssignStaffOrgRoleResponse>("assign-staff-org-role", payload, accessToken);
 }
 
-export interface RoleAssignmentPayload {
+export interface RoleAssignmentInput {
   roleId: string;
   scopeKind: "org_wide" | "chapter";
   chapterId?: string | null;
   scopeLabel: string;
 }
+
+export type RoleAssignmentPayload = RoleAssignmentInput;
 
 export interface InviteStaffMemberPayload {
   organizationId: string;
@@ -172,6 +178,8 @@ export interface ChapterRow {
   name: string;
   city: string | null;
   status: string;
+  logoUrl?: string | null;
+  about?: string | null;
 }
 export function listChapters(payload: { organizationId: string }, accessToken: string) {
   return callFunction<{ chapters: ChapterRow[] }>("list-chapters", payload, accessToken);
@@ -182,9 +190,174 @@ export function createChapter(
 ) {
   return callFunction<{ chapterId: string }>("create-chapter", payload, accessToken);
 }
+
+export interface ChapterTeamMemberPayload {
+  volunteerCode: string;
+  fullName: string;
+  email?: string | null;
+  avatarUrl?: string | null;
+  designation: string;
+  term?: string | null;
+  status: "active" | "alumni";
+}
+
+export interface UpdateChapterPayload {
+  chapterId: string;
+  name?: string;
+  city?: string | null;
+  status?: "active" | "inactive";
+  logoUrl?: string | null;
+  about?: string | null;
+  teamMembers?: ChapterTeamMemberPayload[];
+}
+
+export type UpdateChapterInput = UpdateChapterPayload;
+
 export function updateChapter(
-  payload: { chapterId: string; name?: string; city?: string | null; status?: "active" | "inactive" },
+  payload: UpdateChapterPayload,
   accessToken: string,
 ) {
   return callFunction<{ chapterId: string }>("update-chapter", payload, accessToken);
+}
+
+export interface ChapterTeamMemberRow {
+  id: string;
+  chapterId: string;
+  volunteerCode: string;
+  fullName: string;
+  email: string | null;
+  avatarUrl: string | null;
+  designation: string;
+  term: string | null;
+  status: "active" | "alumni";
+  createdAt?: string;
+  createdBy?: string | null;
+}
+
+export function listChapterTeamMembers(
+  payload: { chapterId: string },
+  accessToken: string,
+) {
+  return callFunction<{ teamMembers: ChapterTeamMemberRow[] }>(
+    "list-chapter-team-members",
+    payload,
+    accessToken,
+  );
+}
+
+export interface LookupYouthRepublicMemberPayload {
+  organizationId: string;
+  youthRepublicId: string;
+}
+
+export interface YouthRepublicMemberLookupResult {
+  volunteerCode: string;
+  fullName: string;
+  email: string | null;
+  avatarUrl: string | null;
+}
+
+export async function lookupYouthRepublicMember(
+  payload: LookupYouthRepublicMemberPayload,
+  accessToken: string,
+): Promise<YouthRepublicMemberLookupResult> {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL ||
+    process.env.NEXT_PUBLIC_FUNCTIONS_URL;
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
+  }
+
+  const response = await fetch(`${baseUrl}/lookup-youth-republic-member`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 404 || data?.error === "volunteer_not_found") {
+      throw new Error("volunteer_not_found");
+    }
+    throw new Error(data?.error ?? "request_failed");
+  }
+  return data as YouthRepublicMemberLookupResult;
+}
+
+export interface SearchYouthRepublicMembersPayload {
+  organizationId: string;
+  query: string;
+  limit?: number;
+}
+
+export async function searchYouthRepublicMembers(
+  payload: SearchYouthRepublicMembersPayload,
+  accessToken: string,
+): Promise<{ members: YouthRepublicMemberLookupResult[] }> {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL ||
+    process.env.NEXT_PUBLIC_FUNCTIONS_URL;
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
+  }
+
+  const response = await fetch(`${baseUrl}/lookup-youth-republic-member`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error ?? "request_failed");
+  }
+  return data as { members: YouthRepublicMemberLookupResult[] };
+}
+
+export interface RequestPublicAssetUploadPayload {
+  domain: "avatar" | "logo";
+  contentType: string;
+  fileName?: string;
+}
+
+export interface RequestPublicAssetUploadResponse {
+  uploadUrl: string;
+  publicUrl: string;
+  objectKey: string;
+}
+
+export async function requestPublicAssetUpload(
+  payload: RequestPublicAssetUploadPayload,
+  accessToken: string,
+): Promise<RequestPublicAssetUploadResponse> {
+  const baseUrl =
+    process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL ||
+    process.env.NEXT_PUBLIC_FUNCTIONS_URL;
+  if (!baseUrl) {
+    throw new Error("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
+  }
+
+  const response = await fetch(`${baseUrl}/upload-public-asset`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(8000),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error ?? "request_failed");
+  }
+  return data as RequestPublicAssetUploadResponse;
 }

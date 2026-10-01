@@ -72,3 +72,49 @@ Deno.test("updateChapter authorizes against the chapter's stored org (cross-org 
     Error, "forbidden",
   );
 });
+
+Deno.test("updateChapter allows Chapter Admin to update their assigned chapter, updates logo and roster", async () => {
+  const { supabase, orgId, chapterId } = await setup();
+  const cAdminEmail = `uc-cadmin-${crypto.randomUUID()}@example.com`;
+  const { data: caAuth } = await supabase.auth.admin.createUser({ email: cAdminEmail, email_confirm: true });
+  const { data: cAdmin } = await supabase.from("staff").insert({
+    auth_user_id: caAuth!.user!.id, full_name: "Chapter Admin", email: cAdminEmail,
+  }).select("id").single();
+
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").upsert({ organization_id: orgId, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: orgId, p_module_id: mod!.id });
+  const { data: orgAdminRole } = await supabase.from("roles").select("id")
+    .eq("organization_id", orgId).eq("name", "Org Admin").single();
+
+  // Assign Chapter Admin to this chapter
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: cAdmin!.id, organization_id: orgId, module_id: mod!.id, role_id: orgAdminRole!.id,
+    scope_kind: "chapter", chapter_id: chapterId, scope_label: "Old Name",
+  });
+
+  await updateChapter(supabase, cAdmin!.id, false, {
+    chapterId,
+    logoUrl: "https://example.com/chapter-logo.png",
+    about: "About this chapter",
+    teamMembers: [
+      {
+        volunteerCode: "YR-2026-000100",
+        fullName: "Test Member",
+        designation: "Lead",
+        term: "2025–2026",
+        status: "active",
+      },
+    ],
+  });
+
+  const { data: chapter } = await supabase.from("chapters").select("logo_url, about").eq("id", chapterId).single();
+  assertEquals(chapter!.logo_url, "https://example.com/chapter-logo.png");
+  assertEquals(chapter!.about, "About this chapter");
+
+  const { data: members } = await supabase.from("chapter_team_members").select("volunteer_code, full_name, designation")
+    .eq("chapter_id", chapterId);
+  assertEquals(members!.length, 1);
+  assertEquals(members![0].volunteer_code, "YR-2026-000100");
+});
+

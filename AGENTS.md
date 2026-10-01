@@ -13,3 +13,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 ## Custom Select Dropdowns
 - **Always** use the custom `Select` component (`@/components/ui/Select`) instead of native HTML `<select>` tags across all forms, filters, tables, and modal dialogs.
 - Native `<select>` elements are strictly prohibited in ZahraOS interfaces to maintain design system consistency (custom card-styled popover menu, consistent typography, focus rings, and accessible keyboard navigation).
+
+# Git & Deployment Rules
+
+## Protected Branches (`main`, `master`, production branches)
+- **STRICT PROHIBITION**: NEVER push directly to `main`, `master`, or production branches under any circumstances without explicit, unambiguous user confirmation and permission.
+- **NEVER merge pull requests into `main`** without explicit user instruction. When asked to push or share changes, push to a dedicated feature/topic branch and provide the branch/PR link for review.

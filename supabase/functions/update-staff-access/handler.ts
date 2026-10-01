@@ -28,9 +28,21 @@ export async function updateStaffAccess(
   const modId = mod!.id as string;
 
   const roleIds = [...new Set(input.roles.map((r) => r.roleId))];
-  const { data: validRoles } = await supabase.from("roles").select("id")
+  const { data: validRoles } = await supabase.from("roles").select("id, name")
     .eq("organization_id", input.organizationId).eq("module_id", modId).in("id", roleIds);
   if ((validRoles ?? []).length !== roleIds.length) throw new Error("role_not_available");
+
+  const roleNameById = new Map<string, string>();
+  for (const r of validRoles ?? []) {
+    roleNameById.set(r.id, r.name);
+  }
+
+  for (const r of input.roles) {
+    const roleName = roleNameById.get(r.roleId);
+    if (roleName === "Super Admin" && (r.scopeKind === "chapter" || r.chapterId)) {
+      throw new Error("super_admin_cannot_be_scoped");
+    }
+  }
 
   await supabase.from("staff_role_assignments").delete()
     .eq("staff_id", input.staffId).eq("organization_id", input.organizationId).eq("module_id", modId);
@@ -47,6 +59,41 @@ export async function updateStaffAccess(
   const { error: statusError } = await supabase.from("staff")
     .update({ status: input.status, expires_at: input.expiresAt ?? null }).eq("id", input.staffId);
   if (statusError) throw statusError;
+
+  // Sync staff_org_roles tier based on assigned roles and active status
+  let targetTier: "super_admin" | "admin" | null = null;
+  if (input.status !== "deactivated") {
+    const hasSuperAdminOrgWide = input.roles.some(
+      (r) => roleNameById.get(r.roleId) === "Super Admin" && r.scopeKind === "org_wide"
+    );
+    const hasOrgAdminOrgWide = input.roles.some(
+      (r) => roleNameById.get(r.roleId) === "Org Admin" && r.scopeKind === "org_wide"
+    );
+
+    if (hasSuperAdminOrgWide) {
+      targetTier = "super_admin";
+    } else if (hasOrgAdminOrgWide) {
+      targetTier = "admin";
+    }
+  }
+
+  if (targetTier) {
+    const { error: tierError } = await supabase.from("staff_org_roles").upsert(
+      {
+        staff_id: input.staffId,
+        organization_id: input.organizationId,
+        org_tier: targetTier,
+      },
+      { onConflict: "staff_id,organization_id" },
+    );
+    if (tierError) throw tierError;
+  } else {
+    const { error: deleteTierError } = await supabase.from("staff_org_roles")
+      .delete()
+      .eq("staff_id", input.staffId)
+      .eq("organization_id", input.organizationId);
+    if (deleteTierError) throw deleteTierError;
+  }
 
   const { data: target } = await supabase.from("staff").select("full_name").eq("id", input.staffId).single();
   await writeAuditLog(supabase, {

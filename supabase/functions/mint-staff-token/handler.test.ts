@@ -249,3 +249,82 @@ Deno.test("mintStaffToken allows a future expires_at and a null expires_at", asy
   const token = await mintStaffToken(supabase, staff!.id, false);
   assertEquals(typeof token, "string");
 });
+
+Deno.test("mintStaffToken emits unconstrained permissions for National Org Admin", async () => {
+  Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
+  const supabase = testClient();
+  const { data: org } = await supabase.from("organizations").insert({
+    name: "NOA Org", slug: `noa-${crypto.randomUUID()}`,
+  }).select("id").single();
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: org!.id, p_module_id: mod!.id });
+  const { data: orgAdminRole } = await supabase.from("roles")
+    .select("id").eq("organization_id", org!.id).eq("name", "Org Admin").single();
+
+  const email = `noa-${crypto.randomUUID()}@example.com`;
+  const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser!.user!.id, full_name: "National Org Admin", email,
+  }).select("id").single();
+
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: staff!.id,
+    organization_id: org!.id,
+    module_id: mod!.id,
+    role_id: orgAdminRole!.id,
+    scope_kind: "org_wide",
+    scope_label: "National / All Chapters",
+  });
+
+  const token = await mintStaffToken(supabase, staff!.id, false);
+  const entry = JSON.parse(atob(token.split(".")[1])).module_access
+    .find((m: { module: string }) => m.module === "youth-republic");
+
+  assertEquals(entry.chapter_scopes, undefined);
+  assertEquals(entry.permissions.includes("opportunities:write"), true);
+  assertEquals(entry.permissions.includes("team:write"), true);
+});
+
+Deno.test("mintStaffToken strictly pins chapter_scopes for Chapter Admin", async () => {
+  Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
+  const supabase = testClient();
+  const { data: org } = await supabase.from("organizations").insert({
+    name: "CA Org", slug: `ca-${crypto.randomUUID()}`,
+  }).select("id").single();
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: org!.id, p_module_id: mod!.id });
+  const { data: orgAdminRole } = await supabase.from("roles")
+    .select("id").eq("organization_id", org!.id).eq("name", "Org Admin").single();
+
+  const { data: chapter } = await supabase.from("chapters").insert({
+    organization_id: org!.id, name: `Islamabad-${crypto.randomUUID()}`,
+  }).select("id").single();
+
+  const email = `ca-${crypto.randomUUID()}@example.com`;
+  const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser!.user!.id, full_name: "Chapter Admin", email,
+  }).select("id").single();
+
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: staff!.id,
+    organization_id: org!.id,
+    module_id: mod!.id,
+    role_id: orgAdminRole!.id,
+    scope_kind: "chapter",
+    chapter_id: chapter!.id,
+    scope_label: "Islamabad",
+  });
+
+  const token = await mintStaffToken(supabase, staff!.id, false);
+  const entry = JSON.parse(atob(token.split(".")[1])).module_access
+    .find((m: { module: string }) => m.module === "youth-republic");
+
+  assertEquals(Boolean(entry.chapter_scopes), true);
+  assertEquals(entry.chapter_scopes["opportunities:write"], [chapter!.id]);
+  assertEquals(entry.chapter_scopes["applications:update"], [chapter!.id]);
+  assertEquals(entry.chapter_scopes["hours:update"], [chapter!.id]);
+});
+

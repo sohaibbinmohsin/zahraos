@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CAPABILITY_KEYS, CAPABILITY_META, permissionKeysToGrid, type CapabilityLevel } from "@/lib/capabilityMap";
+import { MODULE_CAPABILITIES, CAPABILITY_META, permissionKeysToGrid, type CapabilityLevel } from "@/lib/capabilityMap";
 import type { TeamRole } from "./TeamAccessProvider";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Select } from "@/components/ui/Select";
@@ -35,6 +35,9 @@ export function RolesTable({
     return matchSearch && matchType;
   });
 
+  const totalCapabilityCols = MODULE_CAPABILITIES["youth-republic"].length + MODULE_CAPABILITIES["team-governance"].length;
+  const totalColumns = 4 + totalCapabilityCols;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -56,18 +59,60 @@ export function RolesTable({
           <table className="data-table">
             <thead>
               <tr>
-                <th>Role Title &amp; Type</th>
-                <th>Description</th>
-                <th>Active Staff</th>
-                {CAPABILITY_KEYS.map((k) => <th key={k}>{CAPABILITY_META[k].column}</th>)}
-                <th style={{ textAlign: "right" }}>Actions</th>
+                <th rowSpan={2} style={{ verticalAlign: "bottom" }}>Role Title &amp; Type</th>
+                <th rowSpan={2} style={{ verticalAlign: "bottom" }}>Description</th>
+                <th rowSpan={2} style={{ verticalAlign: "bottom" }}>Active Staff</th>
+                <th
+                  colSpan={MODULE_CAPABILITIES["youth-republic"].length}
+                  style={{
+                    textAlign: "center",
+                    borderBottom: "1px solid var(--line)",
+                    borderLeft: "1px solid var(--line-subtle)",
+                    borderRight: "1px solid var(--line-subtle)",
+                    background: "var(--bg-subtle, #F8F9FA)",
+                  }}
+                >
+                  Youth Republic
+                </th>
+                <th
+                  colSpan={MODULE_CAPABILITIES["team-governance"].length}
+                  style={{
+                    textAlign: "center",
+                    borderBottom: "1px solid var(--line)",
+                    borderRight: "1px solid var(--line-subtle)",
+                    background: "var(--bg-subtle, #F8F9FA)",
+                  }}
+                >
+                  Team &amp; Governance
+                </th>
+                <th rowSpan={2} style={{ textAlign: "right", verticalAlign: "bottom" }}>Actions</th>
+              </tr>
+              <tr>
+                {MODULE_CAPABILITIES["youth-republic"].map((k, i) => (
+                  <th
+                    key={k}
+                    style={i === 0 ? { borderLeft: "1px solid var(--line-subtle)" } : undefined}
+                  >
+                    {CAPABILITY_META[k].column}
+                  </th>
+                ))}
+                {MODULE_CAPABILITIES["team-governance"].map((k, i) => (
+                  <th
+                    key={k}
+                    style={i === 0 ? { borderLeft: "1px solid var(--line-subtle)" } : undefined}
+                  >
+                    {CAPABILITY_META[k].column}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={4 + CAPABILITY_KEYS.length} style={{ textAlign: "center", padding: "2.5rem", color: "var(--ink-3)" }}>
-                  No roles found matching your search criteria.
-                </td></tr>
+                <tr>
+                  <td colSpan={totalColumns} style={{ textAlign: "center", padding: "2.5rem", color: "var(--ink-3)" }}>
+                    No roles found matching your search criteria.
+                  </td>
+                </tr>
               ) : filtered.map((r) => {
                 const grid = permissionKeysToGrid(r.permissionKeys);
                 const count = assignmentCountByRoleId.get(r.id) ?? 0;
@@ -81,7 +126,16 @@ export function RolesTable({
                     </td>
                     <td style={{ color: "var(--ink-2)", fontSize: "var(--text-sm)", maxWidth: 240, lineHeight: 1.3 }}>{r.description}</td>
                     <td><span style={{ fontWeight: 600 }}>{count} Staff</span></td>
-                    {CAPABILITY_KEYS.map((k) => <td key={k}>{levelBadge(grid[k])}</td>)}
+                    {MODULE_CAPABILITIES["youth-republic"].map((k, i) => (
+                      <td key={k} style={i === 0 ? { borderLeft: "1px solid var(--line-subtle)" } : undefined}>
+                        {levelBadge(grid[k])}
+                      </td>
+                    ))}
+                    {MODULE_CAPABILITIES["team-governance"].map((k, i) => (
+                      <td key={k} style={i === 0 ? { borderLeft: "1px solid var(--line-subtle)" } : undefined}>
+                        {levelBadge(grid[k])}
+                      </td>
+                    ))}
                     <td style={{ textAlign: "right" }}>
                       <div style={{ display: "inline-flex", gap: ".35rem", justifyContent: "flex-end" }}>
                         {r.isSystem ? (

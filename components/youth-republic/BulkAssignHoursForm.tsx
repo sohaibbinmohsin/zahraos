@@ -6,6 +6,7 @@ import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export interface ParticipantOption {
   participationId: string;
+  volunteerCode?: string | null;
   volunteerName: string;
 }
 
@@ -121,7 +122,14 @@ export function BulkAssignHoursForm({
                   checked={checkedIds.includes(p.participationId)}
                   onChange={() => toggle(p.participationId)}
                 />
-                <span className="font-medium text-[var(--ink)]">{p.volunteerName}</span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-[var(--ink)]">{p.volunteerName}</span>
+                  {p.volunteerCode && (
+                    <span className="font-mono text-[11px] font-semibold text-[var(--ink-2)] bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border border-[var(--line)]">
+                      {p.volunteerCode}
+                    </span>
+                  )}
+                </div>
               </label>
             ))}
           </div>

@@ -18,6 +18,8 @@ import { useToast } from "@/components/shell/ToastContext";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { CardGridSkeleton } from "@/components/ui/skeletons";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
+import { AccessDeniedGate } from "@/components/shell/AccessDeniedGate";
 
 type EditTarget = NonNullable<
   React.ComponentProps<typeof CreateOpportunityForm>["initialOpportunity"]
@@ -124,6 +126,7 @@ export default function YouthRepublicDrivesPage() {
   const { showToast } = useToast();
   const confirm = useConfirm();
   const staffToken = useShellStaffToken();
+  const perms = useStaffPermissions();
   const [busy, setBusy] = useState<{ id: string; action: "archive" | "delete" } | null>(null);
 
   const [typeFilter, setTypeFilter] = useState("all");
@@ -141,12 +144,14 @@ export default function YouthRepublicDrivesPage() {
     isLoading,
     mutate,
   } = useSWR(
-    organizationId && staffToken ? ["listOpportunities", organizationId] : null,
+    organizationId && staffToken && perms.canViewDrives ? ["listOpportunities", organizationId] : null,
     async () => {
       const result = await listOpportunities({ organizationId: organizationId! }, staffToken!);
       return result.opportunities.filter((o) => o.computedStatus !== "deleted");
     },
     {
+      shouldRetryOnError: false,
+      revalidateOnFocus: false,
       onError: (err) =>
         showToast(err instanceof Error ? `Could not load drives: ${err.message}` : "Could not load drives."),
     },
@@ -282,44 +287,58 @@ export default function YouthRepublicDrivesPage() {
 
   if (!organizationId) {
     return (
-      <div className="panel p-8 text-center">
-        <p className="text-[var(--ink-2)] font-medium">Select an organization to see its drives.</p>
-      </div>
+      <AccessDeniedGate
+        allowed={perms.canViewDrives}
+        sectionName="Drives"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <div className="panel p-8 text-center">
+          <p className="text-[var(--ink-2)] font-medium">Select an organization to see its drives.</p>
+        </div>
+      </AccessDeniedGate>
     );
   }
 
   if (isCreating || editTarget) {
     return (
-      <div className="space-y-6">
-        <button
-          type="button"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--ink-2)] hover:text-[var(--ink)] mb-3 bg-transparent border-0 p-0 cursor-pointer transition-colors"
-          onClick={() => {
-            setIsCreating(false);
-            setEditTarget(null);
-          }}
-        >
-          &larr; Back to Drives
-        </button>
+      <AccessDeniedGate
+        allowed={perms.canViewDrives}
+        sectionName="Drives"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <div className="space-y-6">
+          <button
+            type="button"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--ink-2)] hover:text-[var(--ink)] mb-3 bg-transparent border-0 p-0 cursor-pointer transition-colors"
+            onClick={() => {
+              setIsCreating(false);
+              setEditTarget(null);
+            }}
+          >
+            &larr; Back to Drives
+          </button>
 
-        {staffToken && (
-          <CreateOpportunityForm
-            organizationId={organizationId}
-            staffToken={staffToken}
-            accessToken={accessToken}
-            initialOpportunity={editTarget ?? undefined}
-            onCreated={() => {
-              setIsCreating(false);
-              setEditTarget(null);
-              load();
-            }}
-            onCancel={() => {
-              setIsCreating(false);
-              setEditTarget(null);
-            }}
-          />
-        )}
-      </div>
+          {staffToken && (
+            <CreateOpportunityForm
+              organizationId={organizationId}
+              staffToken={staffToken}
+              accessToken={accessToken}
+              initialOpportunity={editTarget ?? undefined}
+              onCreated={() => {
+                setIsCreating(false);
+                setEditTarget(null);
+                load();
+              }}
+              onCancel={() => {
+                setIsCreating(false);
+                setEditTarget(null);
+              }}
+            />
+          )}
+        </div>
+      </AccessDeniedGate>
     );
   }
 
@@ -356,7 +375,13 @@ export default function YouthRepublicDrivesPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <AccessDeniedGate
+      allowed={perms.canViewDrives}
+      sectionName="Drives"
+      fallbackRoute="/youth-republic"
+      fallbackLabel="Youth Republic"
+    >
+      <div className="space-y-6">
       <div className="page-header">
         <div>
           <h1 className="page-title">Drives Noticeboard</h1>
@@ -377,13 +402,15 @@ export default function YouthRepublicDrivesPage() {
             onChange={setStatusFilter}
             options={STATUS_OPTIONS}
           />
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => setIsCreating(true)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>Create Drive</span>
-          </button>
+          {perms.canCreateDrives && (
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => setIsCreating(true)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Create Drive</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -502,88 +529,100 @@ export default function YouthRepublicDrivesPage() {
                   )}
 
                   {archived ? (
-                    <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
-                      <LoadingButton
-                        className="btn btn-secondary btn-xs"
-                        disabled={busy?.id === opp.id}
-                        loading={busy?.id === opp.id && busy.action === "archive"}
-                        loadingText="Restoring…"
-                        onClick={() => toggleDeactivated(opp)}
-                      >
-                        Restore
-                      </LoadingButton>
-                      <LoadingButton
-                        className="btn btn-danger btn-xs"
-                        disabled={busy?.id === opp.id}
-                        loading={busy?.id === opp.id && busy.action === "delete"}
-                        loadingText="Deleting…"
-                        onClick={() => handleDeleteOpportunity(opp)}
-                      >
-                        Delete
-                      </LoadingButton>
-                    </div>
+                    perms.hasChapterPermission("opportunities:write", opp.chapterId) ? (
+                      <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
+                        <LoadingButton
+                          className="btn btn-secondary btn-xs"
+                          disabled={busy?.id === opp.id}
+                          loading={busy?.id === opp.id && busy.action === "archive"}
+                          loadingText="Restoring…"
+                          onClick={() => toggleDeactivated(opp)}
+                        >
+                          Restore
+                        </LoadingButton>
+                        <LoadingButton
+                          className="btn btn-danger btn-xs"
+                          disabled={busy?.id === opp.id}
+                          loading={busy?.id === opp.id && busy.action === "delete"}
+                          loadingText="Deleting…"
+                          onClick={() => handleDeleteOpportunity(opp)}
+                        >
+                          Delete
+                        </LoadingButton>
+                      </div>
+                    ) : (
+                      <div />
+                    )
                   ) : (
                     <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
-                      <LoadingButton
-                        className="btn btn-secondary btn-xs"
-                        disabled={openingEditorId !== null}
-                        loading={openingEditorId === opp.id}
-                        loadingText="Opening…"
-                        onClick={() => openEditor(opp.id)}
-                      >
-                        <span className="icon-svg">
-                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                            <path d="M12 20h9" />
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                          </svg>
-                        </span>
-                        <span>Edit</span>
-                      </LoadingButton>
+                      {perms.hasChapterPermission("opportunities:write", opp.chapterId) && (
+                        <LoadingButton
+                          className="btn btn-secondary btn-xs"
+                          disabled={openingEditorId !== null}
+                          loading={openingEditorId === opp.id}
+                          loadingText="Opening…"
+                          onClick={() => openEditor(opp.id)}
+                        >
+                          <span className="icon-svg">
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                              <path d="M12 20h9" />
+                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                            </svg>
+                          </span>
+                          <span>Edit</span>
+                        </LoadingButton>
+                      )}
 
                       {isDraft ? (
-                        <LoadingButton
-                          className="btn btn-dark btn-xs"
-                          disabled={publishingId !== null || openingEditorId !== null}
-                          loading={publishingId === opp.id}
-                          loadingText="Publishing…"
-                          onClick={() => handlePublish(opp)}
-                        >
-                          <span className="icon-svg">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M22 2 11 13" />
-                              <path d="M22 2 15 22l-4-9-9-4 20-7z" />
-                            </svg>
-                          </span>
-                          <span>Publish drive</span>
-                        </LoadingButton>
+                        perms.canPublishDrives && (
+                          <LoadingButton
+                            className="btn btn-dark btn-xs"
+                            disabled={publishingId !== null || openingEditorId !== null}
+                            loading={publishingId === opp.id}
+                            loadingText="Publishing…"
+                            onClick={() => handlePublish(opp)}
+                          >
+                            <span className="icon-svg">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M22 2 11 13" />
+                                <path d="M22 2 15 22l-4-9-9-4 20-7z" />
+                              </svg>
+                            </span>
+                            <span>Publish drive</span>
+                          </LoadingButton>
+                        )
                       ) : opp.computedStatus === "completed" ? (
-                        <button
-                          type="button"
-                          className="btn btn-dark btn-xs"
-                          onClick={() => setStatsTarget(opp)}
-                        >
-                          <span className="icon-svg">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M12 20V10" />
-                              <path d="M18 20V4" />
-                              <path d="M6 20v-4" />
-                            </svg>
-                          </span>
-                          <span>Impact & Stats</span>
-                        </button>
+                        (perms.canCreateDrives || perms.canManageTeam) && (
+                          <button
+                            type="button"
+                            className="btn btn-dark btn-xs"
+                            onClick={() => setStatsTarget(opp)}
+                          >
+                            <span className="icon-svg">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M12 20V10" />
+                                <path d="M18 20V4" />
+                                <path d="M6 20v-4" />
+                              </svg>
+                            </span>
+                            <span>Impact & Stats</span>
+                          </button>
+                        )
                       ) : (
-                        <Link
-                          href={`/youth-republic/applications?opportunityId=${opp.id}`}
-                          className="btn btn-dark btn-xs"
-                        >
-                          <span className="icon-svg">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
-                          </span>
-                          <span>View Applicants</span>
-                        </Link>
+                        perms.canViewApplications && (
+                          <Link
+                            href={`/youth-republic/applications?opportunityId=${opp.id}`}
+                            className="btn btn-dark btn-xs"
+                          >
+                            <span className="icon-svg">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                <circle cx="12" cy="12" r="3" />
+                              </svg>
+                            </span>
+                            <span>View Applicants</span>
+                          </Link>
+                        )
                       )}
                     </div>
                   )}
@@ -616,5 +655,6 @@ export default function YouthRepublicDrivesPage() {
         />
       )}
     </div>
+    </AccessDeniedGate>
   );
 }

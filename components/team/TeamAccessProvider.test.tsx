@@ -25,7 +25,7 @@ function Probe() {
   if (loading) return <div>loading</div>;
   return (
     <div>
-      <span data-testid="members">{members.map((m) => `${m.fullName}:${m.assignments.length}`).join("|")}</span>
+      <span data-testid="members">{members.map((m) => `${m.fullName}:${m.assignments.map((a) => `${a.roleName}@${a.scopeKind}:${a.chapterId}`).join(",")}`).join("|")}</span>
       <span data-testid="roles">{roles.map((r) => `${r.name}:${r.isSystem}`).join("|")}</span>
       <span data-testid="chapters">{chapters.map((c) => c.name).join("|")}</span>
     </div>
@@ -67,9 +67,30 @@ describe("TeamAccessProvider", () => {
   it("joins staff, assignments, roles, and chapters into typed collections", async () => {
     render(<TeamAccessProvider><Probe /></TeamAccessProvider>);
     await waitFor(() => expect(screen.queryByText("loading")).not.toBeInTheDocument());
-    expect(screen.getByTestId("members")).toHaveTextContent("Amina Malik:1");
+    expect(screen.getByTestId("members")).toHaveTextContent("Amina Malik:Operations Lead@org_wide:null");
     expect(screen.getByTestId("roles")).toHaveTextContent("Operations Lead:true");
+    expect(screen.getByTestId("roles")).toHaveTextContent("Org Admin:true");
     expect(screen.getByTestId("chapters")).toHaveTextContent("Lahore Chapter");
     expect(chaptersMock).toHaveBeenCalledWith({ organizationId: "org-1" }, "access-token");
+  });
+
+  it("resolves chapter-scoped Org Admin assignment and preserves chapterId and scopeLabel", async () => {
+    from.mockImplementation((table: string) => {
+      if (table === "modules") return tableStub([{ id: "mod-1", key: "youth-republic" }]);
+      if (table === "roles") return tableStub([]);
+      if (table === "staff_role_assignments") return tableStub([
+        { id: "a2", staff_id: "s2", role_id: "system-org-admin", scope_kind: "chapter", chapter_id: "c1", scope_label: "Lahore Chapter" },
+      ]);
+      if (table === "staff") return tableStub([
+        { id: "s2", full_name: "Fatima Noor", email: "fatima@x.org", status: "active", deactivated_at: null, expires_at: null },
+      ]);
+      if (table === "staff_invitations") return tableStub([]);
+      return tableStub([]);
+    });
+
+    render(<TeamAccessProvider><Probe /></TeamAccessProvider>);
+    await waitFor(() => expect(screen.queryByText("loading")).not.toBeInTheDocument());
+    expect(screen.getByTestId("members")).toHaveTextContent("Fatima Noor:Org Admin@chapter:c1");
+    expect(screen.getByTestId("roles")).toHaveTextContent("Org Admin:true");
   });
 });

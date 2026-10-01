@@ -7,6 +7,7 @@ import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import * as youthRepublicFunctions from "@/lib/youthRepublicFunctions";
 import * as shell from "@/components/shell/AppShell";
+import { useStaffPermissions, type StaffPermissions } from "@/components/shell/useStaffPermissions";
 
 vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
@@ -14,15 +15,39 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/supabase/browserClient");
 vi.mock("@/lib/staffToken");
 vi.mock("@/lib/youthRepublicFunctions");
+vi.mock("@/components/shell/useStaffPermissions", () => ({
+  useStaffPermissions: vi.fn(),
+}));
 vi.mock("@/components/shell/AppShell", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/shell/AppShell")>();
   return { ...actual, useSelectedOrg: vi.fn(), useShellStaffToken: vi.fn() };
 });
 
+const allPerms: StaffPermissions = {
+  canAccessDashboard: true,
+  canViewDrives: true,
+  canCreateDrives: true,
+  canPublishDrives: true,
+  canViewApplications: true,
+  canTriageApplications: true,
+  canViewHours: true,
+  canApproveHours: true,
+  canViewVolunteers: true,
+  canManageTeam: true,
+  canManageOrgProfile: true,
+  canCreateChapters: true,
+  canEditChapter: () => true,
+  canViewInquiries: true,
+  isChapterScoped: false,
+  scopedChapterIds: null,
+  hasChapterPermission: () => true,
+};
+
 describe("YouthRepublicApplicationsPage", () => {
   beforeEach(() => {
     vi.mocked(shell.useSelectedOrg).mockReturnValue("org-1");
     vi.mocked(shell.useShellStaffToken).mockReturnValue("staff-jwt");
+    vi.mocked(useStaffPermissions).mockReturnValue(allPerms);
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { getSession: vi.fn().mockResolvedValue({ data: { session: { access_token: "platform-token" } } }) },
     } as never);
@@ -123,6 +148,142 @@ describe("YouthRepublicApplicationsPage", () => {
     resolveDecide({ applicationId: "app-1", participationId: "p-1" });
     await waitFor(() => {
       expect(youthRepublicFunctions.decideApplication).toHaveBeenCalled();
+    });
+  });
+
+  it("renders AccessDeniedGate when user lacks application viewing permissions", () => {
+    vi.mocked(useStaffPermissions).mockReturnValue({ ...allPerms, canViewApplications: false });
+    renderWithSwr(<YouthRepublicApplicationsPage />);
+
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
+    expect(screen.getByText(/Applications/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Youth Republic/i })).toHaveAttribute("href", "/youth-republic");
+  });
+
+  describe("action button permissions gating", () => {
+    it("hides decision buttons and renders Read-only badge when user lacks canTriageApplications", async () => {
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canTriageApplications: false,
+      });
+      renderWithSwr(<YouthRepublicApplicationsPage />);
+
+      expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Select" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Waitlist" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+      expect(screen.getByText("Read-only")).toBeInTheDocument();
+      // Review Answers button should still be available to view answers
+      expect(screen.getByRole("button", { name: "Review Answers" })).toBeInTheDocument();
+    });
+
+    it("hides Reconsider button on decided application when user lacks canTriageApplications", async () => {
+      vi.mocked(youthRepublicFunctions.listApplications).mockResolvedValue({
+        applications: [{
+          id: "app-2",
+          volunteerId: "vol-2",
+          volunteerName: "Bilal Ahmed",
+          opportunityId: "opp-1",
+          opportunityName: "Beach Cleanup",
+          status: "waitlisted",
+          appliedAt: "2026-01-01T00:00:00Z",
+          applicantName: "Bilal Ahmed",
+          applicantEmail: "bilal@example.com",
+          applicantPhone: "0300-7654321",
+          answers: {},
+          formSnapshot: null,
+          attachmentIdsByField: {},
+        }],
+        total: 1,
+      });
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canTriageApplications: false,
+      });
+      const user = userEvent.setup();
+      renderWithSwr(<YouthRepublicApplicationsPage />);
+
+      await user.click(await screen.findByRole("combobox", { name: "Filter by status" }));
+      await user.click(await screen.findByRole("option", { name: "All Application Statuses" }));
+
+      expect(await screen.findByText("Bilal Ahmed")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Reconsider" })).not.toBeInTheDocument();
+      expect(screen.getByText("Read-only")).toBeInTheDocument();
+    });
+
+    it("hides decision buttons in ApplicationReviewDrawer when user lacks canTriageApplications", async () => {
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canTriageApplications: false,
+      });
+      const user = userEvent.setup();
+      renderWithSwr(<YouthRepublicApplicationsPage />);
+
+      expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Review Answers" }));
+
+      // Review drawer opens
+      expect(await screen.findByRole("dialog")).toBeInTheDocument();
+      expect(screen.getByText("Candidate Application Review")).toBeInTheDocument();
+      // Decision buttons should not be in the drawer
+      expect(screen.queryByRole("button", { name: "Select" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Waitlist" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+      // Close button should be present
+      expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+    });
+
+    it("renders volunteerCode and filters applications by volunteerCode search", async () => {
+      vi.mocked(youthRepublicFunctions.listApplications).mockResolvedValue({
+        applications: [
+          {
+            id: "app-1",
+            volunteerId: "vol-1",
+            volunteerCode: "YR-2026-000053",
+            volunteerName: "Sohaib Bin Mohsin",
+            opportunityId: "opp-1",
+            opportunityName: "Tree Plantation",
+            status: "pending_review",
+            appliedAt: "2026-01-01T00:00:00Z",
+            applicantName: "Sohaib Bin Mohsin",
+            applicantEmail: "sohaib@example.com",
+            applicantPhone: "0300-1111111",
+            answers: {},
+            formSnapshot: null,
+            attachmentIdsByField: {},
+          },
+          {
+            id: "app-2",
+            volunteerId: "vol-2",
+            volunteerCode: "YR-2026-000099",
+            volunteerName: "Sohaib Bin Mohsin",
+            opportunityId: "opp-1",
+            opportunityName: "Tree Plantation",
+            status: "pending_review",
+            appliedAt: "2026-01-01T00:00:00Z",
+            applicantName: "Sohaib Bin Mohsin",
+            applicantEmail: "other@example.com",
+            applicantPhone: "0300-2222222",
+            answers: {},
+            formSnapshot: null,
+            attachmentIdsByField: {},
+          },
+        ],
+        total: 2,
+      });
+
+      const user = userEvent.setup();
+      renderWithSwr(<YouthRepublicApplicationsPage />);
+
+      expect(await screen.findByText("YR-2026-000053")).toBeInTheDocument();
+      expect(screen.getByText("YR-2026-000099")).toBeInTheDocument();
+
+      const searchInput = screen.getByPlaceholderText(/Search candidate name, ID or drive/i);
+      await user.type(searchInput, "000053");
+
+      expect(screen.getByText("YR-2026-000053")).toBeInTheDocument();
+      expect(screen.queryByText("YR-2026-000099")).not.toBeInTheDocument();
     });
   });
 });

@@ -43,14 +43,44 @@ export async function mintStaffToken(
     .select("organization_id, org_tier")
     .eq("staff_id", staffId);
 
-  const superAdminOrgIds = (orgRoleRows ?? [])
-    .filter((r) => r.org_tier === "super_admin")
-    .map((r) => r.organization_id as string);
-
   const { data: assignmentRows } = await supabase
     .from("staff_role_assignments")
     .select("organization_id, module_id, role_id, scope_kind, chapter_id")
     .eq("staff_id", staffId);
+
+  const roleIds = [...new Set((assignmentRows ?? []).map((r) => r.role_id))];
+  const roleNameMap = new Map<string, string>();
+  if (roleIds.length > 0) {
+    const { data: rolesData } = await supabase
+      .from("roles")
+      .select("id, name")
+      .in("id", roleIds);
+    for (const r of rolesData ?? []) {
+      roleNameMap.set(r.id, r.name);
+    }
+  }
+
+  // Determine unconstrained national admin orgs:
+  // 1. From staff_org_roles where org_tier in ('super_admin', 'admin')
+  // 2. From staff_role_assignments where roleName is 'Super Admin' (always org-wide)
+  //    or 'Org Admin' with scope_kind === 'org_wide'
+  const unconstrainedOrgIds = new Set<string>();
+
+  for (const r of orgRoleRows ?? []) {
+    if (r.org_tier === "super_admin" || r.org_tier === "admin") {
+      unconstrainedOrgIds.add(r.organization_id as string);
+    }
+  }
+
+  for (const r of assignmentRows ?? []) {
+    const roleName = roleNameMap.get(r.role_id);
+    if (
+      roleName === "Super Admin" ||
+      (roleName === "Org Admin" && r.scope_kind === "org_wide")
+    ) {
+      unconstrainedOrgIds.add(r.organization_id as string);
+    }
+  }
 
   const orgIds = new Set<string>([
     ...(orgRoleRows ?? []).map((r) => r.organization_id as string),
@@ -97,7 +127,9 @@ export async function mintStaffToken(
     }
   }
 
-  for (const orgId of superAdminOrgIds) {
+  // 1. For unconstrained orgs (Super Admin or National Org Admin):
+  // Grant all permissions across all enabled modules unconstrained (anyOrgWide = true)
+  for (const orgId of unconstrainedOrgIds) {
     const { data: enabledModules } = await supabase.from("org_modules").select("module_id").eq("organization_id", orgId);
     for (const row of enabledModules ?? []) {
       const moduleKey = await moduleKeyFor(row.module_id as string);
@@ -105,21 +137,39 @@ export async function mintStaffToken(
         .from("permissions")
         .select("resource, action")
         .eq("module_id", row.module_id);
-      addPermissions(orgId, moduleKey, (perms ?? []).map((p) => `${p.resource}:${p.action}`));
-      // super_admin: no notePermScope call -> keyScopes has no entry -> unrestricted.
+      const permKeys = (perms ?? []).map((p) => `${p.resource}:${p.action}`);
+      addPermissions(orgId, moduleKey, permKeys);
+      for (const permKey of permKeys) {
+        notePermScope(orgId, moduleKey, permKey, { scope_kind: "org_wide", chapter_id: null });
+      }
     }
   }
 
+  // 2. For all staff role assignments:
   for (const row of assignmentRows ?? []) {
     const moduleKey = await moduleKeyFor(row.module_id as string);
-    const { data: rolePerms } = await supabase
-      .from("role_permissions")
-      .select("permissions(resource, action)")
-      .eq("role_id", row.role_id);
-    const permissions = (rolePerms ?? []).map((rp) => {
-      const p = rp.permissions as unknown as { resource: string; action: string };
-      return `${p.resource}:${p.action}`;
-    });
+    const roleName = roleNameMap.get(row.role_id);
+
+    let permissions: string[] = [];
+
+    if (roleName === "Org Admin" && row.scope_kind === "chapter") {
+      // Chapter-scoped Org Admin gets all module permissions pinned to this chapter ID
+      const { data: perms } = await supabase
+        .from("permissions")
+        .select("resource, action")
+        .eq("module_id", row.module_id);
+      permissions = (perms ?? []).map((p) => `${p.resource}:${p.action}`);
+    } else {
+      const { data: rolePerms } = await supabase
+        .from("role_permissions")
+        .select("permissions(resource, action)")
+        .eq("role_id", row.role_id);
+      permissions = (rolePerms ?? []).map((rp) => {
+        const p = rp.permissions as unknown as { resource: string; action: string };
+        return `${p.resource}:${p.action}`;
+      });
+    }
+
     addPermissions(row.organization_id as string, moduleKey, permissions);
     for (const permKey of permissions) {
       notePermScope(

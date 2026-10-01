@@ -243,6 +243,11 @@ describe("AppShell", () => {
     );
 
     await waitFor(() => expect(screen.getByText("Regular Staff")).toBeInTheDocument());
+    expect(screen.queryByText("Team & Governance")).not.toBeInTheDocument();
+    expect(screen.queryByRole("separator")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Hours" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Hours Verification")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Applications" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Team Members" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Roles & Permissions" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Audit Log" })).not.toBeInTheDocument();
@@ -514,13 +519,13 @@ describe("AppShell", () => {
     );
 
     expect(screen.getByText(/loading/i)).toBeInTheDocument();
-    // The sidebar keeps its shape while the shell resolves — the governance
-    // group heading stays put instead of vanishing until claims arrive.
-    expect(screen.getByText("Team & Governance")).toBeInTheDocument();
+    // Prior to claims resolving, non-authorized headers must not render (zero orphaned headers)
+    expect(screen.queryByText("Team & Governance")).not.toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
     expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
+    expect(screen.getByText("Team & Governance")).toBeInTheDocument();
   });
 
   it("shows a visible error state (not a blank no-access shell) when loading claims fails, and can retry", async () => {
@@ -593,5 +598,194 @@ describe("AppShell", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("hides Team & Governance label and divider for non-admin staff", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Youth Officer", platform_owner: false },
+        orgTierRows: [],
+        organizations: [{ id: "org-1", name: "Rizq" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({
+        actor_type: "staff",
+        staff_id: "s10",
+        platform_owner: false,
+        org_roles: [],
+        module_access: [
+          {
+            organization_id: "org-1",
+            module: "youth-republic",
+            permissions: ["opportunities:read", "applications:read"],
+          },
+        ],
+      }),
+    );
+
+    render(
+      <AppShell>
+        <p>youth content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Youth Officer")).toBeInTheDocument());
+
+    // Team & Governance label and its preceding separator must not exist in DOM
+    expect(screen.queryByText("Team & Governance")).not.toBeInTheDocument();
+    expect(screen.queryByRole("separator")).not.toBeInTheDocument();
+  });
+
+  it("hides Hours Verification nav link for staff without hours permissions", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Application Reviewer", platform_owner: false },
+        orgTierRows: [],
+        organizations: [{ id: "org-1", name: "Rizq" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({
+        actor_type: "staff",
+        staff_id: "s11",
+        platform_owner: false,
+        org_roles: [],
+        module_access: [
+          {
+            organization_id: "org-1",
+            module: "youth-republic",
+            permissions: ["applications:read", "applications:update"],
+          },
+        ],
+      }),
+    );
+
+    render(
+      <AppShell>
+        <p>reviewer content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getAllByText("Application Reviewer").length).toBeGreaterThan(0));
+
+    // Hours verification link must not be present
+    expect(screen.queryByText("Hours Verification")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Hours" })).not.toBeInTheDocument();
+
+    // Applications should be present
+    expect(screen.getByRole("link", { name: "Applications" })).toBeInTheDocument();
+  });
+
+  it("shows Hours Verification nav link for staff with hours:read permission", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Hours Auditor", platform_owner: false },
+        orgTierRows: [],
+        organizations: [{ id: "org-1", name: "Rizq" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({
+        actor_type: "staff",
+        staff_id: "s12",
+        platform_owner: false,
+        org_roles: [],
+        module_access: [
+          {
+            organization_id: "org-1",
+            module: "youth-republic",
+            permissions: ["hours:read"],
+          },
+        ],
+      }),
+    );
+
+    render(
+      <AppShell>
+        <p>auditor content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hours Auditor")).toBeInTheDocument());
+
+    expect(screen.getByText("Hours Verification")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Hours" })).toBeInTheDocument();
+  });
+
+  it("shows Partner Inquiries link when canViewInquiries is true, and hides when false", async () => {
+    // 1. Staff with team:write and inquiries:read (or org admin) -> canViewInquiries is true
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "National Admin", platform_owner: false },
+        orgTierRows: [{ organization_id: "org-1", org_tier: "enterprise" }],
+        organizations: [{ id: "org-1", name: "Rizq" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({
+        actor_type: "staff",
+        staff_id: "s13",
+        platform_owner: false,
+        org_roles: [{ organization_id: "org-1", role_name: "admin" }],
+        module_access: [
+          {
+            organization_id: "org-1",
+            module: "youth-republic",
+            permissions: ["team:write", "inquiries:read"],
+          },
+        ],
+      }),
+    );
+
+    const { unmount } = render(
+      <AppShell>
+        <p>admin content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("National Admin")).toBeInTheDocument());
+    expect(screen.getByRole("link", { name: "Partner Inquiries" })).toBeInTheDocument();
+
+    unmount();
+
+    // 2. Chapter-scoped staff with team:write -> isChapterScoped = true, so canViewInquiries = false
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Chapter Lead", platform_owner: false },
+        orgTierRows: [],
+        organizations: [{ id: "org-1", name: "Rizq" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({
+        actor_type: "staff",
+        staff_id: "s14",
+        platform_owner: false,
+        org_roles: [],
+        module_access: [
+          {
+            organization_id: "org-1",
+            module: "youth-republic",
+            permissions: ["team:write"],
+            chapter_scopes: {
+              "team:write": ["c-1"],
+            },
+          },
+        ],
+      }),
+    );
+
+    render(
+      <AppShell>
+        <p>chapter lead content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Chapter Lead")).toBeInTheDocument());
+    // Organization link is shown because canManageTeam is true
+    expect(screen.getByRole("link", { name: "Organization" })).toBeInTheDocument();
+    // Partner Inquiries must be hidden
+    expect(screen.queryByRole("link", { name: "Partner Inquiries" })).not.toBeInTheDocument();
   });
 });

@@ -37,6 +37,39 @@ export interface Chapter {
   status: string;
 }
 
+export const FALLBACK_SYSTEM_ROLES: TeamRole[] = [
+  {
+    id: "system-super-admin",
+    name: "Super Admin",
+    description: "Full platform control and unconstrained administrative privileges across all operational modules.",
+    isSystem: true,
+    permissionKeys: [
+      "opportunities:write",
+      "noticeboard:write",
+      "applications:update",
+      "applications:read",
+      "hours:update",
+      "hours:read",
+      "team:write",
+    ],
+  },
+  {
+    id: "system-org-admin",
+    name: "Org Admin",
+    description: "Full operational permissions and organization-wide team governance.",
+    isSystem: true,
+    permissionKeys: [
+      "opportunities:write",
+      "noticeboard:write",
+      "applications:update",
+      "applications:read",
+      "hours:update",
+      "hours:read",
+      "team:write",
+    ],
+  },
+];
+
 interface TeamAccessValue {
   organizationId: string | null;
   accessToken: string | null;
@@ -94,6 +127,13 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
         permissionKeys: ((r.role_permissions ?? []) as unknown as Array<{ permissions: { resource: string; action: string } }>)
           .map((rp) => `${rp.permissions.resource}:${rp.permissions.action}`),
       }));
+
+      // Ensure system roles recognized, including Org Admin
+      const hasOrgAdmin = typedRoles.some((r) => r.name.toLowerCase() === "org admin");
+      if (!hasOrgAdmin) {
+        const fallbackOrgAdmin = FALLBACK_SYSTEM_ROLES.find((r) => r.name === "Org Admin");
+        if (fallbackOrgAdmin) typedRoles.push(fallbackOrgAdmin);
+      }
       setRoles(typedRoles);
       const roleById = new Map(typedRoles.map((r) => [r.id, r]));
 
@@ -105,10 +145,17 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
       const assignmentsByStaff = new Map<string, MemberAssignment[]>();
       for (const a of assignmentRows ?? []) {
         const list = assignmentsByStaff.get(a.staff_id as string) ?? [];
+        const matchedRole = roleById.get(a.role_id as string);
+        const roleName = matchedRole?.name
+          ?? (a.role_id === "system-org-admin" || a.role_id === "org-admin" || a.role_id?.toLowerCase() === "org admin"
+            ? "Org Admin"
+            : a.role_id === "system-super-admin" || a.role_id === "super-admin" || a.role_id?.toLowerCase() === "super admin"
+            ? "Super Admin"
+            : "Unknown role");
         list.push({
           id: a.id as string,
           roleId: a.role_id as string,
-          roleName: roleById.get(a.role_id as string)?.name ?? "Unknown role",
+          roleName,
           scopeKind: a.scope_kind as "org_wide" | "chapter",
           chapterId: (a.chapter_id as string) ?? null,
           scopeLabel: a.scope_label as string,

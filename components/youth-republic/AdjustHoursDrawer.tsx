@@ -9,6 +9,7 @@ interface AdjustHoursDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (payload: VerifyHoursPayload) => Promise<void>;
+  canApprove?: boolean;
 }
 
 export function AdjustHoursDrawer({
@@ -16,6 +17,7 @@ export function AdjustHoursDrawer({
   isOpen,
   onClose,
   onSave,
+  canApprove = true,
 }: AdjustHoursDrawerProps) {
   const [hoursAssigned, setHoursAssigned] = useState<number>(6.0);
   const [decision, setDecision] = useState<"verified" | "rejected">("verified");
@@ -103,7 +105,14 @@ export function AdjustHoursDrawer({
                 <span className="text-[var(--text-2xs)] font-bold text-[var(--ink-3)]">
                   Volunteer Information
                 </span>
-                <div className="text-lg font-bold text-[var(--ink)] mt-0.5">{activityRow.volunteerName}</div>
+                <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                  <span className="text-lg font-bold text-[var(--ink)]">{activityRow.volunteerName}</span>
+                  {activityRow.volunteerCode && (
+                    <span className="font-mono text-xs font-semibold text-[var(--ink-2)] bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border border-[var(--line)]">
+                      {activityRow.volunteerCode}
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs font-mono text-[var(--ink-2)] mt-0.5">Role: {activityRow.role ?? "Drive Volunteer"}</div>
               </div>
               <div className="text-right">
@@ -281,14 +290,16 @@ export function AdjustHoursDrawer({
             Cancel
           </button>
 
-          <LoadingButton
-            className={`btn btn-sm ${decision === "verified" ? "btn-primary" : "btn-danger"}`}
-            onClick={handleConfirm}
-            loading={submitting}
-            loadingText={decision === "verified" ? "Accrediting…" : "Rejecting…"}
-          >
-            {decision === "verified" ? "Approve & Accredit Hours" : "Reject Shift"}
-          </LoadingButton>
+          {canApprove && (
+            <LoadingButton
+              className={`btn btn-sm ${decision === "verified" ? "btn-primary" : "btn-danger"}`}
+              onClick={handleConfirm}
+              loading={submitting}
+              loadingText={decision === "verified" ? "Accrediting…" : "Rejecting…"}
+            >
+              {decision === "verified" ? "Approve & Accredit Hours" : "Reject Shift"}
+            </LoadingButton>
+          )}
         </div>
       </div>
     </>

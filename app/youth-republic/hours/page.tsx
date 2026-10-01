@@ -18,6 +18,8 @@ import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
+import { AccessDeniedGate } from "@/components/shell/AccessDeniedGate";
 
 // Two verification-status values mean "awaiting review" — a shift the
 // volunteer logged (`recorded`) and one carried over from older data
@@ -35,6 +37,7 @@ export default function YouthRepublicHoursPage() {
   const organizationId = useSelectedOrg();
   const { showToast } = useToast();
   const staffToken = useShellStaffToken();
+  const perms = useStaffPermissions();
   const [selectedOpportunityId, setSelectedOpportunityId] = useState("");
   const [participants, setParticipants] = useState<ParticipantOption[]>([]);
 
@@ -56,13 +59,20 @@ export default function YouthRepublicHoursPage() {
     isLoading: loading,
     mutate: load,
   } = useSWR(
-    organizationId && staffToken ? ["hoursPage", organizationId] : null,
+    organizationId && staffToken && perms.canViewHours ? ["hoursPage", organizationId] : null,
     async () => {
-      const [hoursResult, opportunitiesResult] = await Promise.all([
+      const results = await Promise.allSettled([
         listActivityHours({ organizationId: organizationId! }, staffToken!),
-        listOpportunities({ organizationId: organizationId! }, staffToken!),
+        perms.canViewDrives
+          ? listOpportunities({ organizationId: organizationId! }, staffToken!)
+          : Promise.resolve({ opportunities: [] }),
       ]);
-      return { activity: hoursResult.activity, opportunities: opportunitiesResult.opportunities };
+      const hoursResult = results[0];
+      const opportunitiesResult = results[1];
+      const activity = hoursResult.status === "fulfilled" ? hoursResult.value.activity : [];
+      const opportunities =
+        opportunitiesResult.status === "fulfilled" ? opportunitiesResult.value.opportunities : [];
+      return { activity, opportunities };
     },
     { onError: (err) => console.error("Failed to load activity hours", err) },
   );
@@ -81,7 +91,11 @@ export default function YouthRepublicHoursPage() {
           staffToken,
         );
         setParticipants(
-          result.participants.map((p) => ({ participationId: p.participationId, volunteerName: p.volunteerName })),
+          result.participants.map((p) => ({
+            participationId: p.participationId,
+            volunteerCode: p.volunteerCode ?? null,
+            volunteerName: p.volunteerName,
+          })),
         );
       } catch (err) {
         console.error(err);
@@ -113,23 +127,42 @@ export default function YouthRepublicHoursPage() {
 
   if (!organizationId) {
     return (
-      <div className="panel p-8 text-center">
-        <p className="text-[var(--ink-2)] font-medium">Select an organization to see its activity hours.</p>
-      </div>
+      <AccessDeniedGate
+        allowed={perms.canViewHours}
+        sectionName="Hours"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <div className="panel p-8 text-center">
+          <p className="text-[var(--ink-2)] font-medium">Select an organization to see its activity hours.</p>
+        </div>
+      </AccessDeniedGate>
     );
   }
 
   if (loading && activity.length === 0) {
-    return <ListPageSkeleton columns={7} rows={6} filterBar={false} toolbarItems={4} />;
+    return (
+      <AccessDeniedGate
+        allowed={perms.canViewHours}
+        sectionName="Hours"
+        fallbackRoute="/youth-republic"
+        fallbackLabel="Youth Republic"
+      >
+        <ListPageSkeleton columns={7} rows={6} filterBar={false} toolbarItems={4} />
+      </AccessDeniedGate>
+    );
   }
 
   const driveNames = [...new Set(activity.map((a) => a.opportunityName).filter(Boolean))].sort();
 
   const filtered = activity.filter((a) => {
+    const q = searchQuery.toLowerCase().trim();
+    const volunteerCode = a.volunteerCode || "";
     const matchesSearch =
-      !searchQuery ||
-      a.volunteerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.opportunityName.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      a.volunteerName.toLowerCase().includes(q) ||
+      volunteerCode.toLowerCase().includes(q) ||
+      a.opportunityName.toLowerCase().includes(q);
     const matchesStatus =
       selectedStatus === "all" ||
       a.verificationStatus === selectedStatus ||
@@ -139,7 +172,13 @@ export default function YouthRepublicHoursPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <AccessDeniedGate
+      allowed={perms.canViewHours}
+      sectionName="Hours"
+      fallbackRoute="/youth-republic"
+      fallbackLabel="Youth Republic"
+    >
+      <div className="space-y-6">
       {/* Page Header */}
       <div className="page-header">
         <div>
@@ -152,7 +191,7 @@ export default function YouthRepublicHoursPage() {
           <input
             type="text"
             className="search-input"
-            placeholder="Search volunteer or drive name..."
+            placeholder="Search volunteer name, ID or drive..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -176,17 +215,19 @@ export default function YouthRepublicHoursPage() {
               { value: "rejected", label: "Rejected" },
             ]}
           />
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={() => setShowBulkAssign(true)}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            <span>Bulk-Assign Hours</span>
-          </button>
+          {perms.canApproveHours && (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowBulkAssign(true)}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+              <span>Bulk-Assign Hours</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -217,8 +258,15 @@ export default function YouthRepublicHoursPage() {
                   <tr key={a.id}>
                     <td>
                       <div>
-                        <div className="font-bold text-[var(--ink)]">{a.volunteerName}</div>
-                        <div className="text-xs text-[var(--ink-2)]">{a.role ?? "General Volunteer"}</div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-[var(--ink)]">{a.volunteerName}</span>
+                          {a.volunteerCode && (
+                            <span className="font-mono text-[11px] font-semibold text-[var(--ink-2)] bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border border-[var(--line)]">
+                              {a.volunteerCode}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-[var(--ink-2)] mt-0.5">{a.role ?? "General Volunteer"}</div>
                       </div>
                     </td>
                     <td>
@@ -249,28 +297,32 @@ export default function YouthRepublicHoursPage() {
                       </span>
                     </td>
                     <td style={{ textAlign: "right" }}>
-                      <div className="inline-flex items-center gap-1.5 justify-end">
-                        {isPending && (
-                          <LoadingButton
-                            onClick={() => handleVerify(a.id, a.hoursSubmitted)}
-                            className="btn btn-primary btn-xs"
-                            loading={verifyingId === a.id}
-                            loadingText="Accrediting…"
-                            disabled={verifyingId !== null}
-                          >
-                            Verify
-                          </LoadingButton>
-                        )}
+                      {perms.canApproveHours ? (
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          {isPending && (
+                            <LoadingButton
+                              onClick={() => handleVerify(a.id, a.hoursSubmitted)}
+                              className="btn btn-primary btn-xs"
+                              loading={verifyingId === a.id}
+                              loadingText="Accrediting…"
+                              disabled={verifyingId !== null}
+                            >
+                              Verify
+                            </LoadingButton>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => setAdjustingRow(a)}
-                          className="btn btn-secondary btn-xs"
-                          disabled={verifyingId === a.id}
-                        >
-                          Adjust Hours
-                        </button>
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() => setAdjustingRow(a)}
+                            className="btn btn-secondary btn-xs"
+                            disabled={verifyingId === a.id}
+                          >
+                            Adjust Hours
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="badge badge-neu text-xs">Read-only</span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -292,6 +344,7 @@ export default function YouthRepublicHoursPage() {
         isOpen={Boolean(adjustingRow)}
         onClose={() => setAdjustingRow(null)}
         onSave={handleSaveAdjustment}
+        canApprove={perms.canApproveHours}
       />
 
       {/* Bulk-Assign Hours Modal */}
@@ -304,20 +357,16 @@ export default function YouthRepublicHoursPage() {
       >
         <div className="space-y-4">
           <div className="form-group">
-            <label htmlFor="bulkOpportunity" className="form-label">Opportunity / drive</label>
-            <select
-              id="bulkOpportunity"
-              className="form-select"
+            <label className="form-label">Opportunity / drive</label>
+            <Select
+              aria-label="Opportunity / drive"
               value={selectedOpportunityId}
-              onChange={(e) => setSelectedOpportunityId(e.target.value)}
-            >
-              <option value="">Select a drive</option>
-              {opportunities.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {o.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSelectedOpportunityId}
+              options={[
+                { value: "", label: "Select a drive" },
+                ...opportunities.map((o) => ({ value: o.id, label: o.name })),
+              ]}
+            />
           </div>
 
           {selectedOpportunityId && staffToken ? (
@@ -341,5 +390,6 @@ export default function YouthRepublicHoursPage() {
         </div>
       </Modal>
     </div>
+    </AccessDeniedGate>
   );
 }

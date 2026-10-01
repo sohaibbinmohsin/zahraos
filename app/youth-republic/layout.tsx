@@ -6,13 +6,23 @@ import { usePathname } from "next/navigation";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { useCenterActiveTab } from "@/components/shell/useCenterActiveTab";
+import { useStaffPermissions, type StaffPermissions } from "@/components/shell/useStaffPermissions";
 
 type Badges = { applications: number; hours: number };
 
-const TAB_META = [
+type TabMetaItem = {
+  href: string;
+  label: string;
+  permission: keyof StaffPermissions;
+  icon: React.ReactNode;
+  key: "applications" | "hours" | null;
+};
+
+const TAB_META: TabMetaItem[] = [
   {
     href: "/youth-republic/dashboard",
     label: "Dashboard",
+    permission: "canAccessDashboard",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <rect x="3" y="3" width="7" height="7" />
@@ -26,6 +36,7 @@ const TAB_META = [
   {
     href: "/youth-republic/drives",
     label: "Drives",
+    permission: "canViewDrives",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
@@ -37,28 +48,31 @@ const TAB_META = [
   {
     href: "/youth-republic/applications",
     label: "Applications",
+    permission: "canViewApplications",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
         <polyline points="14 2 14 8 20 8" />
       </svg>
     ),
-    key: "applications" as const,
+    key: "applications",
   },
   {
     href: "/youth-republic/hours",
     label: "Hours",
+    permission: "canViewHours",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="10" />
         <polyline points="12 6 12 12 16 14" />
       </svg>
     ),
-    key: "hours" as const,
+    key: "hours",
   },
   {
     href: "/youth-republic/volunteers",
     label: "Volunteers",
+    permission: "canViewVolunteers",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
@@ -75,8 +89,11 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
   const pathname = usePathname();
   const organizationId = useSelectedOrg();
   const staffToken = useShellStaffToken();
+  const perms = useStaffPermissions();
   const [badges, setBadges] = useState<Badges | null>(null);
   const { wrapRef, onTabClick } = useCenterActiveTab(pathname);
+
+  const visibleTabs = TAB_META.filter((tab) => Boolean(perms[tab.permission]));
 
   useEffect(() => {
     let cancelled = false;
@@ -87,16 +104,34 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
     (async () => {
       try {
         const token = staffToken;
-        const [apps, hours] = await Promise.all([
-          listApplications({ organizationId, limit: 100 }, token),
-          listActivityHours({ organizationId, limit: 100 }, token),
+        const appsPromise = perms.canViewApplications
+          ? listApplications({ organizationId, limit: 100 }, token)
+          : null;
+        const hoursPromise = perms.canViewHours
+          ? listActivityHours({ organizationId, limit: 100 }, token)
+          : null;
+
+        const [appsRes, hoursRes] = await Promise.allSettled([
+          appsPromise ?? Promise.resolve(null),
+          hoursPromise ?? Promise.resolve(null),
         ]);
         if (cancelled) return;
+
+        const appsCount =
+          appsPromise && appsRes.status === "fulfilled" && appsRes.value
+            ? appsRes.value.applications.filter(
+                (a) => a.status === "pending_review" || a.status === "submitted" || a.status === "under_review",
+              ).length
+            : 0;
+
+        const hoursCount =
+          hoursPromise && hoursRes.status === "fulfilled" && hoursRes.value
+            ? hoursRes.value.activity.filter((h) => h.verificationStatus === "pending").length
+            : 0;
+
         setBadges({
-          applications: apps.applications.filter(
-            (a) => a.status === "pending_review" || a.status === "submitted" || a.status === "under_review",
-          ).length,
-          hours: hours.activity.filter((h) => h.verificationStatus === "pending").length,
+          applications: appsCount,
+          hours: hoursCount,
         });
       } catch {
         if (!cancelled) setBadges(null);
@@ -105,12 +140,12 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
     return () => {
       cancelled = true;
     };
-  }, [organizationId, staffToken]);
+  }, [organizationId, staffToken, perms.canViewApplications, perms.canViewHours]);
 
   function badgeFor(key: string | null): string | null {
     if (!key || !badges) return null;
-    if (key === "applications") return badges.applications > 0 ? `${badges.applications} pending` : null;
-    if (key === "hours") return badges.hours > 0 ? `${badges.hours} pending` : null;
+    if (key === "applications" && perms.canViewApplications) return badges.applications > 0 ? `${badges.applications} pending` : null;
+    if (key === "hours" && perms.canViewHours) return badges.hours > 0 ? `${badges.hours} pending` : null;
     return null;
   }
 
@@ -119,7 +154,7 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
       {/* Contextual Sub-Nav Bar (Changes per Active Module — not sticky) */}
       <nav className="module-nav-bar">
         <div className="module-nav-wrap" ref={wrapRef}>
-          {TAB_META.map((tab) => {
+          {visibleTabs.map((tab) => {
             const isActive = pathname?.startsWith(tab.href);
             const badge = badgeFor(tab.key);
             return (
