@@ -373,6 +373,27 @@ describe("requestPublicAssetUpload", () => {
     delete process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL;
   });
 
+  it("accepts opportunity_cover as a valid domain in the payload", async () => {
+    mockOk({
+      uploadUrl: "https://r2.cf/opportunity_covers/staff-1/uuid.webp?signed=true",
+      publicUrl: "https://assets.yr.org/opportunity_covers/staff-1/uuid.webp",
+      objectKey: "opportunity_covers/staff-1/uuid.webp",
+    });
+
+    const result = await requestPublicAssetUpload(
+      { domain: "opportunity_cover", contentType: "image/webp" },
+      "session-token",
+    );
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe(`${FUNCTIONS_URL}/upload-public-asset`);
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({
+      domain: "opportunity_cover",
+      contentType: "image/webp",
+    });
+    expect(result.objectKey).toBe("opportunity_covers/staff-1/uuid.webp");
+  });
+
   it("throws error when neither functions URL env var is configured", async () => {
     delete process.env.NEXT_PUBLIC_FUNCTIONS_URL;
     delete process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL;

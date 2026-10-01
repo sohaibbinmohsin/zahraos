@@ -25,6 +25,7 @@ export interface VolunteerApplyPreviewOpportunity {
   activityStartAt?: string;
   activityEndAt?: string;
   orgName?: string;
+  coverImageUrl?: string;
 }
 
 const TYPE_LABEL: Record<string, string> = {
@@ -165,6 +166,36 @@ export function VolunteerApplyPreview({
 
       {/* Opportunity header — mirrors the volunteer opportunity-detail */}
       <div className="vp-detail">
+        {/* Cover image or duotone placeholder */}
+        <div
+          className="vp-cover"
+          style={{
+            aspectRatio: "16 / 9",
+            borderRadius: "10px",
+            overflow: "hidden",
+            marginBottom: "12px",
+            background: opportunity.type === "community" ? "linear-gradient(135deg, #4A0E3C, #7E3E04)"
+              : opportunity.type === "environment" ? "linear-gradient(135deg, #072614, #08612B)"
+              : opportunity.type === "health" ? "linear-gradient(135deg, #380309, #820810)"
+              : opportunity.type === "education" ? "linear-gradient(135deg, #0A1B3A, #064E77)"
+              : "linear-gradient(135deg, #240523, #540D4A)",
+          }}
+        >
+          {opportunity.coverImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={opportunity.coverImageUrl}
+              alt="Drive cover"
+              loading="lazy"
+              decoding="async"
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+          ) : (
+            <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.25)", fontFamily: "Oswald, sans-serif", fontSize: "2.5rem", fontWeight: 700 }}>
+              {(opportunity.type?.[0] ?? "Y").toUpperCase()}
+            </div>
+          )}
+        </div>
         <p className="vp-org">{opportunity.orgName ?? "Your organisation"}</p>
         <div className="badges">
           <span className={`tag ${typeClass}`}>{TYPE_LABEL[opportunity.type] ?? opportunity.type}</span>

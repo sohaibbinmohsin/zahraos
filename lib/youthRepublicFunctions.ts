@@ -110,6 +110,7 @@ export interface OpportunitySummary {
   activityEndAt: string | null;
   deactivatedAt: string | null;
   impactStats?: Record<string, unknown> | null;
+  coverImageUrl?: string | null;
 }
 export interface ListOpportunitiesPayload {
   organizationId: string;
@@ -162,6 +163,7 @@ export interface OpportunityDetail {
   orgLogoUrl: string | null;
   applicationForm: FormDefinition;
   impactStats?: Record<string, unknown> | null;
+  coverImageUrl?: string | null;
 }
 export function getOpportunityDetail(payload: { opportunityId: string }, staffToken: string) {
   return callYouthRepublicFunction<OpportunityDetail>("get-opportunity-detail", payload, staffToken);
@@ -319,6 +321,7 @@ export interface UpdateOpportunityPayload {
   deactivatedAt?: string | null;
   hardDelete?: boolean;
   impactStats?: Record<string, unknown> | null;
+  coverImageUrl?: string | null;
 }
 export function updateOpportunity(payload: UpdateOpportunityPayload, staffToken: string) {
   return callYouthRepublicFunction<{ opportunityId: string }>("update-opportunity", payload, staffToken);
