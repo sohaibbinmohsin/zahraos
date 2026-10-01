@@ -10,7 +10,7 @@ import { ChaptersPanel } from "@/components/team/ChaptersPanel";
 import { isDisplayableLogo } from "@/lib/orgLogo";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Card } from "@/components/ui/Card";
-import { FormSkeleton } from "@/components/ui/skeletons";
+import { OrganizationSkeleton } from "@/components/ui/skeletons";
 
 interface Profile {
   name: string;
@@ -40,19 +40,25 @@ export default function OrganizationPage() {
   const fetchAll = useCallback(async () => {
     if (!organizationId) return;
     const supabase = getBrowserSupabaseClient();
-    const { data: org } = await supabase.from("organizations")
-      .select("name, about, brand_color, logo_url").eq("id", organizationId).single();
-    setProfile({
-      name: (org?.name as string) ?? "",
-      about: (org?.about as string) ?? "",
-      brandColor: (org?.brand_color as string) ?? "",
-      logoUrl: (org?.logo_url as string) ?? "",
-    });
-    if (accessToken) {
-      try {
-        const res = await listChapters({ organizationId }, accessToken);
-        setChapters(res.chapters);
-      } catch { setChapters([]); }
+    try {
+      const [orgRes, chaptersRes] = await Promise.all([
+        supabase.from("organizations")
+          .select("name, about, brand_color, logo_url").eq("id", organizationId).single(),
+        accessToken
+          ? listChapters({ organizationId }, accessToken).catch(() => ({ chapters: [] }))
+          : Promise.resolve({ chapters: [] }),
+      ]);
+      const org = orgRes.data;
+      setProfile({
+        name: (org?.name as string) ?? "",
+        about: (org?.about as string) ?? "",
+        brandColor: (org?.brand_color as string) ?? "",
+        logoUrl: (org?.logo_url as string) ?? "",
+      });
+      setChapters(chaptersRes.chapters);
+    } catch {
+      setProfile({ name: "", about: "", brandColor: "", logoUrl: "" });
+      setChapters([]);
     }
   }, [organizationId, accessToken]);
 
@@ -118,9 +124,9 @@ export default function OrganizationPage() {
   }
 
   if (!organizationId) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Select an organization.</p></div>;
-  if (shellLoading) return <FormSkeleton />;
+  if (shellLoading) return <OrganizationSkeleton />;
   if (!canAccess) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">You need organization or chapter admin access to view this page.</p></div>;
-  if (loading || !profile) return <FormSkeleton />;
+  if (loading || !profile) return <OrganizationSkeleton />;
 
   return (
     <div className="flex flex-col gap-6">

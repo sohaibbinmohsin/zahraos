@@ -1,3 +1,4 @@
+import { Card } from "./Card";
 import { Skeleton } from "./Skeleton";
 
 /* Layout-matching skeletons. These mirror the real page scaffolding
@@ -198,6 +199,88 @@ export function FormSkeleton({ fields = 5 }: { fields?: number }) {
           <Skeleton w={120} h={34} style={{ borderRadius: 6 }} />
         </div>
       </div>
+    </div>
+  );
+}
+
+export function OrganizationSkeleton() {
+  return (
+    <div className="flex flex-col gap-6" aria-busy="true" aria-label="Loading organization">
+      <div className="page-header" style={{ marginBottom: 0 }}>
+        <div className="flex flex-col gap-2">
+          <Skeleton w={160} h={24} />
+          <Skeleton w={340} h={13} style={{ maxWidth: "80vw" }} />
+        </div>
+      </div>
+
+      <Card>
+        <div className="flex items-center justify-between gap-3" style={{ marginBottom: ".75rem" }}>
+          <Skeleton w={70} h={18} />
+        </div>
+        <div className="grid-2col">
+          <div className="form-group">
+            <Skeleton w={130} h={12} className="mb-1.5" />
+            <Skeleton w="100%" h={38} style={{ borderRadius: 8 }} />
+          </div>
+          <div className="form-group">
+            <Skeleton w={80} h={12} className="mb-1.5" />
+            <Skeleton w="100%" h={38} style={{ borderRadius: 8 }} />
+          </div>
+        </div>
+        <div className="form-group">
+          <Skeleton w={80} h={12} className="mb-1.5" />
+          <Skeleton w="100%" h={78} style={{ borderRadius: 8 }} />
+        </div>
+        <div className="form-group">
+          <Skeleton w={40} h={12} className="mb-1.5" />
+          <div className="flex items-center gap-3 flex-wrap">
+            <Skeleton w={56} h={56} style={{ borderRadius: 6 }} />
+            <Skeleton w={110} h={32} style={{ borderRadius: 6 }} />
+          </div>
+          <Skeleton w={360} h={11} style={{ marginTop: ".4rem", maxWidth: "90%" }} />
+        </div>
+        <div className="flex justify-end" style={{ marginTop: ".25rem" }}>
+          <Skeleton w={105} h={32} style={{ borderRadius: 6 }} />
+        </div>
+      </Card>
+
+      <Card>
+        <div className="flex items-start justify-between gap-3" style={{ marginBottom: ".75rem" }}>
+          <div className="flex flex-col gap-1.5">
+            <Skeleton w={80} h={18} />
+            <Skeleton w={320} h={12} style={{ maxWidth: "80vw" }} />
+          </div>
+          <Skeleton w={100} h={32} style={{ borderRadius: 6 }} />
+        </div>
+
+        <div className="table-responsive-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th><Skeleton w={70} h={11} /></th>
+                <th><Skeleton w={40} h={11} /></th>
+                <th><Skeleton w={50} h={11} /></th>
+                <th style={{ textAlign: "right" }}><div className="flex justify-end"><Skeleton w={60} h={11} /></div></th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 3 }).map((_, r) => (
+                <tr key={r}>
+                  <td><Skeleton w={120} h={14} /></td>
+                  <td><Skeleton w={80} h={13} /></td>
+                  <td><Skeleton w={55} h={20} style={{ borderRadius: 999 }} /></td>
+                  <td style={{ textAlign: "right" }}>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: ".4rem", justifyContent: "flex-end" }}>
+                      <Skeleton w={44} h={24} style={{ borderRadius: 4 }} />
+                      <Skeleton w={76} h={24} style={{ borderRadius: 4 }} />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
     </div>
   );
 }

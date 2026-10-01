@@ -68,6 +68,25 @@ describe("OrganizationPage", () => {
     }));
   });
 
+  it("renders organization loading skeleton when shellLoading is true", () => {
+    shellLoading = true;
+    render(<OrganizationPage />);
+    expect(screen.getByLabelText("Loading organization")).toBeInTheDocument();
+  });
+
+  it("renders organization loading skeleton while fetching data concurrently", async () => {
+    let resolveOrg!: (val: unknown) => void;
+    from.mockImplementation(() => ({
+      select: () => ({ eq: () => ({ single: () => new Promise((resolve) => { resolveOrg = resolve; }) }) }),
+    }));
+    render(<OrganizationPage />);
+    expect(screen.getByLabelText("Loading organization")).toBeInTheDocument();
+
+    resolveOrg({ data: { name: "Rizq", about: "help", brand_color: "#111111", logo_url: null, favicon_url: null } });
+    await waitFor(() => expect(screen.getByDisplayValue("Rizq")).toBeInTheDocument());
+    expect(screen.queryByLabelText("Loading organization")).not.toBeInTheDocument();
+  });
+
   it("loads the org profile and its chapters, and saves the profile", async () => {
     const user = userEvent.setup();
     render(<OrganizationPage />);
