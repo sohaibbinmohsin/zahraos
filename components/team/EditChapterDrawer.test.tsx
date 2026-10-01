@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -602,5 +602,48 @@ describe("EditChapterDrawer", () => {
     expect(screen.getByText("Vice President")).toBeInTheDocument();
     expect(screen.getByText("YR-2026-000777")).toBeInTheDocument();
     expect(screen.getByText("2026-2027")).toBeInTheDocument();
+  });
+
+  it("gracefully falls back to initials when member avatar image fails to load in autocomplete dropdown", async () => {
+    const user = userEvent.setup();
+    searchYouthRepublicMembers.mockResolvedValueOnce({
+      members: [
+        {
+          volunteerCode: "YR-2026-000888",
+          fullName: "Tariq Mahmood",
+          email: "tariq@example.com",
+          avatarUrl: "https://assets.youthrepublic.org/avatars/broken.jpg",
+        },
+      ],
+    });
+
+    render(
+      <EditChapterDrawer
+        open={true}
+        onClose={vi.fn()}
+        chapter={mockChapter}
+        organizationId="org-1"
+        accessToken="access-token"
+      />
+    );
+
+    const yrInput = screen.getByLabelText(/Youth Republic ID/i);
+    await user.type(yrInput, "Tariq");
+
+    await waitFor(() => {
+      expect(screen.getByText("Tariq Mahmood")).toBeInTheDocument();
+    });
+
+    const img = screen.getByAltText("Tariq Mahmood");
+    expect(img).toBeInTheDocument();
+
+    // Fire error on the image (e.g. 404 / network failure)
+    fireEvent.error(img);
+
+    await waitFor(() => {
+      expect(screen.queryByAltText("Tariq Mahmood")).not.toBeInTheDocument();
+      // Falls back to initials TM
+      expect(screen.getByText("TM")).toBeInTheDocument();
+    });
   });
 });

@@ -47,13 +47,71 @@ interface LocalRosterMember {
 }
 
 function initials(name: string) {
-  return name
+  return (name || "YR")
     .split(" ")
     .map((p) => p[0])
     .filter(Boolean)
     .join("")
     .slice(0, 2)
     .toUpperCase();
+}
+
+function MemberAvatar({
+  avatarUrl,
+  fullName,
+  size = 32,
+  className = "avatar",
+}: {
+  avatarUrl?: string | null;
+  fullName: string;
+  size?: number;
+  className?: string;
+}) {
+  const [imgError, setImgError] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl]);
+
+  if (avatarUrl && avatarUrl.trim() && !imgError) {
+    return (
+      <img
+        src={avatarUrl}
+        alt={fullName}
+        onError={() => setImgError(true)}
+        className={className}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          objectFit: "cover",
+          flexShrink: 0,
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={className}
+      aria-label={fullName}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        backgroundColor: "var(--surface-sunken, #f1f5f9)",
+        display: "grid",
+        placeItems: "center",
+        fontSize: size <= 32 ? "var(--text-xs)" : "var(--text-sm)",
+        fontWeight: 600,
+        color: "var(--ink-2)",
+        flexShrink: 0,
+        userSelect: "none",
+      }}
+    >
+      {initials(fullName)}
+    </div>
+  );
 }
 
 function getDefaultTerm(): string {
@@ -78,6 +136,7 @@ export function EditChapterDrawer({
   const [city, setCity] = useState("");
   const [about, setAbout] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
+  const [logoError, setLogoError] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
 
   // Roster state
@@ -165,6 +224,7 @@ export function EditChapterDrawer({
       setAbout(chapter.about ?? "");
       const existingLogo = chapter.logoUrl ?? (chapter as { logo_url?: string | null }).logo_url ?? "";
       setLogoUrl(existingLogo);
+      setLogoError(false);
       setVerifiedVolunteer(null);
       setLookupError(null);
       setSearchQuery("");
@@ -225,6 +285,7 @@ export function EditChapterDrawer({
         throw new Error("Failed to upload image file to storage.");
       }
       setLogoUrl(publicUrl);
+      setLogoError(false);
       showToast("Logo uploaded successfully.");
     } catch (err) {
       showToast(err instanceof Error ? `Logo upload failed: ${err.message}` : "Logo upload failed.");
@@ -431,10 +492,11 @@ export function EditChapterDrawer({
                 Chapter Logo
               </label>
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-                {logoUrl ? (
+                {logoUrl && !logoError ? (
                   <img
                     src={logoUrl}
                     alt="Chapter logo"
+                    onError={() => setLogoError(true)}
                     style={{
                       width: 54,
                       height: 54,
@@ -579,18 +641,7 @@ export function EditChapterDrawer({
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: ".75rem", minWidth: 0 }}>
-                      {member.avatarUrl ? (
-                        <img
-                          src={member.avatarUrl}
-                          alt={member.fullName}
-                          className="avatar"
-                          style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover" }}
-                        />
-                      ) : (
-                        <div className="avatar" style={{ width: 34, height: 34 }}>
-                          {initials(member.fullName)}
-                        </div>
-                      )}
+                      <MemberAvatar avatarUrl={member.avatarUrl} fullName={member.fullName} size={34} />
                       <div style={{ minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: ".45rem", flexWrap: "wrap" }}>
                           <span style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>
@@ -763,31 +814,7 @@ export function EditChapterDrawer({
                             className="search-result-item hover:bg-[var(--surface-sunken,#f8fafc)]"
                           >
                             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
-                              {m.avatarUrl ? (
-                                <img
-                                  src={m.avatarUrl}
-                                  alt={m.fullName}
-                                  className="w-8 h-8 rounded-full object-cover"
-                                  style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }}
-                                />
-                              ) : (
-                                <div
-                                  className="avatar"
-                                  style={{
-                                    width: 32,
-                                    height: 32,
-                                    borderRadius: "50%",
-                                    backgroundColor: "var(--surface-sunken, #f1f5f9)",
-                                    display: "grid",
-                                    placeItems: "center",
-                                    fontSize: "var(--text-xs)",
-                                    fontWeight: 600,
-                                    color: "var(--ink-2)",
-                                  }}
-                                >
-                                  {initials(m.fullName)}
-                                </div>
-                              )}
+                              <MemberAvatar avatarUrl={m.avatarUrl} fullName={m.fullName} size={32} />
                               <div style={{ minWidth: 0 }}>
                                 <div
                                   className="font-bold text-sm text-[var(--ink)]"
@@ -847,18 +874,7 @@ export function EditChapterDrawer({
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: ".65rem" }}>
-                      {verifiedVolunteer.avatarUrl ? (
-                        <img
-                          src={verifiedVolunteer.avatarUrl}
-                          alt={verifiedVolunteer.fullName}
-                          className="avatar"
-                          style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }}
-                        />
-                      ) : (
-                        <div className="avatar" style={{ width: 32, height: 32 }}>
-                          {initials(verifiedVolunteer.fullName)}
-                        </div>
-                      )}
+                      <MemberAvatar avatarUrl={verifiedVolunteer.avatarUrl} fullName={verifiedVolunteer.fullName} size={32} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: "var(--text-sm)" }}>
                           {verifiedVolunteer.fullName}
