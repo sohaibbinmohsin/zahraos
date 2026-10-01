@@ -11,6 +11,7 @@ import { useToast } from "@/components/shell/ToastContext";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { useStaffClaims } from "@/components/shell/AppShell";
+import { CoverImageUpload } from "@/components/youth-republic/CoverImageUpload";
 
 interface CreateOpportunityFormProps {
   organizationId: string;
@@ -41,6 +42,7 @@ interface CreateOpportunityFormProps {
     applicationForm?: FormDefinition;
     computedStatus?: string;
     deactivatedAt?: string | null;
+    coverImageUrl?: string | null;
   };
 }
 
@@ -191,6 +193,9 @@ export function CreateOpportunityForm({
   const [applicationDeadline, setApplicationDeadline] = useState(toDateInput(initialOpportunity?.applicationDeadline));
   const [activityStartAt, setActivityStartAt] = useState(toDateInput(initialOpportunity?.activityStartAt));
   const [activityEndAt, setActivityEndAt] = useState(toDateInput(initialOpportunity?.activityEndAt));
+  const [coverImageUrl, setCoverImageUrl] = useState<string | null>(
+    initialOpportunity?.coverImageUrl ?? null
+  );
   const [description, setDescription] = useState(initialOpportunity?.description ?? "");
   const [about, setAbout] = useState(initialOpportunity?.about ?? "");
   const [dutiesStr, setDutiesStr] = useState(initialOpportunity?.duties?.join("\n") ?? "");
@@ -439,6 +444,7 @@ export function CreateOpportunityForm({
             name: name.trim(),
             chapterId: chapterId || null,
             type,
+            coverImageUrl: coverImageUrl ?? null,
             ...(initialOpportunity.computedStatus === "draft" && !isDraft ? { statusOverride: "open" } : {}),
             ...common,
           },
@@ -712,6 +718,25 @@ export function CreateOpportunityForm({
               </div>
             </div>
           )}
+
+          {/* Cover Image (optional) */}
+          <div className="form-group">
+            <label className="form-label">Cover Image <span className="form-label-hint">(optional)</span></label>
+            <p className="form-hint" style={{ marginBottom: "8px" }}>
+              16:9 photo or poster, e.g. 1280 × 720 px. Appears on the drive card and detail page.
+              The category tag and your organisation badge will overlay it automatically.
+            </p>
+            <div style={{ maxWidth: "480px" }}>
+              <CoverImageUpload
+                opportunityId={initialOpportunity?.id}
+                organizationId={organizationId}
+                staffToken={staffToken || accessToken || ""}
+                currentCoverUrl={coverImageUrl}
+                onUploaded={(url) => setCoverImageUrl(url)}
+                onRemoved={() => setCoverImageUrl(null)}
+              />
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="form-group">
@@ -1069,6 +1094,7 @@ export function CreateOpportunityForm({
                 applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : undefined,
                 activityStartAt: activityStartAt ? new Date(activityStartAt).toISOString() : undefined,
                 activityEndAt: activityEndAt ? new Date(activityEndAt).toISOString() : undefined,
+                coverImageUrl: coverImageUrl ?? undefined,
               }}
               form={{ version: 1, fields }}
             />
