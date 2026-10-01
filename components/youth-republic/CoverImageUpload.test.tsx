@@ -128,4 +128,60 @@ describe("CoverImageUpload", () => {
       expect(screen.getByRole("alert")).toHaveTextContent(/10 MB/i),
     );
   });
+
+  it("includes Change image button inside the crop modal alongside Crop & Upload", async () => {
+    render(
+      <CoverImageUpload
+        opportunityId="opp-1"
+        organizationId="org-1"
+        staffToken="tok"
+        currentCoverUrl={null}
+        onUploaded={vi.fn()}
+        onRemoved={vi.fn()}
+      />,
+    );
+    const input = screen.getByTestId("cover-file-input") as HTMLInputElement;
+    const file = new File(["data"], "cover.jpg", { type: "image/jpeg" });
+    Object.defineProperty(input, "files", { value: [file] });
+    fireEvent.change(input);
+    await waitFor(() =>
+      expect(screen.getByRole("dialog", { name: /crop/i })).toBeInTheDocument(),
+    );
+
+    const dialog = screen.getByRole("dialog", { name: /crop/i });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /change image/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /crop & upload/i })).toBeInTheDocument();
+  });
+
+  it("updates preview and shows remove button when currentCoverUrl changes from null to a URL", async () => {
+    const { rerender } = render(
+      <CoverImageUpload
+        opportunityId="opp-1"
+        organizationId="org-1"
+        staffToken="tok"
+        currentCoverUrl={null}
+        onUploaded={vi.fn()}
+        onRemoved={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("img", { name: /cover preview/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /remove/i })).not.toBeInTheDocument();
+
+    rerender(
+      <CoverImageUpload
+        opportunityId="opp-1"
+        organizationId="org-1"
+        staffToken="tok"
+        currentCoverUrl="https://assets.yr.org/covers/christmas.webp"
+        onUploaded={vi.fn()}
+        onRemoved={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("img", { name: /cover preview/i })).toHaveAttribute(
+      "src",
+      "https://assets.yr.org/covers/christmas.webp",
+    );
+    expect(screen.getByRole("button", { name: /remove/i })).toBeInTheDocument();
+  });
 });

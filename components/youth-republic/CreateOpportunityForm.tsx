@@ -196,6 +196,12 @@ export function CreateOpportunityForm({
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(
     initialOpportunity?.coverImageUrl ?? null
   );
+
+  useEffect(() => {
+    if (initialOpportunity?.coverImageUrl !== undefined) {
+      setCoverImageUrl(initialOpportunity.coverImageUrl);
+    }
+  }, [initialOpportunity?.coverImageUrl]);
   const [description, setDescription] = useState(initialOpportunity?.description ?? "");
   const [about, setAbout] = useState(initialOpportunity?.about ?? "");
   const [dutiesStr, setDutiesStr] = useState(initialOpportunity?.duties?.join("\n") ?? "");

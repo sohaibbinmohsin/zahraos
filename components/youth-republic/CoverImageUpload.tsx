@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { requestPublicAssetUpload } from "@/lib/platformFunctions";
 import { updateOpportunity } from "@/lib/youthRepublicFunctions";
 
@@ -42,6 +42,10 @@ export function CoverImageUpload({
   const [isRemoving, setIsRemoving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentCoverUrl);
 
+  useEffect(() => {
+    setPreviewUrl(currentCoverUrl);
+  }, [currentCoverUrl]);
+
   // ---- file selection ----
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -60,6 +64,23 @@ export function CoverImageUpload({
     // Reset the input so the same file can be re-selected after cancelling.
     e.target.value = "";
   }, []);
+
+  const handleSelectNewImage = useCallback((file: File) => {
+    if (cropState?.src && cropState.src.startsWith("blob:")) {
+      URL.revokeObjectURL(cropState.src);
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setCropState({ src: objectUrl, zoom: 1, x: 0, y: 0 });
+    setError(null);
+  }, [cropState]);
+
+  const handleCloseCrop = useCallback(() => {
+    if (cropState?.src && cropState.src.startsWith("blob:")) {
+      URL.revokeObjectURL(cropState.src);
+    }
+    setCropState(null);
+    setError(null);
+  }, [cropState]);
 
   // ---- crop + upload ----
   const handleCropComplete = useCallback(
@@ -200,8 +221,9 @@ export function CoverImageUpload({
         <CoverCropModal
           src={cropState.src}
           isUploading={isUploading}
-          onClose={() => { setCropState(null); setError(null); }}
+          onClose={handleCloseCrop}
           onCropComplete={handleCropComplete}
+          onSelectNewImage={handleSelectNewImage}
         />
       )}
     </div>
@@ -215,18 +237,46 @@ interface CoverCropModalProps {
   isUploading: boolean;
   onClose: () => void;
   onCropComplete: (blob: Blob) => void;
+  onSelectNewImage: (file: File) => void;
 }
 
 const VIEWPORT_W = 480;
 const VIEWPORT_H = Math.round(VIEWPORT_W / CROP_ASPECT); // 270px
 
-function CoverCropModal({ src, isUploading, onClose, onCropComplete }: CoverCropModalProps) {
+function CoverCropModal({ src, isUploading, onClose, onCropComplete, onSelectNewImage }: CoverCropModalProps) {
   const imgRef = useRef<HTMLImageElement>(null);
+  const changeFileInputRef = useRef<HTMLInputElement>(null);
   const [zoom, setZoom] = useState(1);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ mx: 0, my: 0, px: 0, py: 0 });
   const [naturalDims, setNaturalDims] = useState<{ w: number; h: number } | null>(null);
+  const [modalError, setModalError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setZoom(1);
+    setPos({ x: 0, y: 0 });
+    setNaturalDims(null);
+    setModalError(null);
+  }, [src]);
+
+  const handleNewFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ACCEPTED.includes(file.type)) {
+      setModalError("Please select a JPEG, PNG, or WebP image.");
+      if (changeFileInputRef.current) changeFileInputRef.current.value = "";
+      return;
+    }
+    if (file.size > MAX_INPUT_BYTES) {
+      setModalError("File is too large. Maximum size is 10 MB.");
+      if (changeFileInputRef.current) changeFileInputRef.current.value = "";
+      return;
+    }
+    setModalError(null);
+    onSelectNewImage(file);
+    if (changeFileInputRef.current) changeFileInputRef.current.value = "";
+  };
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -387,8 +437,29 @@ function CoverCropModal({ src, isUploading, onClose, onCropComplete }: CoverCrop
           <span style={{ fontSize: "0.78rem", color: "var(--ink-2)", width: "36px" }}>{zoom.toFixed(1)}×</span>
         </div>
 
-        {/* Actions — no Cancel button; cross dismisses */}
-        <div style={{ display: "flex", gap: "8px", marginTop: "16px", justifyContent: "flex-end" }}>
+        {modalError && (
+          <p role="alert" className="text-xs text-red-600 mt-2">{modalError}</p>
+        )}
+
+        {/* Actions — Change image and Crop & Upload */}
+        <div style={{ display: "flex", gap: "10px", marginTop: "16px", justifyContent: "flex-end", alignItems: "center" }}>
+          <input
+            ref={changeFileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            style={{ display: "none" }}
+            disabled={isUploading}
+            onChange={handleNewFileSelected}
+            data-testid="modal-change-file-input"
+          />
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => changeFileInputRef.current?.click()}
+            disabled={isUploading}
+          >
+            Change image
+          </button>
           <button
             type="button"
             className="btn btn-primary"

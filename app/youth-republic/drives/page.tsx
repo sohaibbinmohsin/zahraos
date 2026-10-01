@@ -170,6 +170,7 @@ export default function YouthRepublicDrivesPage() {
         chapterId: d.chapterId ?? undefined,
         name: d.name,
         type: d.type,
+        coverImageUrl: d.coverImageUrl ?? summary?.coverImageUrl ?? undefined,
         description: d.description ?? undefined,
         location: d.location ?? undefined,
         city: d.city ?? undefined,
