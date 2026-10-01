@@ -391,7 +391,7 @@ function CoverCropModal({ src, isUploading, onClose, onCropComplete }: CoverCrop
         <div style={{ display: "flex", gap: "8px", marginTop: "16px", justifyContent: "flex-end" }}>
           <button
             type="button"
-            className="btn btn--primary"
+            className="btn btn-primary"
             onClick={handleCrop}
             disabled={isUploading || !naturalDims}
           >
