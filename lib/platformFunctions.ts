@@ -323,7 +323,7 @@ export async function searchYouthRepublicMembers(
 }
 
 export interface RequestPublicAssetUploadPayload {
-  domain: "avatar" | "logo";
+  domain: "avatar" | "logo" | "opportunity_cover";
   contentType: string;
   fileName?: string;
 }

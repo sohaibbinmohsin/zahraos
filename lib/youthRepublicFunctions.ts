@@ -319,6 +319,7 @@ export interface UpdateOpportunityPayload {
   deactivatedAt?: string | null;
   hardDelete?: boolean;
   impactStats?: Record<string, unknown> | null;
+  coverImageUrl?: string | null;
 }
 export function updateOpportunity(payload: UpdateOpportunityPayload, staffToken: string) {
   return callYouthRepublicFunction<{ opportunityId: string }>("update-opportunity", payload, staffToken);
