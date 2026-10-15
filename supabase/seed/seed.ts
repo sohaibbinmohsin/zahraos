@@ -151,6 +151,47 @@ async function upsertAuthUser(
   return created.user.id;
 }
 
+async function ensureStaffRoleAssignment(
+  supabase: SupabaseClient,
+  assignment: {
+    staff_id: string;
+    organization_id: string;
+    module_id: string;
+    role_id: string;
+    scope_kind: "chapter" | "org_wide";
+    chapter_id: string | null;
+    scope_label: string;
+  },
+): Promise<void> {
+  let query = supabase
+    .from("staff_role_assignments")
+    .select("id")
+    .eq("staff_id", assignment.staff_id)
+    .eq("role_id", assignment.role_id);
+
+  if (assignment.chapter_id) {
+    query = query.eq("chapter_id", assignment.chapter_id);
+  } else {
+    query = query.is("chapter_id", null);
+  }
+
+  const { data: existing } = await query.maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("staff_role_assignments")
+      .update({
+        organization_id: assignment.organization_id,
+        module_id: assignment.module_id,
+        scope_kind: assignment.scope_kind,
+        scope_label: assignment.scope_label,
+      })
+      .eq("id", existing.id);
+  } else {
+    await supabase.from("staff_role_assignments").insert(assignment);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Main Seed Function
 // ---------------------------------------------------------------------------
@@ -177,7 +218,7 @@ export async function runSeed(supabase: SupabaseClient) {
     .eq("key", "youth-republic")
     .maybeSingle();
 
-  const moduleId = moduleRow?.id ?? "m1000000-0000-4000-8000-000000000001";
+  const moduleId = moduleRow?.id ?? "50000000-0000-4000-8000-000000000001";
 
   for (const org of SEED_ORGS) {
     await supabase.from("org_modules").upsert(
@@ -234,7 +275,7 @@ export async function runSeed(supabase: SupabaseClient) {
       )
       .select("id")
       .single();
-    chapterLeadRoleId = newRole?.id ?? "r1000000-0000-4000-8000-000000000001";
+    chapterLeadRoleId = newRole?.id ?? "60000000-0000-4000-8000-000000000001";
   }
 
   if (!cityLeadRoleId) {
@@ -251,7 +292,7 @@ export async function runSeed(supabase: SupabaseClient) {
       )
       .select("id")
       .single();
-    cityLeadRoleId = newRole?.id ?? "r1000000-0000-4000-8000-000000000002";
+    cityLeadRoleId = newRole?.id ?? "60000000-0000-4000-8000-000000000002";
   }
 
   console.log("Seeding Chapter Lead: chapterlead@rizq.org...");
@@ -296,18 +337,15 @@ export async function runSeed(supabase: SupabaseClient) {
     { onConflict: "staff_id,organization_id" },
   );
 
-  await supabase.from("staff_role_assignments").upsert(
-    {
-      staff_id: clStaffId,
-      organization_id: rizqOrgId,
-      module_id: moduleId,
-      role_id: chapterLeadRoleId,
-      scope_kind: "chapter",
-      chapter_id: LEAD_ACCOUNTS.chapterLead.chapterId,
-      scope_label: LEAD_ACCOUNTS.chapterLead.chapterName,
-    },
-    { onConflict: "staff_id,role_id,chapter_id" },
-  );
+  await ensureStaffRoleAssignment(supabase, {
+    staff_id: clStaffId,
+    organization_id: rizqOrgId,
+    module_id: moduleId,
+    role_id: chapterLeadRoleId,
+    scope_kind: "chapter",
+    chapter_id: LEAD_ACCOUNTS.chapterLead.chapterId,
+    scope_label: LEAD_ACCOUNTS.chapterLead.chapterName,
+  });
 
   console.log("Seeding City Lead: citylead@rizq.org...");
   let cityLeadAuthUserId: string = LEAD_ACCOUNTS.cityLead.authUserId;
@@ -352,31 +390,25 @@ export async function runSeed(supabase: SupabaseClient) {
   );
 
   // Multi-chapter assignments for City Lead: Lahore Central & Lahore North
-  await supabase.from("staff_role_assignments").upsert(
-    {
-      staff_id: cityStaffId,
-      organization_id: rizqOrgId,
-      module_id: moduleId,
-      role_id: cityLeadRoleId,
-      scope_kind: "chapter",
-      chapter_id: LEAD_ACCOUNTS.cityLead.chapterIds[0],
-      scope_label: LEAD_ACCOUNTS.cityLead.chapterNames[0],
-    },
-    { onConflict: "staff_id,role_id,chapter_id" },
-  );
+  await ensureStaffRoleAssignment(supabase, {
+    staff_id: cityStaffId,
+    organization_id: rizqOrgId,
+    module_id: moduleId,
+    role_id: cityLeadRoleId,
+    scope_kind: "chapter",
+    chapter_id: LEAD_ACCOUNTS.cityLead.chapterIds[0],
+    scope_label: LEAD_ACCOUNTS.cityLead.chapterNames[0],
+  });
 
-  await supabase.from("staff_role_assignments").upsert(
-    {
-      staff_id: cityStaffId,
-      organization_id: rizqOrgId,
-      module_id: moduleId,
-      role_id: cityLeadRoleId,
-      scope_kind: "chapter",
-      chapter_id: LEAD_ACCOUNTS.cityLead.chapterIds[1],
-      scope_label: LEAD_ACCOUNTS.cityLead.chapterNames[1],
-    },
-    { onConflict: "staff_id,role_id,chapter_id" },
-  );
+  await ensureStaffRoleAssignment(supabase, {
+    staff_id: cityStaffId,
+    organization_id: rizqOrgId,
+    module_id: moduleId,
+    role_id: cityLeadRoleId,
+    scope_kind: "chapter",
+    chapter_id: LEAD_ACCOUNTS.cityLead.chapterIds[1],
+    scope_label: LEAD_ACCOUNTS.cityLead.chapterNames[1],
+  });
 
   console.log("Seeding completed successfully.");
   return {

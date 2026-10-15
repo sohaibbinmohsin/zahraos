@@ -8,6 +8,7 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 });
 
 async function seedAdmin(email, password, fullName, platformOwner, orgRoles = []) {
+  const normalizedEmail = email.trim().toLowerCase();
   // 1. Check if auth user exists, delete or update password
   let userId = null;
   let page = 1;
@@ -15,7 +16,7 @@ async function seedAdmin(email, password, fullName, platformOwner, orgRoles = []
     const { data: listData } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
     const users = listData?.users ?? [];
     if (users.length === 0) break;
-    const found = users.find((u) => u.email === email);
+    const found = users.find((u) => u.email?.toLowerCase() === normalizedEmail);
     if (found) {
       userId = found.id;
       break;
@@ -25,7 +26,7 @@ async function seedAdmin(email, password, fullName, platformOwner, orgRoles = []
   }
 
   if (userId) {
-    console.log(`Updating password for existing auth user ${email} (${userId})...`);
+    console.log(`Updating password for existing auth user ${normalizedEmail} (${userId})...`);
     const { error } = await supabase.auth.admin.updateUserById(userId, {
       password,
       email_confirm: true,
@@ -33,9 +34,9 @@ async function seedAdmin(email, password, fullName, platformOwner, orgRoles = []
     });
     if (error) console.error("Error updating user:", error);
   } else {
-    console.log(`Creating auth user ${email}...`);
+    console.log(`Creating auth user ${normalizedEmail}...`);
     const { data: created, error } = await supabase.auth.admin.createUser({
-      email,
+      email: normalizedEmail,
       password,
       email_confirm: true,
       user_metadata: { email_verified: true },
@@ -58,7 +59,7 @@ async function seedAdmin(email, password, fullName, platformOwner, orgRoles = []
   if (staffRow) {
     staffId = staffRow.id;
     await supabase.from("staff").update({
-      email,
+      email: normalizedEmail,
       full_name: fullName,
       platform_owner: platformOwner,
       deactivated_at: null,
@@ -68,7 +69,7 @@ async function seedAdmin(email, password, fullName, platformOwner, orgRoles = []
       .from("staff")
       .insert({
         auth_user_id: userId,
-        email,
+        email: normalizedEmail,
         full_name: fullName,
         platform_owner: platformOwner,
       })
@@ -90,10 +91,11 @@ async function seedAdmin(email, password, fullName, platformOwner, orgRoles = []
     );
   }
 
-  console.log(`Successfully seeded ${email} (staff_id: ${staffId}, platform_owner: ${platformOwner})`);
+  console.log(`Successfully seeded ${normalizedEmail} (staff_id: ${staffId}, platform_owner: ${platformOwner})`);
 }
 
 async function seedLead(email, password, fullName, roleName, orgId, chapterSpecs) {
+  const normalizedEmail = email.trim().toLowerCase();
   // 1. Ensure auth user
   let userId = null;
   let page = 1;
@@ -101,7 +103,7 @@ async function seedLead(email, password, fullName, roleName, orgId, chapterSpecs
     const { data: listData } = await supabase.auth.admin.listUsers({ page, perPage: 100 });
     const users = listData?.users ?? [];
     if (users.length === 0) break;
-    const found = users.find((u) => u.email === email);
+    const found = users.find((u) => u.email?.toLowerCase() === normalizedEmail);
     if (found) {
       userId = found.id;
       break;
@@ -111,16 +113,16 @@ async function seedLead(email, password, fullName, roleName, orgId, chapterSpecs
   }
 
   if (userId) {
-    console.log(`Updating password for existing auth user ${email} (${userId})...`);
+    console.log(`Updating password for existing auth user ${normalizedEmail} (${userId})...`);
     await supabase.auth.admin.updateUserById(userId, {
       password,
       email_confirm: true,
       user_metadata: { email_verified: true },
     });
   } else {
-    console.log(`Creating auth user ${email}...`);
+    console.log(`Creating auth user ${normalizedEmail}...`);
     const { data: created, error } = await supabase.auth.admin.createUser({
-      email,
+      email: normalizedEmail,
       password,
       email_confirm: true,
       user_metadata: { email_verified: true },
@@ -154,7 +156,7 @@ async function seedLead(email, password, fullName, roleName, orgId, chapterSpecs
   if (staffRow) {
     staffId = staffRow.id;
     await supabase.from("staff").update({
-      email,
+      email: normalizedEmail,
       full_name: fullName,
       platform_owner: false,
       status: "active",
@@ -165,7 +167,7 @@ async function seedLead(email, password, fullName, roleName, orgId, chapterSpecs
       .from("staff")
       .insert({
         auth_user_id: userId,
-        email,
+        email: normalizedEmail,
         full_name: fullName,
         platform_owner: false,
         status: "active",
@@ -195,7 +197,7 @@ async function seedLead(email, password, fullName, roleName, orgId, chapterSpecs
 
   const moduleId = moduleRow?.id;
   if (!moduleId) {
-    console.warn(`Youth Republic module not found; skipping role assignment for ${email}`);
+    console.warn(`Youth Republic module not found; skipping role assignment for ${normalizedEmail}`);
     return;
   }
 
@@ -207,14 +209,32 @@ async function seedLead(email, password, fullName, roleName, orgId, chapterSpecs
     .maybeSingle();
 
   if (!roleRow) {
-    console.warn(`Role ${roleName} not found in org ${orgId}; skipping role assignment for ${email}`);
+    console.warn(`Role ${roleName} not found in org ${orgId}; skipping role assignment for ${normalizedEmail}`);
     return;
   }
 
-  // 6. Role assignments per chapter
+  // 6. Role assignments per chapter (safe query + insert/update)
   for (const chap of chapterSpecs) {
-    await supabase.from("staff_role_assignments").upsert(
-      {
+    const { data: existingAssignment } = await supabase
+      .from("staff_role_assignments")
+      .select("id")
+      .eq("staff_id", staffId)
+      .eq("role_id", roleRow.id)
+      .eq("chapter_id", chap.id)
+      .maybeSingle();
+
+    if (existingAssignment) {
+      await supabase
+        .from("staff_role_assignments")
+        .update({
+          organization_id: orgId,
+          module_id: moduleId,
+          scope_kind: "chapter",
+          scope_label: chap.name,
+        })
+        .eq("id", existingAssignment.id);
+    } else {
+      await supabase.from("staff_role_assignments").insert({
         staff_id: staffId,
         organization_id: orgId,
         module_id: moduleId,
@@ -222,12 +242,11 @@ async function seedLead(email, password, fullName, roleName, orgId, chapterSpecs
         scope_kind: "chapter",
         chapter_id: chap.id,
         scope_label: chap.name,
-      },
-      { onConflict: "staff_id,role_id,chapter_id" }
-    );
+      });
+    }
   }
 
-  console.log(`Successfully seeded ${roleName}: ${email} (staff_id: ${staffId})`);
+  console.log(`Successfully seeded ${roleName}: ${normalizedEmail} (staff_id: ${staffId})`);
 }
 
 async function main() {

@@ -14,6 +14,7 @@ import {
   makeChapterLeadToken,
   makeCityLeadToken,
   seedChapterAndCityLeads,
+  ensureStaffRoleAssignment,
 } from "./test_leads_seed";
 import { runSeed as runBackendSeed } from "@/supabase/seed/seed";
 import { decodeStaffTokenClaims } from "@/lib/staffToken";
@@ -209,20 +210,8 @@ describe("Test Leads Seed Fixtures & Credentials", () => {
   });
 
   describe("Database Seeding Helper", () => {
-    it("seeds chapters, staff, staff_org_roles, and staff_role_assignments on Supabase client", async () => {
-      const tables: Record<string, any[]> = {
-        chapters: [],
-        modules: [{ id: "m-yr", key: "youth-republic" }],
-        roles: [
-          { id: "r-chap", organization_id: SEED_ORGS.rizq, name: "Chapter Lead" },
-          { id: "r-city", organization_id: SEED_ORGS.rizq, name: "City Lead" },
-        ],
-        staff: [],
-        staff_org_roles: [],
-        staff_role_assignments: [],
-      };
-
-      const mockSupabase: any = {
+    function createMockSupabase(tables: Record<string, any[]>) {
+      return {
         auth: {
           admin: {
             listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
@@ -237,30 +226,57 @@ describe("Test Leads Seed Fixtures & Credentials", () => {
         },
         rpc: vi.fn().mockResolvedValue({ error: null }),
         from: (table: string) => {
-          return {
+          const builder: any = {
             upsert: vi.fn().mockImplementation((rows, _opts) => {
               const rowList = Array.isArray(rows) ? rows : [rows];
               tables[table] = [...(tables[table] || []), ...rowList];
               return Promise.resolve({ data: rows, error: null });
             }),
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                maybeSingle: vi.fn().mockImplementation(() => {
-                  if (table === "modules") return Promise.resolve({ data: { id: "m-yr" }, error: null });
-                  return Promise.resolve({ data: null, error: null });
-                }),
-                in: vi.fn().mockImplementation((_col, val) => {
-                  return Promise.resolve({
-                    data: (tables[table] || []).filter((r: any) => val.includes(r.name)),
-                    error: null,
-                  });
-                }),
-              }),
+            insert: vi.fn().mockImplementation((rows) => {
+              const rowList = Array.isArray(rows) ? rows : [rows];
+              tables[table] = [...(tables[table] || []), ...rowList];
+              return Promise.resolve({ data: rows, error: null });
+            }),
+            update: vi.fn().mockImplementation((_patch) => ({
+              eq: vi.fn().mockResolvedValue({ error: null }),
+            })),
+            select: vi.fn().mockImplementation(() => builder),
+            eq: vi.fn().mockImplementation(() => builder),
+            is: vi.fn().mockImplementation(() => builder),
+            maybeSingle: vi.fn().mockImplementation(() => {
+              if (table === "modules") return Promise.resolve({ data: { id: "m-yr" }, error: null });
+              return Promise.resolve({ data: null, error: null });
+            }),
+            single: vi.fn().mockImplementation(() => {
+              if (table === "roles") return Promise.resolve({ data: { id: "r-lead" }, error: null });
+              return Promise.resolve({ data: null, error: null });
+            }),
+            in: vi.fn().mockImplementation((_col, val) => {
+              return Promise.resolve({
+                data: (tables[table] || []).filter((r: any) => val.includes(r.name)),
+                error: null,
+              });
             }),
           };
+          return builder;
         },
       };
+    }
 
+    it("seeds chapters, staff, staff_org_roles, and staff_role_assignments on Supabase client", async () => {
+      const tables: Record<string, any[]> = {
+        chapters: [],
+        modules: [{ id: "m-yr", key: "youth-republic" }],
+        roles: [
+          { id: "r-chap", organization_id: SEED_ORGS.rizq, name: "Chapter Lead" },
+          { id: "r-city", organization_id: SEED_ORGS.rizq, name: "City Lead" },
+        ],
+        staff: [],
+        staff_org_roles: [],
+        staff_role_assignments: [],
+      };
+
+      const mockSupabase: any = createMockSupabase(tables);
       const result = await seedChapterAndCityLeads(mockSupabase);
 
       expect(result.chapterLead.email).toBe("chapterlead@rizq.org");
@@ -278,7 +294,7 @@ describe("Test Leads Seed Fixtures & Credentials", () => {
       expect(tables.staff.some((s) => s.email === "chapterlead@rizq.org")).toBe(true);
       expect(tables.staff.some((s) => s.email === "citylead@rizq.org")).toBe(true);
 
-      // Verify staff_role_assignments were upserted with correct chapter scope
+      // Verify staff_role_assignments were inserted with correct chapter scope
       const clAssignment = tables.staff_role_assignments.find(
         (a) => a.scope_label === "Lahore Central" && a.role_id === "r-chap",
       );
@@ -307,45 +323,7 @@ describe("Test Leads Seed Fixtures & Credentials", () => {
         staff_role_assignments: [],
       };
 
-      const mockSupabase: any = {
-        auth: {
-          admin: {
-            listUsers: vi.fn().mockResolvedValue({ data: { users: [] }, error: null }),
-            createUser: vi.fn().mockImplementation((payload) =>
-              Promise.resolve({
-                data: { user: { id: payload.id ?? "user-gen" } },
-                error: null,
-              }),
-            ),
-            updateUserById: vi.fn().mockResolvedValue({ error: null }),
-          },
-        },
-        rpc: vi.fn().mockResolvedValue({ error: null }),
-        from: (table: string) => {
-          return {
-            upsert: vi.fn().mockImplementation((rows, _opts) => {
-              const rowList = Array.isArray(rows) ? rows : [rows];
-              tables[table] = [...(tables[table] || []), ...rowList];
-              return Promise.resolve({ data: rows, error: null });
-            }),
-            select: vi.fn().mockReturnValue({
-              eq: vi.fn().mockReturnValue({
-                maybeSingle: vi.fn().mockImplementation(() => {
-                  if (table === "modules") return Promise.resolve({ data: { id: "m-yr" }, error: null });
-                  return Promise.resolve({ data: null, error: null });
-                }),
-                in: vi.fn().mockImplementation((_col, val) => {
-                  return Promise.resolve({
-                    data: (tables[table] || []).filter((r: any) => val.includes(r.name)),
-                    error: null,
-                  });
-                }),
-              }),
-            }),
-          };
-        },
-      };
-
+      const mockSupabase: any = createMockSupabase(tables);
       const result = await runBackendSeed(mockSupabase);
 
       expect(result.chapterLead.email).toBe("chapterlead@rizq.org");
@@ -372,6 +350,78 @@ describe("Test Leads Seed Fixtures & Credentials", () => {
 
       const cityAssignments = tables.staff_role_assignments.filter((a) => a.role_id === "r-city");
       expect(cityAssignments).toHaveLength(2);
+    });
+
+    it("ensureStaffRoleAssignment inserts when absent and updates when existing without invalid onConflict", async () => {
+      const records: any[] = [];
+      const mockSupabase: any = {
+        from: (table: string) => {
+          let selectedRecord: any = null;
+          const builder: any = {
+            select: vi.fn().mockImplementation(() => builder),
+            eq: vi.fn().mockImplementation((col, val) => {
+              if (col === "staff_id") {
+                selectedRecord = records.find((r) => r.staff_id === val);
+              }
+              if (col === "role_id" && selectedRecord && selectedRecord.role_id !== val) {
+                selectedRecord = null;
+              }
+              if (col === "chapter_id" && selectedRecord && selectedRecord.chapter_id !== val) {
+                selectedRecord = null;
+              }
+              return builder;
+            }),
+            is: vi.fn().mockImplementation((col, val) => {
+              if (col === "chapter_id" && selectedRecord && selectedRecord.chapter_id !== val) {
+                selectedRecord = null;
+              }
+              return builder;
+            }),
+            maybeSingle: vi.fn().mockImplementation(() => Promise.resolve({ data: selectedRecord, error: null })),
+            insert: vi.fn().mockImplementation((row) => {
+              const newRecord = { ...row, id: "assign-new-1" };
+              records.push(newRecord);
+              return Promise.resolve({ data: newRecord, error: null });
+            }),
+            update: vi.fn().mockImplementation((patch) => ({
+              eq: vi.fn().mockImplementation((_col, idVal) => {
+                const rec = records.find((r) => r.id === idVal);
+                if (rec) Object.assign(rec, patch);
+                return Promise.resolve({ data: rec, error: null });
+              }),
+            })),
+          };
+          return builder;
+        },
+      };
+
+      // 1. Initial insert
+      await ensureStaffRoleAssignment(mockSupabase, {
+        staff_id: "s1",
+        organization_id: "o1",
+        module_id: "m1",
+        role_id: "r1",
+        scope_kind: "chapter",
+        chapter_id: "c1",
+        scope_label: "Chapter 1",
+      });
+
+      expect(records).toHaveLength(1);
+      expect(records[0].scope_label).toBe("Chapter 1");
+
+      // 2. Subsequent update
+      await ensureStaffRoleAssignment(mockSupabase, {
+        staff_id: "s1",
+        organization_id: "o1",
+        module_id: "m1",
+        role_id: "r1",
+        scope_kind: "chapter",
+        chapter_id: "c1",
+        scope_label: "Chapter 1 Renamed",
+      });
+
+      expect(records).toHaveLength(1);
+      expect(records[0].scope_label).toBe("Chapter 1 Renamed");
     });
   });
 });
