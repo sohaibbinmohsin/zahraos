@@ -404,6 +404,112 @@ const ROLES: Record<string, RoleDefinition> = {
     },
     disallowedRoutes: ["/youth-republic/volunteers"],
   },
+  CHAPTER_LEAD: {
+    id: "chapter_lead",
+    name: "Chapter Lead (Lahore Central)",
+    isOrgAdminOrAbove: false,
+    platformOwner: false,
+    orgTier: "member",
+    userRoleName: "Chapter Lead",
+    permissions: [
+      "opportunities:read", "opportunities:write", "noticeboard:write",
+      "applications:read", "applications:update", "hours:read", "hours:update",
+      "chapters:read", "chapters:write",
+    ],
+    chapterScopes: {
+      "opportunities:write": ["lhr"],
+      "noticeboard:write": ["lhr"],
+      "applications:update": ["lhr"],
+      "hours:update": ["lhr"],
+      "chapters:write": ["lhr"],
+    },
+    expectedCapabilities: {
+      canViewDrives: true,
+      canCreateDrives: true,
+      canPublishDrives: true,
+      canViewApplications: true,
+      canTriageApplications: true,
+      canViewHours: true,
+      canApproveHours: true,
+      canViewVolunteers: false,
+      canAccessDashboard: true,
+      canManageTeam: false,
+      canManageOrgProfile: false,
+      canCreateChapters: false,
+      canViewInquiries: false,
+      isChapterScoped: true,
+      scopedChapterIds: ["lhr"],
+    },
+    sidebar: {
+      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours"],
+      forbiddenLinks: ["Volunteers", "Team Members", "Roles & Permissions", "Partner Inquiries"],
+      canSeeTeamAndGovernance: false,
+    },
+    layoutTabs: {
+      expected: ["Dashboard", "Drives", "Applications", "Hours"],
+      forbidden: ["Volunteers"],
+    },
+    actions: {
+      canCreateDrive: true,
+      canPublishDrive: true,
+      canTriageApplications: true,
+      canApproveHours: true,
+    },
+    disallowedRoutes: ["/youth-republic/volunteers"],
+  },
+  CITY_LEAD: {
+    id: "city_lead",
+    name: "City Lead (Lahore Region)",
+    isOrgAdminOrAbove: false,
+    platformOwner: false,
+    orgTier: "member",
+    userRoleName: "City Lead",
+    permissions: [
+      "opportunities:read", "opportunities:write", "noticeboard:write",
+      "applications:read", "applications:update", "hours:read", "hours:update",
+      "chapters:read", "chapters:write",
+    ],
+    chapterScopes: {
+      "opportunities:write": ["lhr", "north"],
+      "noticeboard:write": ["lhr", "north"],
+      "applications:update": ["lhr", "north"],
+      "hours:update": ["lhr", "north"],
+      "chapters:write": ["lhr", "north"],
+    },
+    expectedCapabilities: {
+      canViewDrives: true,
+      canCreateDrives: true,
+      canPublishDrives: true,
+      canViewApplications: true,
+      canTriageApplications: true,
+      canViewHours: true,
+      canApproveHours: true,
+      canViewVolunteers: false,
+      canAccessDashboard: true,
+      canManageTeam: false,
+      canManageOrgProfile: false,
+      canCreateChapters: false,
+      canViewInquiries: false,
+      isChapterScoped: true,
+      scopedChapterIds: ["lhr", "north"],
+    },
+    sidebar: {
+      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours"],
+      forbiddenLinks: ["Volunteers", "Team Members", "Roles & Permissions", "Partner Inquiries"],
+      canSeeTeamAndGovernance: false,
+    },
+    layoutTabs: {
+      expected: ["Dashboard", "Drives", "Applications", "Hours"],
+      forbidden: ["Volunteers"],
+    },
+    actions: {
+      canCreateDrive: true,
+      canPublishDrive: true,
+      canTriageApplications: true,
+      canApproveHours: true,
+    },
+    disallowedRoutes: ["/youth-republic/volunteers"],
+  },
   DRIVE_COORDINATOR: {
     id: "drive_coordinator",
     name: "Drive Coordinator",
@@ -925,8 +1031,8 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
         expect(screen.getAllByRole("button", { name: "Edit" }).length).toBeGreaterThan(0);
       });
 
-      it("Operations Lead sees Create Drive and Publish drive, but no governance actions", async () => {
-        setupRoleEnvironment(ROLES.OPERATIONS_LEAD);
+      it("Chapter Lead sees Create Drive and Publish drive, but no governance actions", async () => {
+        setupRoleEnvironment(ROLES.CHAPTER_LEAD);
         renderWithSwr(<YouthRepublicOpportunitiesPage />);
 
         await screen.findByText("Lahore Tree Drive");
@@ -997,8 +1103,8 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
     });
 
     describe("Hours Page Approval Buttons vs Read-Only Pill", () => {
-      it("Authorized roles (Super Admin, Ops Lead, Drive Coord) see Bulk-Assign Hours and row Verify/Adjust buttons", async () => {
-        setupRoleEnvironment(ROLES.OPERATIONS_LEAD);
+      it("Authorized roles (Super Admin, Chapter Lead, Drive Coord) see Bulk-Assign Hours and row Verify/Adjust buttons", async () => {
+        setupRoleEnvironment(ROLES.CHAPTER_LEAD);
         renderWithSwr(<YouthRepublicHoursPage />);
 
         expect(await screen.findByText("Hamza Sheikh")).toBeInTheDocument();
@@ -1046,6 +1152,34 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       expect(within(lhrCard).getByRole("button", { name: "Edit" })).toBeInTheDocument();
 
       // Karachi drive card does NOT have Edit button
+      const khiCard = screen.getByText("Karachi Beach Cleanup").closest(".opp-card") as HTMLElement;
+      expect(within(khiCard).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    });
+
+    it("Chapter Lead can Edit Lahore drive, but Karachi drive has no Edit button", async () => {
+      setupRoleEnvironment(ROLES.CHAPTER_LEAD);
+      renderWithSwr(<YouthRepublicOpportunitiesPage />);
+
+      await screen.findByText("Lahore Tree Drive");
+      await screen.findByText("Karachi Beach Cleanup");
+
+      const lhrCard = screen.getByText("Lahore Tree Drive").closest(".opp-card") as HTMLElement;
+      expect(within(lhrCard).getByRole("button", { name: "Edit" })).toBeInTheDocument();
+
+      const khiCard = screen.getByText("Karachi Beach Cleanup").closest(".opp-card") as HTMLElement;
+      expect(within(khiCard).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    });
+
+    it("City Lead can Edit assigned chapter drives, but Karachi drive has no Edit button", async () => {
+      setupRoleEnvironment(ROLES.CITY_LEAD);
+      renderWithSwr(<YouthRepublicOpportunitiesPage />);
+
+      await screen.findByText("Lahore Tree Drive");
+      await screen.findByText("Karachi Beach Cleanup");
+
+      const lhrCard = screen.getByText("Lahore Tree Drive").closest(".opp-card") as HTMLElement;
+      expect(within(lhrCard).getByRole("button", { name: "Edit" })).toBeInTheDocument();
+
       const khiCard = screen.getByText("Karachi Beach Cleanup").closest(".opp-card") as HTMLElement;
       expect(within(khiCard).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
     });
@@ -1176,8 +1310,8 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
-    it("Operations Lead and Drive Coordinator trigger AccessDeniedGate on Volunteers, but allowed on operational routes", async () => {
-      setupRoleEnvironment(ROLES.DRIVE_COORDINATOR);
+    it("Chapter Lead, Operations Lead, and Drive Coordinator trigger AccessDeniedGate on Volunteers, but allowed on operational routes", async () => {
+      setupRoleEnvironment(ROLES.CHAPTER_LEAD);
 
       renderWithSwr(<YouthRepublicVolunteersPage />);
       expect(screen.getByRole("alert")).toBeInTheDocument();
@@ -1186,9 +1320,15 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
 
       // Dashboard allowed
       cleanup();
+      setupRoleEnvironment(ROLES.CHAPTER_LEAD);
       renderWithSwr(<YouthRepublicDashboardPage />);
       await waitFor(() => expect(screen.getByText("Operations Command Center")).toBeInTheDocument());
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+      cleanup();
+      setupRoleEnvironment(ROLES.DRIVE_COORDINATOR);
+      renderWithSwr(<YouthRepublicVolunteersPage />);
+      expect(screen.getByRole("alert")).toBeInTheDocument();
     });
 
     it("Super Admin / Org Admin accesses all operational routes without AccessDeniedGate", async () => {
