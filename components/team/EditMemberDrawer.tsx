@@ -6,7 +6,7 @@ import { useToast } from "@/components/shell/ToastContext";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { removeStaffMember, updateStaffAccess } from "@/lib/platformFunctions";
 import { effectivePermissionTags } from "@/lib/capabilityMap";
-import { RoleScopeRepeater, rowsToAssignmentPayload, type RoleScopeRow } from "./RoleScopeRepeater";
+import { RoleScopeRepeater, rowsToAssignmentPayload, groupAssignmentsToRows, type RoleScopeRow } from "./RoleScopeRepeater";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Select } from "@/components/ui/Select";
 
@@ -26,13 +26,7 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
 
   useEffect(() => {
     if (member) {
-      setRows(member.assignments.map((a) => ({
-        key: a.id,
-        roleId: a.roleId,
-        scopeKind: a.scopeKind,
-        chapterId: a.chapterId,
-        scopeLabel: a.scopeLabel,
-      })));
+      setRows(groupAssignmentsToRows(member.assignments, chapters));
       setStatus(member.status);
       setExpiresAt(member.expiresAt ? member.expiresAt.slice(0, 10) : "");
     }
@@ -49,10 +43,11 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
       await updateStaffAccess({
         staffId: member.id,
         organizationId,
-        roles: rowsToAssignmentPayload(rows),
+        roles: rowsToAssignmentPayload(rows, chapters),
         status,
         expiresAt: expiresAt || null,
       }, accessToken);
+
       await refresh();
       showToast(`Saved access changes for ${member.fullName}.`);
       onClose();

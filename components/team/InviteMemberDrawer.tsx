@@ -48,7 +48,7 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
         fullName: name.trim(),
         email: email.trim(),
         phone: phone.trim() || undefined,
-        roles: rowsToAssignmentPayload(rows),
+        roles: rowsToAssignmentPayload(rows, chapters),
         expiresAt: expiresAt || null,
       }, accessToken);
       await refresh();

@@ -13,17 +13,64 @@ vi.mock("@/lib/platformFunctions", () => ({
 vi.mock("@/components/shell/ToastContext", () => ({ useToast: () => ({ showToast }) }));
 vi.mock("@/components/team/TeamAccessProvider", () => ({
   useTeamAccess: () => ({
-    organizationId: "org-1", accessToken: "access-token",
+    organizationId: "org-1",
+    accessToken: "access-token",
     roles: [
       { id: "r1", name: "Operations Lead", isSystem: true, description: "", permissionKeys: ["opportunities:write"] },
       { id: "r2", name: "Auditor", isSystem: true, description: "", permissionKeys: ["applications:read", "hours:read"] },
     ],
-    chapters: [{ id: "c1", name: "Lahore Chapter", city: "Lahore", status: "active" }],
-    members: [{
-      id: "m1", fullName: "Amina Malik", email: "amina@x.org", status: "active", lastActiveLabel: "—", enforce2fa: true,
-      expiresAt: "2027-06-30T00:00:00Z",
-      assignments: [{ id: "a1", roleId: "r1", roleName: "Operations Lead", scopeKind: "org_wide", chapterId: null, scopeLabel: "National / All Chapters" }],
-    }],
+    chapters: [
+      { id: "c1", name: "Lahore Chapter", city: "Lahore", status: "active" },
+      { id: "c2", name: "Karachi Chapter", city: "Karachi", status: "active" },
+    ],
+    members: [
+      {
+        id: "m1",
+        fullName: "Amina Malik",
+        email: "amina@x.org",
+        status: "active",
+        lastActiveLabel: "—",
+        enforce2fa: true,
+        expiresAt: "2027-06-30T00:00:00Z",
+        assignments: [
+          {
+            id: "a1",
+            roleId: "r1",
+            roleName: "Operations Lead",
+            scopeKind: "org_wide",
+            chapterId: null,
+            scopeLabel: "National / All Chapters",
+          },
+        ],
+      },
+      {
+        id: "m2",
+        fullName: "Bilal Khan",
+        email: "bilal@x.org",
+        status: "active",
+        lastActiveLabel: "—",
+        enforce2fa: true,
+        expiresAt: null,
+        assignments: [
+          {
+            id: "a2",
+            roleId: "r1",
+            roleName: "Operations Lead",
+            scopeKind: "chapter",
+            chapterId: "c1",
+            scopeLabel: "Lahore Chapter",
+          },
+          {
+            id: "a3",
+            roleId: "r1",
+            roleName: "Operations Lead",
+            scopeKind: "chapter",
+            chapterId: "c2",
+            scopeLabel: "Karachi Chapter",
+          },
+        ],
+      },
+    ],
     refresh,
   }),
 }));
@@ -79,7 +126,12 @@ describe("EditMemberDrawer", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<EditMemberDrawer memberId="m1" onClose={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: /Remove from Team/i }));
-    await waitFor(() => expect(removeMember).toHaveBeenCalledWith({ staffId: "m1", organizationId: "org-1" }, "access-token"));
+    await waitFor(() =>
+      expect(removeMember).toHaveBeenCalledWith(
+        { staffId: "m1", organizationId: "org-1" },
+        "access-token",
+      ),
+    );
   });
 
   it("persists chapter-scoped assignments with chapterId and scopeLabel", async () => {
@@ -87,7 +139,8 @@ describe("EditMemberDrawer", () => {
     const onClose = vi.fn();
     render(<EditMemberDrawer memberId="m1" onClose={onClose} />);
 
-    await user.click(screen.getByRole("combobox", { name: "Scope" }));
+    await user.click(screen.getByLabelText("Specific Chapters"));
+    await user.click(screen.getByRole("combobox", { name: "Add Chapter" }));
     await user.click(screen.getByRole("option", { name: "Lahore Chapter" }));
     await user.click(screen.getByRole("button", { name: /Save Changes/i }));
 
@@ -100,5 +153,27 @@ describe("EditMemberDrawer", () => {
       scopeLabel: "Lahore Chapter",
     });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it("groups multi-chapter assignments for the same role into a single row and displays chips", async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(<EditMemberDrawer memberId="m2" onClose={onClose} />);
+    expect(screen.getByText("Bilal Khan")).toBeInTheDocument();
+
+    // Verify chips for both chapters are rendered
+    expect(screen.getByText("Lahore Chapter")).toBeInTheDocument();
+    expect(screen.getByText("Karachi Chapter")).toBeInTheDocument();
+
+    // Verify only ONE role selector is rendered for this role
+    expect(screen.getAllByRole("combobox", { name: "Role" })).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: /Save Changes/i }));
+    await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
+    const [payload] = updateAccess.mock.calls[0];
+    expect(payload.roles).toEqual([
+      { roleId: "r1", scopeKind: "chapter", chapterId: "c1", scopeLabel: "Lahore Chapter" },
+      { roleId: "r1", scopeKind: "chapter", chapterId: "c2", scopeLabel: "Karachi Chapter" },
+    ]);
   });
 });
