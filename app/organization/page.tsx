@@ -35,7 +35,7 @@ export default function OrganizationPage() {
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  const canAccess = Boolean(perms.canManageTeam || isOrgAdminOrAbove);
+  const canAccess = Boolean(perms.canViewOrganization || perms.canManageTeam || isOrgAdminOrAbove || perms.isChapterScoped);
 
   const fetchAll = useCallback(async () => {
     if (!organizationId) return;

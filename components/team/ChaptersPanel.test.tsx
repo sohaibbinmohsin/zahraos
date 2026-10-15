@@ -128,9 +128,9 @@ describe("ChaptersPanel", () => {
     expect(screen.getByText("Lahore Chapter")).toBeInTheDocument();
     expect(screen.getByText("Karachi Chapter")).toBeInTheDocument();
 
-    // Chapter c1 has Edit and Deactivate buttons
+    // Chapter c1 has Edit button, but no Deactivate button when chapter-scoped
     expect(screen.getByRole("button", { name: /^Edit$/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Deactivate/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Deactivate/i })).not.toBeInTheDocument();
 
     // Chapter c2 has View Details button, but no Deactivate
     expect(screen.getByRole("button", { name: /View Details/i })).toBeInTheDocument();

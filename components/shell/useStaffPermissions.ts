@@ -29,6 +29,7 @@ export interface StaffPermissions {
   canAccessDashboard: boolean;
 
   // Team & Governance
+  canViewOrganization: boolean;
   canManageTeam: boolean;
   canManageOrgProfile: boolean;
   canCreateChapters: boolean;
@@ -138,6 +139,13 @@ export function useStaffPermissions(): StaffPermissions {
   const canAccessDashboard = Boolean(canViewDrives || canViewApplications || canViewHours || canViewVolunteers);
 
   // Team & Governance scoped rules
+  const canViewOrganization = Boolean(
+    isAdmin ||
+    canManageTeam ||
+    isChapterScoped ||
+    hasPerm("chapters:read") ||
+    hasPerm("chapters:write")
+  );
   const canManageOrgProfile = !isChapterScoped && canManageTeam;
   const canCreateChapters = !isChapterScoped && canManageTeam;
   const canEditChapter = useCallback(
@@ -157,6 +165,7 @@ export function useStaffPermissions(): StaffPermissions {
       canApproveHours,
       canViewVolunteers,
       canAccessDashboard,
+      canViewOrganization,
       canManageTeam,
       canManageOrgProfile,
       canCreateChapters,
@@ -176,6 +185,7 @@ export function useStaffPermissions(): StaffPermissions {
       canApproveHours,
       canViewVolunteers,
       canAccessDashboard,
+      canViewOrganization,
       canManageTeam,
       canManageOrgProfile,
       canCreateChapters,

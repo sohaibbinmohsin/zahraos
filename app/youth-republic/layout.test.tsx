@@ -54,6 +54,7 @@ const allPerms: StaffPermissions = {
   canViewHours: true,
   canApproveHours: true,
   canViewVolunteers: true,
+  canViewOrganization: true,
   canManageTeam: true,
   canManageOrgProfile: true,
   canCreateChapters: true,
