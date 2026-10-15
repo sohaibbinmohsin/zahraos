@@ -118,3 +118,128 @@ Deno.test("updateChapter allows Chapter Admin to update their assigned chapter, 
   assertEquals(members![0].volunteer_code, "YR-2026-000100");
 });
 
+Deno.test("updateChapter: allows Chapter Lead to update details and roster of assigned chapter", async () => {
+  const { supabase, orgId, chapterId } = await setup();
+  const clEmail = `uc-cl-${crypto.randomUUID()}@example.com`;
+  const { data: clAuth } = await supabase.auth.admin.createUser({ email: clEmail, email_confirm: true });
+  const { data: clStaff } = await supabase.from("staff").insert({
+    auth_user_id: clAuth!.user!.id, full_name: "Chapter Lead", email: clEmail,
+  }).select("id").single();
+
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").upsert({ organization_id: orgId, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: orgId, p_module_id: mod!.id });
+  const { data: clRole } = await supabase.from("roles").select("id")
+    .eq("organization_id", orgId).eq("name", "Chapter Lead").single();
+
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: clStaff!.id, organization_id: orgId, module_id: mod!.id, role_id: clRole!.id,
+    scope_kind: "chapter", chapter_id: chapterId, scope_label: "Old Name",
+  });
+
+  await updateChapter(supabase, clStaff!.id, false, {
+    chapterId,
+    about: "Chapter Lead description",
+    teamMembers: [
+      {
+        volunteerCode: "YR-2026-000200",
+        fullName: "Roster Member",
+        designation: "Member",
+        term: "2025–2026",
+        status: "active",
+      },
+    ],
+  });
+
+  const { data: chapter } = await supabase.from("chapters").select("about").eq("id", chapterId).single();
+  assertEquals(chapter!.about, "Chapter Lead description");
+});
+
+Deno.test("updateChapter: allows City Lead to update any of their assigned chapters", async () => {
+  const { supabase, orgId, adminId, chapterId } = await setup();
+  const { chapterId: chapterId2 } = await createChapter(supabase, adminId, false, { organizationId: orgId, name: "Chapter 2" });
+
+  const cityEmail = `uc-city-${crypto.randomUUID()}@example.com`;
+  const { data: cAuth } = await supabase.auth.admin.createUser({ email: cityEmail, email_confirm: true });
+  const { data: cityStaff } = await supabase.from("staff").insert({
+    auth_user_id: cAuth!.user!.id, full_name: "City Lead", email: cityEmail,
+  }).select("id").single();
+
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").upsert({ organization_id: orgId, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: orgId, p_module_id: mod!.id });
+  const { data: cityRole } = await supabase.from("roles").select("id")
+    .eq("organization_id", orgId).eq("name", "City Lead").single();
+
+  await supabase.from("staff_role_assignments").insert([
+    {
+      staff_id: cityStaff!.id, organization_id: orgId, module_id: mod!.id, role_id: cityRole!.id,
+      scope_kind: "chapter", chapter_id: chapterId, scope_label: "Old Name",
+    },
+    {
+      staff_id: cityStaff!.id, organization_id: orgId, module_id: mod!.id, role_id: cityRole!.id,
+      scope_kind: "chapter", chapter_id: chapterId2, scope_label: "Chapter 2",
+    },
+  ]);
+
+  await updateChapter(supabase, cityStaff!.id, false, { chapterId, about: "Updated Chapter 1" });
+  await updateChapter(supabase, cityStaff!.id, false, { chapterId: chapterId2, about: "Updated Chapter 2" });
+
+  const { data: ch1 } = await supabase.from("chapters").select("about").eq("id", chapterId).single();
+  const { data: ch2 } = await supabase.from("chapters").select("about").eq("id", chapterId2).single();
+  assertEquals(ch1!.about, "Updated Chapter 1");
+  assertEquals(ch2!.about, "Updated Chapter 2");
+});
+
+Deno.test("updateChapter: forbids Chapter Lead/City Lead from updating an unassigned chapter", async () => {
+  const { supabase, orgId, adminId, chapterId } = await setup();
+  const { chapterId: unassignedChapterId } = await createChapter(supabase, adminId, false, { organizationId: orgId, name: "Unassigned Chapter" });
+
+  const clEmail = `uc-cl-unass-${crypto.randomUUID()}@example.com`;
+  const { data: clAuth } = await supabase.auth.admin.createUser({ email: clEmail, email_confirm: true });
+  const { data: clStaff } = await supabase.from("staff").insert({
+    auth_user_id: clAuth!.user!.id, full_name: "Chapter Lead", email: clEmail,
+  }).select("id").single();
+
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").upsert({ organization_id: orgId, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: orgId, p_module_id: mod!.id });
+  const { data: clRole } = await supabase.from("roles").select("id")
+    .eq("organization_id", orgId).eq("name", "Chapter Lead").single();
+
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: clStaff!.id, organization_id: orgId, module_id: mod!.id, role_id: clRole!.id,
+    scope_kind: "chapter", chapter_id: chapterId, scope_label: "Assigned Chapter",
+  });
+
+  await assertRejects(
+    () => updateChapter(supabase, clStaff!.id, false, { chapterId: unassignedChapterId, about: "Hacker" }),
+    Error, "forbidden",
+  );
+});
+
+Deno.test("updateChapter: forbids Chapter Lead/City Lead from deactivating a chapter", async () => {
+  const { supabase, orgId, chapterId } = await setup();
+  const clEmail = `uc-cl-deact-${crypto.randomUUID()}@example.com`;
+  const { data: clAuth } = await supabase.auth.admin.createUser({ email: clEmail, email_confirm: true });
+  const { data: clStaff } = await supabase.from("staff").insert({
+    auth_user_id: clAuth!.user!.id, full_name: "Chapter Lead", email: clEmail,
+  }).select("id").single();
+
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").upsert({ organization_id: orgId, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: orgId, p_module_id: mod!.id });
+  const { data: clRole } = await supabase.from("roles").select("id")
+    .eq("organization_id", orgId).eq("name", "Chapter Lead").single();
+
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: clStaff!.id, organization_id: orgId, module_id: mod!.id, role_id: clRole!.id,
+    scope_kind: "chapter", chapter_id: chapterId, scope_label: "Assigned Chapter",
+  });
+
+  await assertRejects(
+    () => updateChapter(supabase, clStaff!.id, false, { chapterId, status: "inactive" }),
+    Error, "forbidden_status_change",
+  );
+});
+

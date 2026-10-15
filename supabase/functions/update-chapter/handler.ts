@@ -35,7 +35,9 @@ export async function updateChapter(
   if (fetchError || !chapter) throw new Error("not_found");
 
   if (!callerPlatformOwner) {
+    const authorizedRoleNames = ["Org Admin", "Chapter Admin", "Chapter Lead", "City Lead"];
     let isAuthorized = false;
+    let callerIsOrgAdminOrAbove = false;
 
     // 1. Check org-level admin tier (Super Admin or National Org Admin)
     const { data: orgRole } = await supabase
@@ -47,10 +49,11 @@ export async function updateChapter(
 
     if (orgRole && ["admin", "super_admin"].includes(orgRole.org_tier)) {
       isAuthorized = true;
+      callerIsOrgAdminOrAbove = true;
     }
 
     // 2. Check role assignments
-    if (!isAuthorized) {
+    if (!callerIsOrgAdminOrAbove) {
       const { data: assignments } = await supabase
         .from("staff_role_assignments")
         .select("role_id, scope_kind, chapter_id")
@@ -71,27 +74,33 @@ export async function updateChapter(
           // Super Admin is always org-wide
           if (roleName === "Super Admin") {
             isAuthorized = true;
+            callerIsOrgAdminOrAbove = true;
             break;
           }
           // Org Admin with org_wide scope (National Org Admin)
           if (roleName === "Org Admin" && a.scope_kind === "org_wide") {
             isAuthorized = true;
+            callerIsOrgAdminOrAbove = true;
             break;
           }
-          // Chapter Admin whose assigned chapter matches input.chapterId
+          // Chapter Admin, Chapter Lead, City Lead whose assigned chapter matches input.chapterId
           if (
-            (roleName === "Org Admin" || roleName === "Chapter Admin") &&
+            authorizedRoleNames.includes(roleName || "") &&
             a.scope_kind === "chapter" &&
             a.chapter_id === input.chapterId
           ) {
             isAuthorized = true;
-            break;
           }
         }
       }
     }
 
     if (!isAuthorized) throw new Error("forbidden");
+
+    // Reject status change (deactivation/reactivation) if caller is not org-level admin
+    if (input.status !== undefined && !callerIsOrgAdminOrAbove && !callerPlatformOwner) {
+      throw new Error("forbidden_status_change");
+    }
   }
 
   const patch: Record<string, unknown> = {};
