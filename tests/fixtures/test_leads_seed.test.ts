@@ -9,14 +9,12 @@ import {
   getCityLeadCredentials,
   makeChapterLeadClaims,
   makeCityLeadClaims,
-  makeChapterLeadTokenPayload,
-  makeCityLeadTokenPayload,
   makeChapterLeadToken,
   makeCityLeadToken,
   seedChapterAndCityLeads,
   ensureStaffRoleAssignment,
 } from "./test_leads_seed";
-import { runSeed as runBackendSeed } from "@/supabase/seed/seed";
+import { main as runSeedMain, runSeed as runBackendSeed } from "@/supabase/seed/seed";
 import { decodeStaffTokenClaims } from "@/lib/staffToken";
 import { deriveRoleTitleFromPermissions } from "@/lib/capabilityMap";
 
@@ -350,6 +348,22 @@ describe("Test Leads Seed Fixtures & Credentials", () => {
 
       const cityAssignments = tables.staff_role_assignments.filter((a) => a.role_id === "r-city");
       expect(cityAssignments).toHaveLength(2);
+    });
+
+    it("backend seed.ts main throws Error when SUPABASE_SERVICE_ROLE_KEY is missing", async () => {
+      const prevKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const prevAdminKey = process.env.ADMIN_SERVICE_ROLE_KEY;
+      delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      delete process.env.ADMIN_SERVICE_ROLE_KEY;
+
+      try {
+        await expect(runSeedMain()).rejects.toThrow(
+          "SUPABASE_SERVICE_ROLE_KEY environment variable is required to run seed"
+        );
+      } finally {
+        if (prevKey !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = prevKey;
+        if (prevAdminKey !== undefined) process.env.ADMIN_SERVICE_ROLE_KEY = prevAdminKey;
+      }
     });
 
     it("ensureStaffRoleAssignment inserts when absent and updates when existing without invalid onConflict", async () => {

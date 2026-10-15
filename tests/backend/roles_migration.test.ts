@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import fs from "fs";
 import path from "path";
 
@@ -49,7 +48,7 @@ describe("0018 Chapter Lead and City Lead Migration", () => {
     const migration = fs.readFileSync(migrationPath, "utf8");
     expect(migration).toContain("set name = 'Chapter Lead'");
     expect(migration).toContain("where module_id = v_module_id and name = 'Operations Lead'");
-    expect(migration).toContain("insert into role_permissions (role_id, permission_id)");
+    expect(migration).toContain("name in ('Chapter Lead', 'Super Admin', 'Org Admin')");
     expect(migration).toContain("seed_youth_republic_system_role(v_role.organization_id, v_module_id, 'City Lead'");
   });
 });

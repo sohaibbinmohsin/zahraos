@@ -56,8 +56,8 @@ begin
         description = 'Oversees local chapter operations, drive execution, applicant selection, hours verification, and chapter roster governance.'
     where module_id = v_module_id and name = 'Operations Lead';
 
-    -- Ensure Chapter Lead has chapters permissions attached
-    for v_role in select id, organization_id from roles where module_id = v_module_id and name = 'Chapter Lead' loop
+    -- Ensure Chapter Lead, Super Admin, and Org Admin have chapters permissions attached
+    for v_role in select id, organization_id from roles where module_id = v_module_id and name in ('Chapter Lead', 'Super Admin', 'Org Admin') loop
       insert into role_permissions (role_id, permission_id)
       select v_role.id, p.id
       from permissions p

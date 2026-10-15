@@ -5,7 +5,6 @@ import {
   CITY_LEAD_CREDENTIALS,
   SEED_ORGS,
   SEED_CHAPTERS,
-  LEAD_PERMISSIONS,
   getChapterLeadCredentials,
   getCityLeadCredentials,
   makeChapterLeadClaims,

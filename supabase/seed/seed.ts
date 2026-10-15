@@ -448,8 +448,11 @@ export async function main() {
 
   const key =
     getEnv("SUPABASE_SERVICE_ROLE_KEY") ||
-    getEnv("ADMIN_SERVICE_ROLE_KEY") ||
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhdmVqZ2N1dG16em9seXlvdXRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzgyNjYzNiwiZXhwIjoyMTAzNDAyNjM2fQ.-J5Li4RppY7epoBL2Kh1Jv7aFdq1oDppJs4Vd0GMtoM";
+    getEnv("ADMIN_SERVICE_ROLE_KEY");
+
+  if (!key) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required to run seed");
+  }
 
   const supabase = createClient(url, key, {
     auth: { autoRefreshToken: false, persistSession: false },

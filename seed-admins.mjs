@@ -1,7 +1,28 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = "https://pavejgcutmzzolyyoutg.supabase.co";
-const serviceRoleKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhdmVqZ2N1dG16em9seXlvdXRnIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NzgyNjYzNiwiZXhwIjoyMTAzNDAyNjM2fQ.-J5Li4RppY7epoBL2Kh1Jv7aFdq1oDppJs4Vd0GMtoM";
+const getEnv = (key) => {
+  if (typeof process !== "undefined" && process.env) {
+    return process.env[key];
+  }
+  if (typeof Deno !== "undefined" && Deno.env) {
+    return Deno.env.get(key);
+  }
+  return undefined;
+};
+
+const supabaseUrl =
+  getEnv("SUPABASE_URL") ||
+  getEnv("ADMIN_SUPABASE_URL") ||
+  getEnv("NEXT_PUBLIC_SUPABASE_URL") ||
+  "https://pavejgcutmzzolyyoutg.supabase.co";
+
+const serviceRoleKey =
+  getEnv("SUPABASE_SERVICE_ROLE_KEY") ||
+  getEnv("ADMIN_SERVICE_ROLE_KEY");
+
+if (!serviceRoleKey) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY environment variable is required to run seed");
+}
 
 const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },

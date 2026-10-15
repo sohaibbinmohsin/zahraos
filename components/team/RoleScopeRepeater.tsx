@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { Select } from "@/components/ui/Select";
 import type { RoleAssignmentInput } from "@/lib/platformFunctions";
 
@@ -145,10 +145,13 @@ export function RoleScopeRepeater({
   onChange: (rows: RoleScopeRow[]) => void;
   addLabel: string;
 }) {
-  function isSuperAdminRole(roleId: string): boolean {
-    const role = roles.find((r) => r.id === roleId);
-    return role?.name.trim().toLowerCase() === "super admin";
-  }
+  const isSuperAdminRole = useCallback(
+    (roleId: string): boolean => {
+      const role = roles.find((r) => r.id === roleId);
+      return role?.name.trim().toLowerCase() === "super admin";
+    },
+    [roles]
+  );
 
   function update(idx: number, patch: Partial<RoleScopeRow>) {
     onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -190,8 +193,8 @@ export function RoleScopeRepeater({
     if (!chapterId) return;
     const row = rows[idx];
     if (!row) return;
-    if (row.chapterIds.includes(chapterId)) return;
-    const nextChapterIds = [...row.chapterIds, chapterId];
+    if ((row.chapterIds ?? []).includes(chapterId)) return;
+    const nextChapterIds = [...(row.chapterIds ?? []), chapterId];
     const chapterNames = nextChapterIds
       .map((id) => chapters.find((c) => c.id === id)?.name || id)
       .join(", ");
@@ -205,7 +208,7 @@ export function RoleScopeRepeater({
   function handleRemoveChapter(idx: number, chapterId: string) {
     const row = rows[idx];
     if (!row) return;
-    const nextChapterIds = row.chapterIds.filter((id) => id !== chapterId);
+    const nextChapterIds = (row.chapterIds ?? []).filter((id) => id !== chapterId);
     const chapterNames = nextChapterIds
       .map((id) => chapters.find((c) => c.id === id)?.name || id)
       .join(", ");
@@ -240,7 +243,7 @@ export function RoleScopeRepeater({
     if (modified) {
       onChange(nextRows);
     }
-  }, [rows, roles, onChange]);
+  }, [rows, isSuperAdminRole, onChange]);
 
   return (
     <div className="role-repeater-box">

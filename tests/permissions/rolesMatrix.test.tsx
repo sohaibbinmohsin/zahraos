@@ -1310,9 +1310,16 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
-    it("Chapter Lead, Operations Lead, and Drive Coordinator trigger AccessDeniedGate on Volunteers, but allowed on operational routes", async () => {
+    it("Chapter Lead, City Lead, Operations Lead, and Drive Coordinator trigger AccessDeniedGate on Volunteers, but allowed on operational routes", async () => {
       setupRoleEnvironment(ROLES.CHAPTER_LEAD);
 
+      renderWithSwr(<YouthRepublicVolunteersPage />);
+      expect(screen.getByRole("alert")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
+      expect(screen.getByText(/Volunteers/i)).toBeInTheDocument();
+
+      cleanup();
+      setupRoleEnvironment(ROLES.CITY_LEAD);
       renderWithSwr(<YouthRepublicVolunteersPage />);
       expect(screen.getByRole("alert")).toBeInTheDocument();
       expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
@@ -1321,6 +1328,12 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       // Dashboard allowed
       cleanup();
       setupRoleEnvironment(ROLES.CHAPTER_LEAD);
+      renderWithSwr(<YouthRepublicDashboardPage />);
+      await waitFor(() => expect(screen.getByText("Operations Command Center")).toBeInTheDocument());
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+      cleanup();
+      setupRoleEnvironment(ROLES.CITY_LEAD);
       renderWithSwr(<YouthRepublicDashboardPage />);
       await waitFor(() => expect(screen.getByText("Operations Command Center")).toBeInTheDocument());
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
