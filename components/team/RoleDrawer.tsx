@@ -77,6 +77,30 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     },
   },
   {
+    name: "Chapter Lead",
+    description: "Oversees local chapter operations, drive execution, applicant selection, hours verification, and chapter roster governance.",
+    capabilities: {
+      ...RESTRICTED_GRID,
+      drive: "granted",
+      publish: "granted",
+      triage: "granted",
+      hours: "granted",
+      org_governance: "granted",
+    },
+  },
+  {
+    name: "City Lead",
+    description: "Oversees multi-chapter regional operations, drive execution, applicant selection, hours verification, and chapter roster governance.",
+    capabilities: {
+      ...RESTRICTED_GRID,
+      drive: "granted",
+      publish: "granted",
+      triage: "granted",
+      hours: "granted",
+      org_governance: "granted",
+    },
+  },
+  {
     name: "Operations Lead",
     description: "Oversees local chapter operations, drive execution, applicant selection, and field shift oversight.",
     capabilities: {
@@ -150,6 +174,60 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
   },
 ];
 
+export const SERVICES = [
+  {
+    key: "youth-republic",
+    title: "Youth Republic",
+    description: "Volunteer drives, public noticeboard, applicant screening, and shift hours logging.",
+    capabilities: MODULE_CAPABILITIES["youth-republic"],
+  },
+  {
+    key: "team-governance",
+    title: "Team & Governance",
+    description: "Chapter governance, team roster, roles configuration, partner inquiries, and audit logs.",
+    capabilities: MODULE_CAPABILITIES["team-governance"],
+  },
+] as const;
+
+export type ServicePreset = "full" | "read_only" | "restricted";
+
+export function getServiceStatus(
+  serviceCaps: readonly CapabilityKey[],
+  grid: CapabilityGrid,
+): "Full Access" | "Read Only" | "Restricted" | "Custom" {
+  const isFull = serviceCaps.every((cap) => {
+    const meta = CAPABILITY_META[cap];
+    const target = meta.levels.includes("granted") ? "granted" : "read_only";
+    return grid[cap] === target;
+  });
+  if (isFull) return "Full Access";
+
+  const isReadOnly = serviceCaps.every((cap) => {
+    const meta = CAPABILITY_META[cap];
+    const target = meta.levels.includes("read_only") ? "read_only" : "restricted";
+    return grid[cap] === target;
+  });
+  if (isReadOnly) return "Read Only";
+
+  const isRestricted = serviceCaps.every((cap) => grid[cap] === "restricted");
+  if (isRestricted) return "Restricted";
+
+  return "Custom";
+}
+
+export function getServiceBadgeClass(status: "Full Access" | "Read Only" | "Restricted" | "Custom"): string {
+  switch (status) {
+    case "Full Access":
+      return "badge-pos";
+    case "Read Only":
+      return "badge-prog";
+    case "Restricted":
+      return "badge-neu";
+    case "Custom":
+      return "badge-custom";
+  }
+}
+
 export function RoleDrawer({
   request, onClose,
 }: {
@@ -181,6 +259,40 @@ export function RoleDrawer({
   const [grid, setGrid] = useState<CapabilityGrid>(RESTRICTED_GRID);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [busy, setBusy] = useState(false);
+  const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({
+    "youth-republic": true,
+    "team-governance": true,
+  });
+
+  function toggleService(key: string) {
+    setExpandedServices((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  }
+
+  function applyServicePreset(
+    serviceCaps: readonly CapabilityKey[],
+    preset: ServicePreset,
+  ) {
+    setGrid((prev) => {
+      const next = { ...prev };
+      for (const cap of serviceCaps) {
+        const meta = CAPABILITY_META[cap];
+        if (preset === "full") {
+          next[cap] = meta.levels.includes("granted") ? "granted" : "read_only";
+        } else if (preset === "read_only") {
+          next[cap] = meta.levels.includes("read_only") ? "read_only" : "restricted";
+        } else {
+          next[cap] = "restricted";
+        }
+        if (cap === "members") {
+          next.team = next.members === "granted" ? "granted" : "restricted";
+        }
+      }
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!request) return;
@@ -324,53 +436,155 @@ export function RoleDrawer({
               <div className="form-group">
                 <label className="form-label">Granular Module Permissions</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  <fieldset className="perm-matrix-group" style={{ minWidth: 0 }}>
-                    <legend className="perm-matrix-group-title">Youth Republic Operations</legend>
-                    <div style={{ display: "flex", flexDirection: "column", gap: ".5rem" }}>
-                      {MODULE_CAPABILITIES["youth-republic"].map((cap) => (
-                        <div className="perm-checkbox-row" key={cap}>
-                          <span>{CAPABILITY_META[cap].column}</span>
-                          <Select
-                            aria-label={CAPABILITY_META[cap].column}
-                            value={grid[cap]}
-                            disabled={readOnly}
-                            onChange={(val) => setGrid({ ...grid, [cap]: val as CapabilityLevel })}
-                            options={CAPABILITY_META[cap].levels.map((lvl) => ({
-                              value: lvl,
-                              label: LEVEL_LABEL[lvl],
-                            }))}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </fieldset>
+                  {SERVICES.map((service) => {
+                    const isOpen = expandedServices[service.key] ?? true;
+                    const status = getServiceStatus(service.capabilities, grid);
+                    const badgeClass = getServiceBadgeClass(status);
 
-                  <fieldset className="perm-matrix-group" style={{ minWidth: 0 }}>
-                    <legend className="perm-matrix-group-title">Team &amp; Governance</legend>
-                    <div style={{ display: "flex", flexDirection: "column", gap: ".5rem" }}>
-                      {MODULE_CAPABILITIES["team-governance"].map((cap) => (
-                        <div className="perm-checkbox-row" key={cap}>
-                          <span>{CAPABILITY_META[cap].column}</span>
-                          <Select
-                            aria-label={CAPABILITY_META[cap].column}
-                            value={grid[cap]}
-                            disabled={readOnly}
-                            onChange={(val) => {
-                              const nextGrid = { ...grid, [cap]: val as CapabilityLevel };
-                              if (cap === "members") {
-                                nextGrid.team = val === "granted" ? "granted" : "restricted";
-                              }
-                              setGrid(nextGrid);
-                            }}
-                            options={CAPABILITY_META[cap].levels.map((lvl) => ({
-                              value: lvl,
-                              label: LEVEL_LABEL[lvl],
-                            }))}
-                          />
+                    return (
+                      <div
+                        key={service.key}
+                        className="perm-matrix-group"
+                        data-testid={`service-accordion-${service.key}`}
+                        style={{ minWidth: 0, padding: "0.85rem 1rem" }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            justifyContent: "space-between",
+                            gap: "0.75rem",
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 200 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                              <button
+                                type="button"
+                                aria-label={`Toggle ${service.title}`}
+                                aria-expanded={isOpen}
+                                onClick={() => toggleService(service.key)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  padding: 0,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "0.4rem",
+                                  fontWeight: 600,
+                                  fontSize: "var(--text-sm)",
+                                  color: "var(--ink)",
+                                  textAlign: "left",
+                                }}
+                              >
+                                <svg
+                                  aria-hidden="true"
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2.5"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  style={{
+                                    transform: isOpen ? "rotate(180deg)" : "rotate(0deg)",
+                                    transition: "transform 0.15s ease",
+                                  }}
+                                >
+                                  <polyline points="6 9 12 15 18 9" />
+                                </svg>
+                                <span>{service.title}</span>
+                              </button>
+                              <span
+                                className={`badge ${badgeClass}`}
+                                data-testid={`service-badge-${service.key}`}
+                              >
+                                {status}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", lineHeight: 1.35, paddingLeft: "1.15rem" }}>
+                              {service.description}
+                            </div>
+                          </div>
+
+                          {!readOnly && (
+                            <div
+                              className="service-presets"
+                              style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
+                            >
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-xs"
+                                aria-label={`${service.title}: Full Access`}
+                                data-testid={`preset-full-${service.key}`}
+                                onClick={() => applyServicePreset(service.capabilities, "full")}
+                                style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
+                              >
+                                Full Access
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-xs"
+                                aria-label={`${service.title}: Read Only`}
+                                data-testid={`preset-readonly-${service.key}`}
+                                onClick={() => applyServicePreset(service.capabilities, "read_only")}
+                                style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
+                              >
+                                Read Only
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-xs"
+                                aria-label={`${service.title}: Restricted`}
+                                data-testid={`preset-restricted-${service.key}`}
+                                onClick={() => applyServicePreset(service.capabilities, "restricted")}
+                                style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
+                              >
+                                Restricted
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  </fieldset>
+
+                        {isOpen && (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: ".5rem",
+                              marginTop: ".75rem",
+                              paddingTop: ".65rem",
+                              borderTop: "1px solid var(--line-subtle)",
+                            }}
+                          >
+                            {service.capabilities.map((cap) => (
+                              <div className="perm-checkbox-row" key={cap}>
+                                <span>{CAPABILITY_META[cap].column}</span>
+                                <Select
+                                  aria-label={CAPABILITY_META[cap].column}
+                                  value={grid[cap]}
+                                  disabled={readOnly}
+                                  onChange={(val) => {
+                                    const nextGrid = { ...grid, [cap]: val as CapabilityLevel };
+                                    if (cap === "members") {
+                                      nextGrid.team = val === "granted" ? "granted" : "restricted";
+                                    }
+                                    setGrid(nextGrid);
+                                  }}
+                                  options={CAPABILITY_META[cap].levels.map((lvl) => ({
+                                    value: lvl,
+                                    label: LEVEL_LABEL[lvl],
+                                  }))}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
