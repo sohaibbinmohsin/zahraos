@@ -124,7 +124,11 @@ export function effectivePermissionTags(permissionKeyGroups: string[][]): string
   return tags;
 }
 
-export function deriveRoleTitleFromPermissions(permissions: string[], isChapterScoped = false): string | null {
+export function deriveRoleTitleFromPermissions(
+  permissions: string[],
+  isChapterScoped = false,
+  chapterCount = 1,
+): string | null {
   const grid = permissionKeysToGrid(permissions);
   const hasFullOps =
     grid.drive === "granted" &&
@@ -132,6 +136,7 @@ export function deriveRoleTitleFromPermissions(permissions: string[], isChapterS
     grid.triage === "granted" &&
     grid.hours === "granted";
 
+  const hasChapterGovernance = grid.org_governance === "granted";
   const hasTeamManagement = grid.team === "granted" || grid.members === "granted";
 
   if (hasFullOps && hasTeamManagement) {
@@ -150,8 +155,14 @@ export function deriveRoleTitleFromPermissions(permissions: string[], isChapterS
     return "Org Admin";
   }
 
+  if (hasFullOps && hasChapterGovernance) {
+    if (isChapterScoped && chapterCount > 1) return "City Lead";
+    if (isChapterScoped) return "Chapter Lead";
+    return "City Lead";
+  }
+
   if (hasFullOps) {
-    return isChapterScoped ? "Chapter Operations Lead" : "Operations Lead";
+    return isChapterScoped ? "Chapter Lead" : "City Lead";
   }
 
   if (grid.drive === "granted" && grid.triage === "granted" && grid.hours === "granted") {

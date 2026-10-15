@@ -167,9 +167,22 @@ describe("capabilityMap", () => {
       expect(deriveRoleTitleFromPermissions(superAdminPerms, true)).toBe("Chapter Admin");
     });
 
-    it("resolves Operations Lead vs Chapter Operations Lead based on chapter scope", () => {
-      expect(deriveRoleTitleFromPermissions(opsLeadPerms, false)).toBe("Operations Lead");
-      expect(deriveRoleTitleFromPermissions(opsLeadPerms, true)).toBe("Chapter Operations Lead");
+    it("resolves City Lead vs Chapter Lead for operational permissions without chapter governance", () => {
+      expect(deriveRoleTitleFromPermissions(opsLeadPerms, false)).toBe("City Lead");
+      expect(deriveRoleTitleFromPermissions(opsLeadPerms, true)).toBe("Chapter Lead");
+    });
+
+    it("resolves Chapter Lead for single-chapter scope and City Lead for multi-chapter scope", () => {
+      const leadPerms = [
+        "opportunities:write", "opportunities:read",
+        "noticeboard:write",
+        "applications:update", "applications:read",
+        "hours:update", "hours:read",
+        "chapters:write", "chapters:read",
+      ];
+      expect(deriveRoleTitleFromPermissions(leadPerms, true, 1)).toBe("Chapter Lead");
+      expect(deriveRoleTitleFromPermissions(leadPerms, true, 2)).toBe("City Lead");
+      expect(deriveRoleTitleFromPermissions(leadPerms, false)).toBe("City Lead"); // unconstrained/org-wide
     });
 
     it("resolves Drive Coordinator vs Chapter Coordinator based on chapter scope", () => {
