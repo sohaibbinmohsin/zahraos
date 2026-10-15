@@ -23,7 +23,7 @@ Deno.test("enableModule enables the module and seeds system roles", async () => 
   const { data: roles } = await supabase.from("roles").select("name").eq("organization_id", org!.id);
   assertEquals(
     new Set((roles ?? []).map((r) => r.name)),
-    new Set(["Super Admin", "Operations Lead", "Drive Coordinator", "Application Reviewer", "Auditor"]),
+    new Set(["Super Admin", "Org Admin", "Chapter Lead", "City Lead", "Drive Coordinator", "Application Reviewer", "Auditor"]),
   );
 });
 
