@@ -37,7 +37,7 @@
   --st-neg-bg: #FDF2F2; --st-neg-fg: #991B1B; --st-neg-bd: #F8B4B4;
   --st-neu-bg: #F1F3F5; --st-neu-fg: #495057; --st-neu-bd: #DDE2E5;
 
-  --sidebar-w: 260px;
+  --sidebar-w: 288px;
   --sidebar-collapsed-w: 72px;
   --radius-card: 12px;
   --radius-btn: 8px;
@@ -343,7 +343,7 @@ h1, h2, h3, h4, h5, h6 {
   color: #FFF;
   line-height: 1;
   letter-spacing: .02em;
-  max-width: 160px;
+  max-width: 188px;
   display: inline-block;
 }
 
@@ -454,7 +454,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nav-label {
-  max-width: 160px;
+  max-width: 188px;
   display: inline-block;
 }
 
@@ -553,7 +553,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: 220px;
+  max-width: 100%;
 }
 
 .sidebar-copy {
@@ -570,7 +570,8 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   gap: .45rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   line-height: 1.3;
 }
 

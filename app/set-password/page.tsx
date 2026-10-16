@@ -1,15 +1,16 @@
 import Image from "next/image";
 import { SetPasswordForm } from "@/components/SetPasswordForm";
 import { MohsinProjectLogo } from "@/components/MohsinProjectLogo";
+import { ZahraOSLogo } from "@/components/ZahraOSLogo";
 import rizqSymbol from "@/public/assets/rizq-symbol.png";
 
 export default function SetPasswordPage() {
   return (
     <div className="min-h-screen bg-[#F8F9FA] flex flex-col justify-between">
-      {/* Top Left: ZahraOS & The Mohsin Project Logo */}
+      {/* Top Left: ZahraOS Logo & Brand */}
       <header className="w-full px-6 sm:px-8 py-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <MohsinProjectLogo className="h-7 w-auto shrink-0" />
+          <ZahraOSLogo className="h-8 w-8 shrink-0 rounded-lg shadow-xs" />
           <div className="flex flex-col">
             <span className="font-['Plus_Jakarta_Sans'] font-bold text-lg tracking-wide text-[#14161B] leading-tight">
               ZahraOS
