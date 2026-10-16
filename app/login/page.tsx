@@ -10,7 +10,7 @@ export default function LoginPage() {
       {/* Top Left: ZahraOS Logo & Brand */}
       <header className="w-full px-6 sm:px-8 py-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <ZahraOSLogo className="h-8 w-8 shrink-0 rounded-lg shadow-xs" />
+          <ZahraOSLogo className="h-8 w-8 shrink-0" />
           <div className="flex flex-col">
             <span className="font-['Plus_Jakarta_Sans'] font-bold text-lg tracking-wide text-[#14161B] leading-tight">
               ZahraOS
