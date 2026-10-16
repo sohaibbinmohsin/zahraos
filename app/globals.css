@@ -37,7 +37,7 @@
   --st-neg-bg: #FDF2F2; --st-neg-fg: #991B1B; --st-neg-bd: #F8B4B4;
   --st-neu-bg: #F1F3F5; --st-neu-fg: #495057; --st-neu-bd: #DDE2E5;
 
-  --sidebar-w: 260px;
+  --sidebar-w: 288px;
   --sidebar-collapsed-w: 72px;
   --radius-card: 12px;
   --radius-btn: 8px;
@@ -59,9 +59,9 @@
   --text-2xl: 1.65rem;   /* 26.4px */
   --text-3xl: 2.0rem;    /* 32px */
 
-  --font-display: "Oswald", "Jost", -apple-system, sans-serif;
-  --font-body: "Jost", system-ui, -apple-system, sans-serif;
-  --font-mono: "Space Mono", monospace;
+  --font-display: "Plus Jakarta Sans", "Inter", -apple-system, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Space Mono", monospace;
 }
 
 * { box-sizing: border-box; }
@@ -343,7 +343,7 @@ h1, h2, h3, h4, h5, h6 {
   color: #FFF;
   line-height: 1;
   letter-spacing: .02em;
-  max-width: 160px;
+  max-width: 188px;
   display: inline-block;
 }
 
@@ -454,7 +454,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .nav-label {
-  max-width: 160px;
+  max-width: 188px;
   display: inline-block;
 }
 
@@ -553,7 +553,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: 220px;
+  max-width: 100%;
 }
 
 .sidebar-copy {
@@ -570,7 +570,8 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   gap: .45rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
   line-height: 1.3;
 }
 
@@ -1572,7 +1573,7 @@ input[type="password"] {
 }
 
 input[type="password"]::placeholder {
-  font-family: var(--font-body), 'Jost', sans-serif !important;
+  font-family: var(--font-body), 'Inter', sans-serif !important;
   letter-spacing: normal !important;
   color: var(--ink-3);
   font-size: var(--text-base);

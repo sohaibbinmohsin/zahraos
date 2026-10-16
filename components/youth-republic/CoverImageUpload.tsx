@@ -355,7 +355,7 @@ function CoverCropModal({ src, isUploading, onClose, onCropComplete, onSelectNew
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
           <div>
-            <h2 style={{ fontFamily: "Oswald, sans-serif", fontWeight: 700, fontSize: "1.15rem", textTransform: "uppercase", letterSpacing: "0.03em", margin: 0 }}>
+            <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.15rem", letterSpacing: "0.01em", margin: 0 }}>
               Crop Cover Image
             </h2>
             <p style={{ fontSize: "0.82rem", color: "var(--ink-2)", marginTop: "4px", marginBottom: 0 }}>

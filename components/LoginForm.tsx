@@ -45,7 +45,7 @@ export function LoginForm() {
       )}
 
       <div>
-        <label htmlFor="email" className="block text-xs font-semibold text-[#4A4D57] mb-1.5 font-['Jost']">
+        <label htmlFor="email" className="block text-xs font-semibold text-[#4A4D57] mb-1.5 font-['Inter']">
           Email
         </label>
         <input
@@ -62,7 +62,7 @@ export function LoginForm() {
 
       <div>
         <div className="flex justify-between items-center mb-1.5">
-          <label htmlFor="password" className="block text-xs font-semibold text-[#4A4D57] font-['Jost']">
+          <label htmlFor="password" className="block text-xs font-semibold text-[#4A4D57] font-['Inter']">
             Password
           </label>
         </div>
@@ -73,7 +73,7 @@ export function LoginForm() {
             required
             autoComplete="current-password"
             className={`w-full rounded-lg border border-[#E2E4E8] px-3.5 pr-10 py-2.5 text-sm text-[#14161B] bg-white placeholder-[#8A8E99] focus:outline-none focus:border-[#14161B] focus:ring-2 focus:ring-[#D3BD2A]/20 transition dots-placeholder ${
-              showPassword ? "font-['Jost'] tracking-normal" : "font-sans tracking-[0.18em]"
+              showPassword ? "font-['Inter'] tracking-normal" : "font-sans tracking-[0.18em]"
             }`}
             placeholder="••••••••"
             value={password}
