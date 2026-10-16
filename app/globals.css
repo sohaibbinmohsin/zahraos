@@ -59,9 +59,9 @@
   --text-2xl: 1.65rem;   /* 26.4px */
   --text-3xl: 2.0rem;    /* 32px */
 
-  --font-display: "Oswald", "Jost", -apple-system, sans-serif;
-  --font-body: "Jost", system-ui, -apple-system, sans-serif;
-  --font-mono: "Space Mono", monospace;
+  --font-display: "Plus Jakarta Sans", "Inter", -apple-system, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "Space Mono", monospace;
 }
 
 * { box-sizing: border-box; }
@@ -1572,7 +1572,7 @@ input[type="password"] {
 }
 
 input[type="password"]::placeholder {
-  font-family: var(--font-body), 'Jost', sans-serif !important;
+  font-family: var(--font-body), 'Inter', sans-serif !important;
   letter-spacing: normal !important;
   color: var(--ink-3);
   font-size: var(--text-base);

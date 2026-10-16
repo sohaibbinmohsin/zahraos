@@ -11,10 +11,10 @@ export default function LoginPage() {
         <div className="flex items-center gap-3">
           <MohsinProjectLogo className="h-7 w-auto shrink-0" />
           <div className="flex flex-col">
-            <span className="font-['Oswald'] font-bold text-lg tracking-wide text-[#14161B] leading-tight">
+            <span className="font-['Plus_Jakarta_Sans'] font-bold text-lg tracking-wide text-[#14161B] leading-tight">
               ZahraOS
             </span>
-            <span className="text-xs font-normal text-[#8A8E99] font-['Jost'] leading-tight">
+            <span className="text-xs font-normal text-[#8A8E99] font-['Inter'] leading-tight">
               Enterprise Platform Console
             </span>
           </div>
@@ -39,10 +39,10 @@ export default function LoginPage() {
           {/* Auth Card */}
           <div className="bg-white border border-[#E2E4E8] rounded-xl p-6 sm:p-8 shadow-xs">
             <div className="mb-6 pb-4 border-b border-[#ECEEF2]">
-              <h1 className="font-['Oswald'] text-xl font-bold tracking-tight text-[#14161B]">
+              <h1 className="font-['Plus_Jakarta_Sans'] text-xl font-bold tracking-tight text-[#14161B]">
                 Partner Sign In
               </h1>
-              <p className="mt-1 text-sm text-[#4A4D57] font-['Jost'] leading-relaxed">
+              <p className="mt-1 text-sm text-[#4A4D57] font-['Inter'] leading-relaxed">
                 Enter your organizational credentials to access governance & module operations.
               </p>
             </div>
@@ -51,7 +51,7 @@ export default function LoginPage() {
           </div>
 
           {/* Footer Note with Colored Mohsin Project Logo After "The Mohsin Project" */}
-          <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-[#8A8E99] font-['Jost'] flex-wrap text-center">
+          <div className="mt-6 flex items-center justify-center gap-1.5 text-xs text-[#8A8E99] font-['Inter'] flex-wrap text-center">
             <span>Powered by ZahraOS</span>
             <span>·</span>
             <span>A free software by The Mohsin Project</span>
