@@ -59,10 +59,35 @@
   --text-2xl: 1.65rem;   /* 26.4px */
   --text-3xl: 2.0rem;    /* 32px */
 
-  --font-display: "Plus Jakarta Sans", "Inter", -apple-system, sans-serif;
-  --font-body: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Space Mono", monospace;
 }
+
+/* Saving 9 / Maseeha Theme Tokens */
+.theme-saving9, [data-theme="saving9"] {
+  --brand: #0B1F3D;          /* Deep Saving 9 Navy */
+  --brand-hover: #142A4C;    /* Deep Navy Hover */
+  --brand-dark: #07152A;
+  --brand-accent: #29C4E4;   /* Saving 9 Wing Cyan */
+  --brand-tint: #EBF8FA;     /* Soft Cyan Wash */
+  --brand-bd: #B2E9F4;       /* Cyan Subtle Border */
+  --on-brand: #FFFFFF;
+}
+
+.theme-saving9 .sidebar-nav-item.active {
+  background: rgba(41, 196, 228, 0.12);
+  color: #FFFFFF;
+}
+.theme-saving9 .sidebar-nav-item.active .icon-svg {
+  color: #29C4E4;
+}
+.theme-saving9 .btn-primary {
+  background: #0B1F3D;
+  color: #FFFFFF;
+  border-color: #07152A;
+}
+.theme-saving9 .btn-primary:hover {
+  background: #142A4C;
+}
+
 
 * { box-sizing: border-box; }
 
