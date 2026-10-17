@@ -658,7 +658,7 @@ function AppShellContent({
 
   return (
     <>
-      <div className={`app-shell ${pathname?.startsWith("/maseeha") ? "theme-saving9" : ""}`}>
+      <div className={`app-shell ${isMaseehaModule ? "theme-saving9" : ""}`}>
         <div
           className={`sidebar-backdrop ${mobileSidebarOpen ? "open" : ""}`}
           onClick={() => setMobileSidebarOpen(false)}
@@ -685,7 +685,7 @@ function AppShellContent({
                   if (sidebarCollapsed) {
                     setSidebarCollapsed(false);
                   } else {
-                    router.push("/youth-republic/dashboard");
+                    router.push(isMaseehaModule ? "/maseeha/dashboard" : "/youth-republic/dashboard");
                     setMobileSidebarOpen(false);
                   }
                 }}
@@ -702,7 +702,15 @@ function AppShellContent({
                     }
                   }}
                 >
-                  {brandLogoUrl ? (
+                  {isMaseehaModule ? (
+                    <div className="sidebar-brand-card">
+                      <img
+                        src="/assets/saving9-logo-cropped.png"
+                        alt={`${brandLabel} logo`}
+                        className="sidebar-logo-img"
+                      />
+                    </div>
+                  ) : brandLogoUrl ? (
                     <img
                       src={brandLogoUrl}
                       alt={`${brandLabel} logo`}
