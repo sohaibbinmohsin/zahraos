@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { MaseehaTabs } from "@/components/maseeha/MaseehaTabs";
 
 export const metadata: Metadata = {
   title: "Saving 9 · Maseeha Operations Command Center",
@@ -12,6 +13,7 @@ export default function MaseehaLayout({
 }) {
   return (
     <div className="maseeha-root theme-saving9">
+      <MaseehaTabs />
       {children}
     </div>
   );

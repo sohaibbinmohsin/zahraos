@@ -548,10 +548,32 @@ function AppShellContent({
   const claims = useStaffClaims();
 
   // UI states
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        if (sp.has("collapsed")) return true;
+        return window.localStorage?.getItem("zahraos_sidebar_collapsed") === "1";
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        if (sp.has("collapsed") || window.localStorage?.getItem("zahraos_sidebar_collapsed") === "1") {
+          setSidebarCollapsed(true);
+        }
+      } catch {}
+    }
+  }, []);
 
   // Badge counts
   const [pendingApplicationsCount, setPendingApplicationsCount] = useState<number | null>(null);
@@ -734,11 +756,39 @@ function AppShellContent({
                   }}
                 >
                   {isMaseehaModule ? (
-                    <div className="sidebar-brand-card">
+                    <div
+                      className="sidebar-brand-card"
+                      style={{
+                        width: 32,
+                        height: 32,
+                        minWidth: 32,
+                        minHeight: 32,
+                        borderRadius: 8,
+                        background: "#FFFFFF",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 3,
+                        boxSizing: "border-box",
+                        flexShrink: 0,
+                        overflow: "hidden",
+                        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.25)",
+                      }}
+                    >
                       <img
                         src="/assets/saving9-square-badge.png"
                         alt={`${brandLabel} logo`}
                         className="sidebar-logo-img"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          maxWidth: 24,
+                          maxHeight: 24,
+                          objectFit: "contain",
+                          display: "block",
+                        }}
+                        loading="eager"
+                        decoding="sync"
                       />
                     </div>
                   ) : brandLogoUrl ? (
@@ -795,7 +845,13 @@ function AppShellContent({
                   if (isMobile) {
                     setMobileSidebarOpen(false);
                   } else {
-                    setSidebarCollapsed((v) => !v);
+                    setSidebarCollapsed((v) => {
+                      const next = !v;
+                      try {
+                        window.localStorage?.setItem("zahraos_sidebar_collapsed", next ? "1" : "0");
+                      } catch {}
+                      return next;
+                    });
                   }
                 }}
                 title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}

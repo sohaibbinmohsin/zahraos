@@ -75,24 +75,27 @@
 
 /* Sidebar Logo Card */
 .sidebar-brand-card {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #FFFFFF;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 3px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-  flex-shrink: 0;
-  box-sizing: border-box;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  border-radius: 8px !important;
+  background: #FFFFFF !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 3px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
 }
 
 .sidebar-brand-card .sidebar-logo-img {
   width: 100% !important;
   height: 100% !important;
-  max-width: 26px !important;
-  max-height: 26px !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
   object-fit: contain !important;
   display: block !important;
   border-radius: 4px;
@@ -110,6 +113,11 @@
   min-height: 60px;
 }
 
+.theme-saving9 .sidebar-logo-btn {
+  width: 32px !important;
+  height: 32px !important;
+}
+
 .theme-saving9 .sidebar-title {
   color: #FFFFFF !important;
   font-size: 1.15rem !important;
@@ -123,7 +131,7 @@
 }
 
 .theme-saving9 .sidebar-module-divider {
-  background: rgba(41, 196, 228, 0.16) !important;
+  display: none !important;
 }
 
 .theme-saving9 .nav-group-label {
@@ -216,9 +224,24 @@
   font-weight: 500 !important;
 }
 
+.theme-saving9 .avatar,
+.theme-saving9 .avatar-large,
 .theme-saving9 .user-pill .avatar {
   background: #0B1F3D !important;
   color: #29C4E4 !important;
+  border: 1px solid rgba(41, 196, 228, 0.35) !important;
+  font-weight: 600 !important;
+}
+
+.theme-saving9 .module-tab.active {
+  border-bottom-color: #29C4E4 !important;
+  color: #0B1F3D !important;
+}
+
+.theme-saving9 .module-tab.active .count-badge {
+  background: #0B1F3D !important;
+  color: #29C4E4 !important;
+  border-color: #0B1F3D !important;
 }
 
 
@@ -481,8 +504,8 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   position: relative;
-  height: 22px;
-  width: auto;
+  height: 32px;
+  width: 32px;
   flex-shrink: 0;
 }
 
