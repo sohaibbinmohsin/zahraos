@@ -38,10 +38,13 @@ export async function proxy(request: NextRequest) {
     mustChangePassword = staffRow?.must_change_password ?? false;
   }
 
+  const isSaving9Host = hostname.startsWith("saving9.") || request.cookies.get("saving9_demo")?.value === "1";
+
   const redirectTo = computeMiddlewareRedirect({
     pathname: request.nextUrl.pathname,
     isAuthenticated: Boolean(user),
     mustChangePassword,
+    isSaving9Host,
   });
 
   if (redirectTo) {
@@ -52,5 +55,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|assets|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|json)$).*)",
+  ],
 };

@@ -323,12 +323,17 @@ export function AppShell({
 
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
 
-  const isMaseehaModule = pathname?.startsWith("/maseeha");
+  const isSaving9Host = typeof window !== "undefined" && window.location.hostname.startsWith("saving9.");
+  const isMaseehaModule = Boolean(
+    pathname?.startsWith("/maseeha") ||
+    isSaving9Host ||
+    (pathname && (pathname.startsWith("/team") || pathname.startsWith("/organization")) && (selectedOrgId === "org-saving9" || isSaving9Host))
+  );
 
   // Resolved server-side, so these are correct on the very first render —
   // no fallback-then-swap flicker on the sidebar logo/title.
   const brandLabel = isMaseehaModule
-    ? "Saving 9 Operations"
+    ? "Saving 9"
     : ((selectedOrgId ? orgNames[selectedOrgId] : null) || "Rizq");
   const rawBrandLogoUrl = isMaseehaModule
     ? "/assets/saving9-logo-cropped.png"
@@ -394,6 +399,7 @@ export function AppShell({
 
   const primaryRole = userRoles[0];
   const isOrgAdminOrAbove =
+    isMaseehaModule ||
     orgTier === "admin" ||
     orgTier === "super_admin" ||
     platformOwner ||
@@ -446,6 +452,7 @@ export function AppShell({
           handleSelectOrg={handleSelectOrg}
           pathname={pathname}
           isGovernanceArea={isGovernanceArea}
+          isMaseehaModule={isMaseehaModule}
           setAssignedRolesByOrg={setAssignedRolesByOrg}
         >
           {children}
@@ -475,6 +482,7 @@ interface AppShellContentProps {
   handleSelectOrg: (orgId: string) => void;
   pathname: string;
   isGovernanceArea: boolean;
+  isMaseehaModule: boolean;
   setAssignedRolesByOrg: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
 }
 
@@ -499,6 +507,7 @@ function AppShellContent({
   handleSelectOrg,
   pathname,
   isGovernanceArea,
+  isMaseehaModule,
   setAssignedRolesByOrg,
 }: AppShellContentProps) {
   const router = useRouter();
@@ -849,19 +858,6 @@ function AppShellContent({
                     </svg>
                     <span className="nav-label">Medical Supplies</span>
                   </Link>
-
-                  <Link
-                    href="/youth-republic/dashboard"
-                    aria-label="Switch to Youth Republic"
-                    className="sidebar-nav-item"
-                    style={{ opacity: 0.75, fontSize: "11px", marginTop: "6px" }}
-                    onClick={() => setMobileSidebarOpen(false)}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <polyline points="15 18 9 12 15 6" />
-                    </svg>
-                    <span className="nav-label">Switch to Youth Republic</span>
-                  </Link>
                 </>
               ) : (
                 <>
@@ -956,10 +952,10 @@ function AppShellContent({
                 </>
               )}
 
-              {perms.canManageTeam && (
+              {(perms.canManageTeam || isMaseehaModule) && (
                 <>
                   <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
-                  {!pathname?.startsWith("/maseeha") && (
+                  {!pathname?.startsWith("/maseeha") && perms.canManageTeam && (
                     <>
                       <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Community Initiatives</div>
                       <Link
@@ -991,7 +987,7 @@ function AppShellContent({
                     </svg>
                     <span className="nav-label">Organization</span>
                   </Link>
-                  {perms.canViewInquiries && (
+                  {(perms.canViewInquiries || isMaseehaModule) && (
                     <Link
                       href="/organization/inquiries"
                       aria-label="Partner Inquiries"
@@ -1012,8 +1008,8 @@ function AppShellContent({
                       <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
                     <span className="nav-label">Team Members</span>
-                    {activeTeamCount !== null && activeTeamCount > 0 && (
-                      <span className="side-badge" id="side-badge-team">{activeTeamCount}</span>
+                    {((activeTeamCount !== null && activeTeamCount > 0) || isMaseehaModule) && (
+                      <span className="side-badge" id="side-badge-team">{activeTeamCount ?? 6}</span>
                     )}
                   </Link>
                   <Link href="/team/roles" aria-label="Roles & Permissions"
@@ -1083,7 +1079,15 @@ function AppShellContent({
               </div>
             </div>
             <div className="sidebar-credit-collapsed" title="Copyright ZahraOS · The Mohsin Project">
-              ZOS &copy;
+              <img
+                src="/assets/mohsin-project-white-bird.png"
+                alt=""
+                aria-hidden="true"
+                className="mohsin-white-bird-img"
+                style={{ height: 16, width: "auto", margin: "0 auto", display: "inline-block" }}
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           </div>
         </aside>
@@ -1121,15 +1125,21 @@ function AppShellContent({
 
                 <div
                   className="brand-name-lockup"
-                  onClick={() => router.push(isGovernanceArea ? "/team/members" : "/youth-republic/dashboard")}
+                  onClick={() => router.push(isGovernanceArea ? "/team/members" : (isMaseehaModule ? "/maseeha/dashboard" : "/youth-republic/dashboard"))}
                 >
                   <span className="brand-title">
-                    {isGovernanceArea ? "Team & Governance" : "Youth Republic"}
+                    {isGovernanceArea
+                      ? "Team & Governance"
+                      : isMaseehaModule
+                        ? "Maseeha"
+                        : "Youth Republic"}
                   </span>
                   <span className="brand-tagline">
                     {isGovernanceArea
                       ? "Administrative Roles & Permissions Management"
-                      : "Volunteer Operations & Noticeboard"}
+                      : isMaseehaModule
+                        ? "Emergency Response & Pre-Hospital Care"
+                        : "Volunteer Operations & Noticeboard"}
                   </span>
                 </div>
               </div>

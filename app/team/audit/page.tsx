@@ -9,6 +9,45 @@ import { AuditTable, auditRowsToCsv, type AuditRow } from "@/components/team/Aud
 import { StatCard } from "@/components/team/StatCard";
 import { StatGridSkeleton, TableSkeleton } from "@/components/ui/skeletons";
 
+const SAVING9_AUDIT_LOG: AuditRow[] = [
+  {
+    id: "aud-1",
+    createdAt: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
+    actorName: "Zainab Nosheen",
+    action: "DISPATCH_AUTHORIZED",
+    summary: "Dispatched Ambulance LEA 7221 to Dhok Qaziyan (Simly Dam) for STEMI triage",
+    ip: "182.180.122.14",
+    scopeLabel: "Pind Begwal Hub",
+  },
+  {
+    id: "aud-2",
+    createdAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
+    actorName: "Fatima Zahra",
+    action: "ZAKAT_SUBSIDY_APPROVED",
+    summary: "Approved 100% Zakat relief subsidy waiver (Rs. 5,000) for Patient Sameer Qazi (#1466)",
+    ip: "39.40.82.91",
+    scopeLabel: "Org-wide",
+  },
+  {
+    id: "aud-3",
+    createdAt: new Date(Date.now() - 1000 * 60 * 110).toISOString(),
+    actorName: "Muhammad Faizan",
+    action: "EQUIPMENT_MAINTENANCE",
+    summary: "Replaced 2x 2,000 PSI medical oxygen cylinders on Ambulance LT-326",
+    ip: "182.180.122.25",
+    scopeLabel: "Tumair Hub",
+  },
+  {
+    id: "aud-4",
+    createdAt: new Date(Date.now() - 1000 * 60 * 240).toISOString(),
+    actorName: "Usama Bilal",
+    action: "ROLE_PERMISSION_UPDATED",
+    summary: "Granted Dr. Ayesha Malik Org Admin governance privileges",
+    ip: "119.160.119.5",
+    scopeLabel: "Org-wide",
+  },
+];
+
 export default function TeamAuditPage() {
   const organizationId = useSelectedOrg();
   const { setAction } = useTeamHeader();
@@ -19,7 +58,11 @@ export default function TeamAuditPage() {
 
   const load = useCallback(async () => {
     setLoadError(null);
-    if (!organizationId) { setLoading(false); return; }
+    if (!organizationId || organizationId === "org-saving9") {
+      setRows(SAVING9_AUDIT_LOG);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     const supabase = getBrowserSupabaseClient();
     try {

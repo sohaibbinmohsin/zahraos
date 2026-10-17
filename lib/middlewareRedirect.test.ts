@@ -36,4 +36,15 @@ describe("computeMiddlewareRedirect", () => {
     const result = computeMiddlewareRedirect({ pathname: "/staff", isAuthenticated: true, mustChangePassword: false });
     expect(result).toBeNull();
   });
+
+  it("lets unauthenticated requests through to public static assets", () => {
+    expect(computeMiddlewareRedirect({ pathname: "/assets/saving9-logo-cropped.png", isAuthenticated: false, mustChangePassword: false })).toBeNull();
+    expect(computeMiddlewareRedirect({ pathname: "/assets/mohsin-project-white-bird.png", isAuthenticated: false, mustChangePassword: false })).toBeNull();
+  });
+
+  it("lets unauthenticated requests through to maseeha routes and saving9 governance", () => {
+    expect(computeMiddlewareRedirect({ pathname: "/maseeha/dashboard", isAuthenticated: false, mustChangePassword: false })).toBeNull();
+    expect(computeMiddlewareRedirect({ pathname: "/team/members", isAuthenticated: false, mustChangePassword: false, isSaving9Host: true })).toBeNull();
+    expect(computeMiddlewareRedirect({ pathname: "/organization", isAuthenticated: false, mustChangePassword: false, isSaving9Host: true })).toBeNull();
+  });
 });

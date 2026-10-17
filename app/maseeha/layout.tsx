@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Maseeha Operations Command Center · Saving 9 & ZahraOS",
+  title: "Saving 9 · Maseeha Operations Command Center",
   description: "Emergency Medical Service operations console for Saving 9 pre-hospital ambulance network.",
 };
 

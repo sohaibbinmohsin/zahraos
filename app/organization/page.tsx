@@ -38,7 +38,20 @@ export default function OrganizationPage() {
   const canAccess = Boolean(perms.canManageTeam || isOrgAdminOrAbove);
 
   const fetchAll = useCallback(async () => {
-    if (!organizationId) return;
+    if (!organizationId || organizationId === "org-saving9") {
+      setProfile({
+        name: "Saving 9",
+        about: "Saving 9 is an emergency response non-profit empowering rural and peri-urban communities in Pakistan with community-first pre-hospital care and ambulance dispatch.",
+        brandColor: "#0B1F3D",
+        logoUrl: "/assets/saving9-logo-cropped.png",
+      });
+      setChapters([
+        { id: "chap-pind-begwal", name: "Pind Begwal Hub", city: "Islamabad Rural", status: "active" },
+        { id: "chap-tumair", name: "Tumair Hub", city: "Islamabad Rural", status: "active" },
+        { id: "chap-jheeng", name: "Jheeng Hub", city: "Islamabad Rural", status: "active" },
+      ]);
+      return;
+    }
     const supabase = getBrowserSupabaseClient();
     try {
       const [orgRes, chaptersRes] = await Promise.all([
@@ -63,6 +76,12 @@ export default function OrganizationPage() {
   }, [organizationId, accessToken]);
 
   const load = useCallback(async () => {
+    if ((!organizationId || organizationId === "org-saving9") && !shellLoading) {
+      setLoading(true);
+      await fetchAll();
+      setLoading(false);
+      return;
+    }
     if (!organizationId || shellLoading || !canAccess) { setLoading(false); return; }
     setLoading(true);
     try {
@@ -70,7 +89,7 @@ export default function OrganizationPage() {
     } finally {
       setLoading(false);
     }
-  }, [organizationId, shellLoading, canAccess, fetchAll]);
+  }, [fetchAll, organizationId, shellLoading, canAccess]);
 
   useEffect(() => { load(); }, [load]);
 
