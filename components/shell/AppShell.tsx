@@ -323,11 +323,42 @@ export function AppShell({
 
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
 
-  const isSaving9Host = typeof window !== "undefined" && window.location.hostname.startsWith("saving9.");
+  const isSaving9Host =
+    typeof window !== "undefined" &&
+    (window.location.hostname.startsWith("saving9.") || window.location.hostname.includes("saving9"));
+
+  const [isSaving9Tenant, setIsSaving9Tenant] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      return (
+        window.location.hostname.includes("saving9") ||
+        window.sessionStorage?.getItem("zahraos_saving9_tenant") === "1"
+      );
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (pathname.startsWith("/maseeha") || isSaving9Host) {
+        window.sessionStorage?.setItem("zahraos_saving9_tenant", "1");
+        setIsSaving9Tenant(true);
+      } else if (pathname.startsWith("/youth-republic")) {
+        window.sessionStorage?.removeItem("zahraos_saving9_tenant");
+        setIsSaving9Tenant(false);
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, [pathname, isSaving9Host]);
+
   const isMaseehaModule = Boolean(
     pathname?.startsWith("/maseeha") ||
     isSaving9Host ||
-    (pathname && (pathname.startsWith("/team") || pathname.startsWith("/organization")) && (selectedOrgId === "org-saving9" || isSaving9Host))
+    isSaving9Tenant ||
+    selectedOrgId === "org-saving9"
   );
 
   // Resolved server-side, so these are correct on the very first render —
@@ -336,9 +367,9 @@ export function AppShell({
     ? "Saving 9"
     : ((selectedOrgId ? orgNames[selectedOrgId] : null) || "Rizq");
   const rawBrandLogoUrl = isMaseehaModule
-    ? "/assets/saving9-logo-cropped.png"
+    ? "/assets/saving9-square-badge.png"
     : (selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null);
-  const brandLogoUrl = isMaseehaModule ? "/assets/saving9-logo-cropped.png" : (isDisplayableLogo(rawBrandLogoUrl) ? rawBrandLogoUrl : null);
+  const brandLogoUrl = isMaseehaModule ? "/assets/saving9-square-badge.png" : (isDisplayableLogo(rawBrandLogoUrl) ? rawBrandLogoUrl : null);
   const brandColor = isMaseehaModule ? "#0B1F3D" : ((selectedOrgId ? orgBrands[selectedOrgId]?.brandColor : null) || "#1F2430");
   const brandInitials = isMaseehaModule ? "S9" : (brandLabel.trim().split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase() || "R");
 
@@ -405,7 +436,7 @@ export function AppShell({
     platformOwner ||
     userRoles.some((r) => ["super admin", "admin", "org admin", "organization admin"].includes(r.toLowerCase()));
 
-  const showOrganizationsNav = Boolean(claims) && platformOwner;
+  const showOrganizationsNav = Boolean(claims) && platformOwner && !isMaseehaModule;
 
   const displayName = fullName || (isMaseehaModule ? "Saving 9 Admin" : null);
   const displayRole = primaryRole || (isMaseehaModule ? "Chapter Supervisor" : "Staff");
@@ -705,7 +736,7 @@ function AppShellContent({
                   {isMaseehaModule ? (
                     <div className="sidebar-brand-card">
                       <img
-                        src="/assets/saving9-logo-cropped.png"
+                        src="/assets/saving9-square-badge.png"
                         alt={`${brandLabel} logo`}
                         className="sidebar-logo-img"
                       />
@@ -788,7 +819,7 @@ function AppShellContent({
             </div>
 
             <nav className="sidebar-nav">
-              {pathname?.startsWith("/maseeha") ? (
+              {isMaseehaModule ? (
                 <>
                   <div className="nav-group-label">Maseeha Emergency Network</div>
 
@@ -963,25 +994,6 @@ function AppShellContent({
               {(perms.canManageTeam || isMaseehaModule) && (
                 <>
                   <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
-                  {!pathname?.startsWith("/maseeha") && perms.canManageTeam && (
-                    <>
-                      <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Community Initiatives</div>
-                      <Link
-                        href="/maseeha/dashboard"
-                        aria-label="Maseeha (Saving 9)"
-                        className={`sidebar-nav-item ${pathname?.startsWith("/maseeha") ? "active" : ""}`}
-                        onClick={() => setMobileSidebarOpen(false)}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                          <path d="M10 17h4V5H2v12h3" />
-                          <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2" />
-                          <circle cx="7.5" cy="17.5" r="2.5" />
-                          <circle cx="17.5" cy="17.5" r="2.5" />
-                        </svg>
-                        <span className="nav-label">Maseeha (Saving 9)</span>
-                      </Link>
-                    </>
-                  )}
                   <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
                   <Link
                     href="/organization"

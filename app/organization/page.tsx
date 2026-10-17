@@ -142,9 +142,11 @@ export default function OrganizationPage() {
     } finally { setSaving(false); }
   }
 
-  if (!organizationId) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Select an organization.</p></div>;
+  const isSaving9Demo = !organizationId || organizationId === "org-saving9";
+
   if (shellLoading) return <OrganizationSkeleton />;
-  if (!canAccess) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">You need organization or chapter admin access to view this page.</p></div>;
+  if (!organizationId && !isSaving9Demo) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Select an organization.</p></div>;
+  if (!canAccess && !isSaving9Demo) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">You need organization or chapter admin access to view this page.</p></div>;
   if (loading || !profile) return <OrganizationSkeleton />;
 
   return (
@@ -236,7 +238,7 @@ export default function OrganizationPage() {
       </Card>
 
       <ChaptersPanel
-        organizationId={organizationId}
+        organizationId={organizationId ?? "org-saving9"}
         accessToken={accessToken ?? ""}
         chapters={chapters}
         onChanged={fetchAll}

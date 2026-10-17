@@ -75,15 +75,15 @@
 
 /* Sidebar Logo Card */
 .sidebar-brand-card {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   background: #FFFFFF;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28), 0 0 0 1px rgba(255, 255, 255, 0.2);
+  padding: 3px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
   flex-shrink: 0;
   box-sizing: border-box;
 }
@@ -91,10 +91,11 @@
 .sidebar-brand-card .sidebar-logo-img {
   width: 100% !important;
   height: 100% !important;
-  max-width: 30px !important;
-  max-height: 30px !important;
+  max-width: 26px !important;
+  max-height: 26px !important;
   object-fit: contain !important;
   display: block !important;
+  border-radius: 4px;
 }
 
 /* Sidebar styling in Saving 9 theme (Deep Navy #0B1F3D) */
@@ -105,7 +106,7 @@
 
 .theme-saving9 .sidebar-header {
   background: #0B1F3D !important;
-  border-bottom: 1px solid rgba(41, 196, 228, 0.12) !important;
+  border-bottom: none !important;
   min-height: 60px;
 }
 
@@ -117,8 +118,8 @@
 }
 
 .theme-saving9 .sidebar-footer {
-  background: #07152A !important;
-  border-top: 1px solid rgba(41, 196, 228, 0.12) !important;
+  background: transparent !important;
+  border-top: none !important;
 }
 
 .theme-saving9 .sidebar-module-divider {
@@ -135,28 +136,29 @@
   border-color: transparent !important;
 }
 
-/* Saving 9 active nav item highlight (Cyan #29C4E4 & glowing cyan wash) */
+/* Saving 9 active nav item highlight (Matching ZahraOS solid brand token pattern) */
 .theme-saving9 .sidebar-nav-item.active {
-  background: rgba(41, 196, 228, 0.16) !important;
-  border: 1px solid rgba(41, 196, 228, 0.45) !important;
-  color: #FFFFFF !important;
-  box-shadow: inset 3px 0 0 #29C4E4, 0 2px 10px rgba(41, 196, 228, 0.15) !important;
+  background: #29C4E4 !important;
+  color: #0B1F3D !important;
+  font-weight: 600 !important;
+  border-color: #29C4E4 !important;
+  box-shadow: none !important;
 }
 
 .theme-saving9 .sidebar-nav-item.active .icon-svg {
-  color: #29C4E4 !important;
+  color: #0B1F3D !important;
 }
 
 .theme-saving9 .sidebar-nav-item.active .side-badge {
-  background: rgba(41, 196, 228, 0.25) !important;
+  background: #0B1F3D !important;
   color: #29C4E4 !important;
-  border: 1px solid rgba(41, 196, 228, 0.45) !important;
+  border: 1px solid #0B1F3D !important;
 }
 
-/* Saving 9 hover state (clean cyan gradient, NO gold) */
+/* Saving 9 hover state (clean cyan gradient, matching ZahraOS hover geometry) */
 .theme-saving9 .sidebar-nav-item:hover {
-  background: linear-gradient(90deg, rgba(41, 196, 228, 0.14) 0%, rgba(41, 196, 228, 0.03) 100%) !important;
-  border-color: rgba(41, 196, 228, 0.3) !important;
+  background: linear-gradient(90deg, rgba(41, 196, 228, 0.22) 0%, rgba(41, 196, 228, 0.04) 100%) !important;
+  border-color: rgba(41, 196, 228, 0.35) !important;
   color: #FFFFFF !important;
 }
 
@@ -167,7 +169,7 @@
 .theme-saving9 .sidebar-nav-item:hover .side-badge {
   background: rgba(41, 196, 228, 0.2) !important;
   color: #FFFFFF !important;
-  border-color: rgba(41, 196, 228, 0.35) !important;
+  border-color: rgba(41, 196, 228, 0.4) !important;
 }
 
 .theme-saving9 .side-badge {

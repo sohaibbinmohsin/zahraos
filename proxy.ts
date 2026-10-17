@@ -9,6 +9,9 @@ export async function proxy(request: NextRequest) {
   }
 
   const response = NextResponse.next({ request });
+  if (request.nextUrl.pathname.startsWith("/maseeha")) {
+    response.cookies.set("saving9_demo", "1", { path: "/" });
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
