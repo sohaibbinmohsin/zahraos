@@ -56,10 +56,20 @@ export default function InquiriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const isSaving9Host =
+    typeof window !== "undefined" &&
+    (window.location.hostname.startsWith("saving9.") || window.location.hostname.includes("saving9"));
+  const isSaving9Demo = selectedOrgId === "org-saving9" || (!selectedOrgId && isSaving9Host);
+
   useEffect(() => {
     let isCancelled = false;
-    if (!selectedOrgId || selectedOrgId === "org-saving9") {
+    if (isSaving9Demo) {
       setInquiries(SAVING9_INQUIRIES);
+      setLoading(false);
+      return;
+    }
+    if (!selectedOrgId) {
+      setInquiries([]);
       setLoading(false);
       return;
     }
@@ -78,16 +88,17 @@ export default function InquiriesPage() {
     return () => {
       isCancelled = true;
     };
-  }, [selectedOrgId]);
+  }, [selectedOrgId, isSaving9Demo]);
 
   async function handleStatusChange(inquiryId: string, status: InquiryStatus) {
-    if (!selectedOrgId || selectedOrgId === "org-saving9") {
+    if (isSaving9Demo) {
       setInquiries((prev) =>
         prev.map((item) => (item.id === inquiryId ? { ...item, status } : item))
       );
       showToast('Inquiry status updated successfully.');
       return;
     }
+    if (!selectedOrgId) return;
     try {
       await updateInquiryStatus(inquiryId, selectedOrgId, status);
       setInquiries((prev) =>
@@ -99,7 +110,15 @@ export default function InquiriesPage() {
     }
   }
 
-  const effectiveOrgId = selectedOrgId || "org-saving9";
+  if (!selectedOrgId && !isSaving9Demo) {
+    return (
+      <div className="panel p-8 text-center">
+        <p className="text-[var(--ink-2)] font-medium">Please select an organization from the switcher above.</p>
+      </div>
+    );
+  }
+
+  const effectiveOrgId = selectedOrgId || (isSaving9Demo ? "org-saving9" : "");
 
   return (
     <div className="flex flex-col gap-6">

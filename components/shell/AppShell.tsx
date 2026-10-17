@@ -325,15 +325,15 @@ export function AppShell({
 
   const isSaving9Host =
     typeof window !== "undefined" &&
-    (window.location.hostname.startsWith("saving9.") || window.location.hostname.includes("saving9"));
+    (window.location.hostname.startsWith("saving9.") ||
+      window.location.hostname.includes("saving9") ||
+      new URLSearchParams(window.location.search).get("tenant") === "saving9");
 
   const [isSaving9Tenant, setIsSaving9Tenant] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     try {
-      return (
-        window.location.hostname.includes("saving9") ||
-        window.sessionStorage?.getItem("zahraos_saving9_tenant") === "1"
-      );
+      if (!isSaving9Host && selectedOrgId !== "org-saving9") return false;
+      return window.sessionStorage?.getItem("zahraos_saving9_tenant") === "1";
     } catch {
       return false;
     }
@@ -342,22 +342,22 @@ export function AppShell({
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      if (pathname.startsWith("/maseeha") || isSaving9Host) {
+      if (isSaving9Host || selectedOrgId === "org-saving9") {
         window.sessionStorage?.setItem("zahraos_saving9_tenant", "1");
         setIsSaving9Tenant(true);
-      } else if (pathname.startsWith("/youth-republic")) {
+      } else {
         window.sessionStorage?.removeItem("zahraos_saving9_tenant");
         setIsSaving9Tenant(false);
       }
     } catch {
       // Ignore sessionStorage errors
     }
-  }, [pathname, isSaving9Host]);
+  }, [pathname, isSaving9Host, selectedOrgId]);
 
   const isMaseehaModule = Boolean(
     pathname?.startsWith("/maseeha") ||
     isSaving9Host ||
-    isSaving9Tenant ||
+    (isSaving9Tenant && (isSaving9Host || selectedOrgId === "org-saving9")) ||
     selectedOrgId === "org-saving9"
   );
 

@@ -56,10 +56,20 @@ export default function TeamAuditPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  const isSaving9Host =
+    typeof window !== "undefined" &&
+    (window.location.hostname.startsWith("saving9.") || window.location.hostname.includes("saving9"));
+  const isSaving9Demo = organizationId === "org-saving9" || (!organizationId && isSaving9Host);
+
   const load = useCallback(async () => {
     setLoadError(null);
-    if (!organizationId || organizationId === "org-saving9") {
+    if (isSaving9Demo) {
       setRows(SAVING9_AUDIT_LOG);
+      setLoading(false);
+      return;
+    }
+    if (!organizationId) {
+      setRows([]);
       setLoading(false);
       return;
     }

@@ -4,13 +4,20 @@ import { computeMiddlewareRedirect } from "./lib/middlewareRedirect";
 
 export async function proxy(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
-  if (hostname.startsWith("saving9.") && request.nextUrl.pathname === "/") {
+  const isSaving9Host =
+    hostname.startsWith("saving9.") ||
+    hostname.includes("saving9") ||
+    request.nextUrl.searchParams.get("tenant") === "saving9";
+
+  if (isSaving9Host && request.nextUrl.pathname === "/") {
     return NextResponse.redirect(new URL("/maseeha/dashboard", request.url));
   }
 
   const response = NextResponse.next({ request });
-  if (request.nextUrl.pathname.startsWith("/maseeha")) {
+  if (isSaving9Host) {
     response.cookies.set("saving9_demo", "1", { path: "/" });
+  } else if (request.cookies.has("saving9_demo")) {
+    response.cookies.delete("saving9_demo");
   }
 
   const supabase = createServerClient(
@@ -40,8 +47,6 @@ export async function proxy(request: NextRequest) {
       .single();
     mustChangePassword = staffRow?.must_change_password ?? false;
   }
-
-  const isSaving9Host = hostname.startsWith("saving9.") || request.cookies.get("saving9_demo")?.value === "1";
 
   const redirectTo = computeMiddlewareRedirect({
     pathname: request.nextUrl.pathname,

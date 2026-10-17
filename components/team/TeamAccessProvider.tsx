@@ -230,10 +230,22 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!organizationId || organizationId === "org-saving9") {
+    const isSaving9Host =
+      typeof window !== "undefined" &&
+      (window.location.hostname.startsWith("saving9.") || window.location.hostname.includes("saving9"));
+    const isSaving9Demo = organizationId === "org-saving9" || (!organizationId && isSaving9Host);
+
+    if (isSaving9Demo) {
       setRoles(SAVING9_FALLBACK_ROLES);
       setMembers(SAVING9_FALLBACK_MEMBERS);
       setChapters(SAVING9_FALLBACK_CHAPTERS);
+      setLoading(false);
+      return;
+    }
+    if (!organizationId) {
+      setRoles(FALLBACK_SYSTEM_ROLES);
+      setMembers([]);
+      setChapters([]);
       setLoading(false);
       return;
     }

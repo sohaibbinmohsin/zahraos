@@ -37,8 +37,13 @@ export default function OrganizationPage() {
 
   const canAccess = Boolean(perms.canManageTeam || isOrgAdminOrAbove);
 
+  const isSaving9Host =
+    typeof window !== "undefined" &&
+    (window.location.hostname.startsWith("saving9.") || window.location.hostname.includes("saving9"));
+  const isSaving9Demo = organizationId === "org-saving9" || (!organizationId && isSaving9Host);
+
   const fetchAll = useCallback(async () => {
-    if (!organizationId || organizationId === "org-saving9") {
+    if (isSaving9Demo) {
       setProfile({
         name: "Saving 9",
         about: "Saving 9 is an emergency response non-profit empowering rural and peri-urban communities in Pakistan with community-first pre-hospital care and ambulance dispatch.",
@@ -52,6 +57,7 @@ export default function OrganizationPage() {
       ]);
       return;
     }
+    if (!organizationId) return;
     const supabase = getBrowserSupabaseClient();
     try {
       const [orgRes, chaptersRes] = await Promise.all([
@@ -73,10 +79,10 @@ export default function OrganizationPage() {
       setProfile({ name: "", about: "", brandColor: "", logoUrl: "" });
       setChapters([]);
     }
-  }, [organizationId, accessToken]);
+  }, [organizationId, accessToken, isSaving9Demo]);
 
   const load = useCallback(async () => {
-    if ((!organizationId || organizationId === "org-saving9") && !shellLoading) {
+    if (isSaving9Demo && !shellLoading) {
       setLoading(true);
       await fetchAll();
       setLoading(false);
@@ -89,7 +95,7 @@ export default function OrganizationPage() {
     } finally {
       setLoading(false);
     }
-  }, [fetchAll, organizationId, shellLoading, canAccess]);
+  }, [fetchAll, organizationId, shellLoading, canAccess, isSaving9Demo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -141,8 +147,6 @@ export default function OrganizationPage() {
       showToast(err instanceof Error ? err.message : "Failed to save profile.");
     } finally { setSaving(false); }
   }
-
-  const isSaving9Demo = !organizationId || organizationId === "org-saving9";
 
   if (shellLoading) return <OrganizationSkeleton />;
   if (!organizationId && !isSaving9Demo) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Select an organization.</p></div>;
@@ -238,7 +242,7 @@ export default function OrganizationPage() {
       </Card>
 
       <ChaptersPanel
-        organizationId={organizationId ?? "org-saving9"}
+        organizationId={organizationId ?? (isSaving9Demo ? "org-saving9" : "")}
         accessToken={accessToken ?? ""}
         chapters={chapters}
         onChanged={fetchAll}
