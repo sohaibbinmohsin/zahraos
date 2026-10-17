@@ -401,8 +401,8 @@ export function AppShell({
 
   const showOrganizationsNav = Boolean(claims) && platformOwner;
 
-  const displayName = fullName;
-  const displayRole = primaryRole;
+  const displayName = fullName || (isMaseehaModule ? "Saving 9 Admin" : null);
+  const displayRole = primaryRole || (isMaseehaModule ? "Chapter Supervisor" : "Staff");
 
   const initials = displayName
     ? displayName
@@ -411,7 +411,7 @@ export function AppShell({
         .join("")
         .toUpperCase()
         .slice(0, 2)
-    : "SM";
+    : "S9";
 
   const isAuthPage = pathname === "/login" || pathname === "/set-password";
 

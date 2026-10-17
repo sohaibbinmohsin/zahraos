@@ -8,8 +8,10 @@ export function computeMiddlewareRedirect(input: MiddlewareRedirectInput): strin
   const { pathname, isAuthenticated, mustChangePassword } = input;
   const isLoginPath = pathname === "/login" || pathname.startsWith("/login/");
   const isSetPasswordPath = pathname === "/set-password" || pathname.startsWith("/set-password/");
+  const isMaseehaPath = pathname === "/maseeha" || pathname.startsWith("/maseeha/");
 
   if (!isAuthenticated) {
+    if (isMaseehaPath) return null;
     return isLoginPath ? null : "/login";
   }
 

@@ -3,6 +3,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { computeMiddlewareRedirect } from "./lib/middlewareRedirect";
 
 export async function proxy(request: NextRequest) {
+  const hostname = request.headers.get("host") || "";
+  if (hostname.startsWith("saving9.") && request.nextUrl.pathname === "/") {
+    return NextResponse.redirect(new URL("/maseeha/dashboard", request.url));
+  }
+
   const response = NextResponse.next({ request });
 
   const supabase = createServerClient(
