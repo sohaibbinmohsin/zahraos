@@ -3,7 +3,22 @@ import { NextResponse, type NextRequest } from "next/server";
 import { computeMiddlewareRedirect } from "./lib/middlewareRedirect";
 
 export async function proxy(request: NextRequest) {
+  const hostname = request.headers.get("host") || "";
+  const isSaving9Host =
+    hostname.startsWith("saving9.") ||
+    hostname.includes("saving9") ||
+    request.nextUrl.searchParams.get("tenant") === "saving9";
+
+  if (isSaving9Host && request.nextUrl.pathname === "/") {
+    return NextResponse.redirect(new URL("/maseeha/dashboard", request.url));
+  }
+
   const response = NextResponse.next({ request });
+  if (isSaving9Host) {
+    response.cookies.set("saving9_demo", "1", { path: "/" });
+  } else if (request.cookies.has("saving9_demo")) {
+    response.cookies.delete("saving9_demo");
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,6 +52,7 @@ export async function proxy(request: NextRequest) {
     pathname: request.nextUrl.pathname,
     isAuthenticated: Boolean(user),
     mustChangePassword,
+    isSaving9Host,
   });
 
   if (redirectTo) {
@@ -47,5 +63,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|assets|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|txt|json)$).*)",
+  ],
 };

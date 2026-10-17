@@ -59,10 +59,191 @@
   --text-2xl: 1.65rem;   /* 26.4px */
   --text-3xl: 2.0rem;    /* 32px */
 
-  --font-display: "Plus Jakarta Sans", "Inter", -apple-system, sans-serif;
-  --font-body: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Space Mono", monospace;
 }
+
+/* Saving 9 / Maseeha Theme Tokens */
+.theme-saving9, [data-theme="saving9"] {
+  --brand: #0B1F3D;          /* Deep Saving 9 Navy */
+  --brand-hover: #142A4C;    /* Deep Navy Hover */
+  --brand-dark: #07152A;
+  --brand-accent: #29C4E4;   /* Saving 9 Wing Cyan */
+  --brand-tint: #EBF8FA;     /* Soft Cyan Wash */
+  --brand-bd: #B2E9F4;       /* Cyan Subtle Border */
+  --on-brand: #FFFFFF;
+  --bg-sidebar: #0B1F3D;     /* Saving 9 Deep Navy Sidebar */
+}
+
+/* Sidebar Logo Card */
+.sidebar-brand-card {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  border-radius: 8px !important;
+  background: #FFFFFF !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 3px !important;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.sidebar-brand-card .sidebar-logo-img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 24px !important;
+  max-height: 24px !important;
+  object-fit: contain !important;
+  display: block !important;
+  border-radius: 4px;
+}
+
+/* Sidebar styling in Saving 9 theme (Deep Navy #0B1F3D) */
+.theme-saving9 .app-sidebar {
+  background: #0B1F3D !important;
+  border-right: 1px solid rgba(41, 196, 228, 0.16) !important;
+}
+
+.theme-saving9 .sidebar-header {
+  background: #0B1F3D !important;
+  border-bottom: none !important;
+  min-height: 60px;
+}
+
+.theme-saving9 .sidebar-logo-btn {
+  width: 32px !important;
+  height: 32px !important;
+}
+
+.theme-saving9 .sidebar-title {
+  color: #FFFFFF !important;
+  font-size: 1.15rem !important;
+  font-weight: 700 !important;
+  letter-spacing: .01em !important;
+}
+
+.theme-saving9 .sidebar-footer {
+  background: transparent !important;
+  border-top: none !important;
+}
+
+.theme-saving9 .sidebar-module-divider {
+  display: none !important;
+}
+
+.theme-saving9 .nav-group-label {
+  color: #7EA9D6 !important;
+  font-weight: 600 !important;
+}
+
+.theme-saving9 .sidebar-nav-item {
+  color: #D2E4F7 !important;
+  border-color: transparent !important;
+}
+
+/* Saving 9 active nav item highlight (Matching ZahraOS solid brand token pattern) */
+.theme-saving9 .sidebar-nav-item.active {
+  background: #29C4E4 !important;
+  color: #0B1F3D !important;
+  font-weight: 600 !important;
+  border-color: #29C4E4 !important;
+  box-shadow: none !important;
+}
+
+.theme-saving9 .sidebar-nav-item.active .icon-svg {
+  color: #0B1F3D !important;
+}
+
+.theme-saving9 .sidebar-nav-item.active .side-badge {
+  background: #0B1F3D !important;
+  color: #29C4E4 !important;
+  border: 1px solid #0B1F3D !important;
+}
+
+/* Saving 9 hover state (clean cyan gradient, matching ZahraOS hover geometry) */
+.theme-saving9 .sidebar-nav-item:hover {
+  background: linear-gradient(90deg, rgba(41, 196, 228, 0.22) 0%, rgba(41, 196, 228, 0.04) 100%) !important;
+  border-color: rgba(41, 196, 228, 0.35) !important;
+  color: #FFFFFF !important;
+}
+
+.theme-saving9 .sidebar-nav-item:hover .icon-svg {
+  color: #29C4E4 !important;
+}
+
+.theme-saving9 .sidebar-nav-item:hover .side-badge {
+  background: rgba(41, 196, 228, 0.2) !important;
+  color: #FFFFFF !important;
+  border-color: rgba(41, 196, 228, 0.4) !important;
+}
+
+.theme-saving9 .side-badge {
+  background: #142A4C !important;
+  color: #94BCD8 !important;
+  border: 1px solid rgba(41, 196, 228, 0.2) !important;
+}
+
+.theme-saving9 .sidebar-toggle-btn {
+  color: #7EA9D6 !important;
+}
+
+.theme-saving9 .sidebar-toggle-btn:hover {
+  color: #29C4E4 !important;
+}
+
+.theme-saving9 .sidebar-copy {
+  color: #D2E4F7 !important;
+}
+
+.theme-saving9 .sidebar-project {
+  color: #7EA9D6 !important;
+}
+
+.theme-saving9 .btn-primary {
+  background: #0B1F3D !important;
+  color: #FFFFFF !important;
+  border: 1px solid #07152A !important;
+  box-shadow: 0 1px 3px rgba(11, 31, 61, 0.25) !important;
+}
+
+.theme-saving9 .btn-primary:hover {
+  background: #142A4C !important;
+  color: #FFFFFF !important;
+}
+
+.theme-saving9 .brand-title {
+  color: #0B1F3D !important;
+  font-weight: 700 !important;
+}
+
+.theme-saving9 .brand-tagline {
+  color: #1a8ea8 !important;
+  font-weight: 500 !important;
+}
+
+.theme-saving9 .avatar,
+.theme-saving9 .avatar-large,
+.theme-saving9 .user-pill .avatar {
+  background: #0B1F3D !important;
+  color: #29C4E4 !important;
+  border: 1px solid rgba(41, 196, 228, 0.35) !important;
+  font-weight: 600 !important;
+}
+
+.theme-saving9 .module-tab.active {
+  border-bottom-color: #29C4E4 !important;
+  color: #0B1F3D !important;
+}
+
+.theme-saving9 .module-tab.active .count-badge {
+  background: #0B1F3D !important;
+  color: #29C4E4 !important;
+  border-color: #0B1F3D !important;
+}
+
 
 * { box-sizing: border-box; }
 
@@ -323,8 +504,8 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   position: relative;
-  height: 22px;
-  width: auto;
+  height: 32px;
+  width: 32px;
   flex-shrink: 0;
 }
 

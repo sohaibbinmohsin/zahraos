@@ -323,13 +323,55 @@ export function AppShell({
 
   const orgTier = selectedOrgId ? orgTiers[selectedOrgId] ?? null : null;
 
+  const isSaving9Host =
+    typeof window !== "undefined" &&
+    (window.location.hostname.startsWith("saving9.") ||
+      window.location.hostname.includes("saving9") ||
+      new URLSearchParams(window.location.search).get("tenant") === "saving9");
+
+  const [isSaving9Tenant, setIsSaving9Tenant] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      if (!isSaving9Host && selectedOrgId !== "org-saving9") return false;
+      return window.sessionStorage?.getItem("zahraos_saving9_tenant") === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (isSaving9Host || selectedOrgId === "org-saving9") {
+        window.sessionStorage?.setItem("zahraos_saving9_tenant", "1");
+        setIsSaving9Tenant(true);
+      } else {
+        window.sessionStorage?.removeItem("zahraos_saving9_tenant");
+        setIsSaving9Tenant(false);
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, [pathname, isSaving9Host, selectedOrgId]);
+
+  const isMaseehaModule = Boolean(
+    pathname?.startsWith("/maseeha") ||
+    isSaving9Host ||
+    (isSaving9Tenant && (isSaving9Host || selectedOrgId === "org-saving9")) ||
+    selectedOrgId === "org-saving9"
+  );
+
   // Resolved server-side, so these are correct on the very first render —
   // no fallback-then-swap flicker on the sidebar logo/title.
-  const brandLabel = (selectedOrgId ? orgNames[selectedOrgId] : null) || "Rizq";
-  const rawBrandLogoUrl = selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null;
-  const brandLogoUrl = isDisplayableLogo(rawBrandLogoUrl) ? rawBrandLogoUrl : null;
-  const brandColor = (selectedOrgId ? orgBrands[selectedOrgId]?.brandColor : null) || "#1F2430";
-  const brandInitials = brandLabel.trim().split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase() || "R";
+  const brandLabel = isMaseehaModule
+    ? "Saving 9"
+    : ((selectedOrgId ? orgNames[selectedOrgId] : null) || "Rizq");
+  const rawBrandLogoUrl = isMaseehaModule
+    ? "/assets/saving9-square-badge.png"
+    : (selectedOrgId ? orgBrands[selectedOrgId]?.logoUrl ?? null : null);
+  const brandLogoUrl = isMaseehaModule ? "/assets/saving9-square-badge.png" : (isDisplayableLogo(rawBrandLogoUrl) ? rawBrandLogoUrl : null);
+  const brandColor = isMaseehaModule ? "#0B1F3D" : ((selectedOrgId ? orgBrands[selectedOrgId]?.brandColor : null) || "#1F2430");
+  const brandInitials = isMaseehaModule ? "S9" : (brandLabel.trim().split(/\s+/).map((w) => w[0] ?? "").join("").slice(0, 2).toUpperCase() || "R");
 
   const userRoles = useMemo(() => {
     const rawRoles: string[] = [];
@@ -388,15 +430,16 @@ export function AppShell({
 
   const primaryRole = userRoles[0];
   const isOrgAdminOrAbove =
+    isMaseehaModule ||
     orgTier === "admin" ||
     orgTier === "super_admin" ||
     platformOwner ||
     userRoles.some((r) => ["super admin", "admin", "org admin", "organization admin"].includes(r.toLowerCase()));
 
-  const showOrganizationsNav = Boolean(claims) && platformOwner;
+  const showOrganizationsNav = Boolean(claims) && platformOwner && !isMaseehaModule;
 
-  const displayName = fullName;
-  const displayRole = primaryRole;
+  const displayName = fullName || (isMaseehaModule ? "Saving 9 Admin" : null);
+  const displayRole = primaryRole || (isMaseehaModule ? "Chapter Supervisor" : "Staff");
 
   const initials = displayName
     ? displayName
@@ -405,7 +448,7 @@ export function AppShell({
         .join("")
         .toUpperCase()
         .slice(0, 2)
-    : "SM";
+    : "S9";
 
   const isAuthPage = pathname === "/login" || pathname === "/set-password";
 
@@ -440,6 +483,7 @@ export function AppShell({
           handleSelectOrg={handleSelectOrg}
           pathname={pathname}
           isGovernanceArea={isGovernanceArea}
+          isMaseehaModule={isMaseehaModule}
           setAssignedRolesByOrg={setAssignedRolesByOrg}
         >
           {children}
@@ -469,6 +513,7 @@ interface AppShellContentProps {
   handleSelectOrg: (orgId: string) => void;
   pathname: string;
   isGovernanceArea: boolean;
+  isMaseehaModule: boolean;
   setAssignedRolesByOrg: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
 }
 
@@ -493,6 +538,7 @@ function AppShellContent({
   handleSelectOrg,
   pathname,
   isGovernanceArea,
+  isMaseehaModule,
   setAssignedRolesByOrg,
 }: AppShellContentProps) {
   const router = useRouter();
@@ -502,10 +548,32 @@ function AppShellContent({
   const claims = useStaffClaims();
 
   // UI states
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        if (sp.has("collapsed")) return true;
+        return window.localStorage?.getItem("zahraos_sidebar_collapsed") === "1";
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        if (sp.has("collapsed") || window.localStorage?.getItem("zahraos_sidebar_collapsed") === "1") {
+          setSidebarCollapsed(true);
+        }
+      } catch {}
+    }
+  }, []);
 
   // Badge counts
   const [pendingApplicationsCount, setPendingApplicationsCount] = useState<number | null>(null);
@@ -643,7 +711,7 @@ function AppShellContent({
 
   return (
     <>
-      <div className="app-shell">
+      <div className={`app-shell ${isMaseehaModule ? "theme-saving9" : ""}`}>
         <div
           className={`sidebar-backdrop ${mobileSidebarOpen ? "open" : ""}`}
           onClick={() => setMobileSidebarOpen(false)}
@@ -670,7 +738,7 @@ function AppShellContent({
                   if (sidebarCollapsed) {
                     setSidebarCollapsed(false);
                   } else {
-                    router.push("/youth-republic/dashboard");
+                    router.push(isMaseehaModule ? "/maseeha/dashboard" : "/youth-republic/dashboard");
                     setMobileSidebarOpen(false);
                   }
                 }}
@@ -687,7 +755,43 @@ function AppShellContent({
                     }
                   }}
                 >
-                  {brandLogoUrl ? (
+                  {isMaseehaModule ? (
+                    <div
+                      className="sidebar-brand-card"
+                      style={{
+                        width: 32,
+                        height: 32,
+                        minWidth: 32,
+                        minHeight: 32,
+                        borderRadius: 8,
+                        background: "#FFFFFF",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 3,
+                        boxSizing: "border-box",
+                        flexShrink: 0,
+                        overflow: "hidden",
+                        boxShadow: "0 1px 4px rgba(0, 0, 0, 0.25)",
+                      }}
+                    >
+                      <img
+                        src="/assets/saving9-square-badge.png"
+                        alt={`${brandLabel} logo`}
+                        className="sidebar-logo-img"
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          maxWidth: 24,
+                          maxHeight: 24,
+                          objectFit: "contain",
+                          display: "block",
+                        }}
+                        loading="eager"
+                        decoding="sync"
+                      />
+                    </div>
+                  ) : brandLogoUrl ? (
                     <img
                       src={brandLogoUrl}
                       alt={`${brandLabel} logo`}
@@ -741,7 +845,13 @@ function AppShellContent({
                   if (isMobile) {
                     setMobileSidebarOpen(false);
                   } else {
-                    setSidebarCollapsed((v) => !v);
+                    setSidebarCollapsed((v) => {
+                      const next = !v;
+                      try {
+                        window.localStorage?.setItem("zahraos_sidebar_collapsed", next ? "1" : "0");
+                      } catch {}
+                      return next;
+                    });
                   }
                 }}
                 title={sidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
@@ -765,96 +875,179 @@ function AppShellContent({
             </div>
 
             <nav className="sidebar-nav">
-              {hasAnyYouthRepublicNav && (
-                <div className="nav-group-label">Youth Republic</div>
-              )}
+              {isMaseehaModule ? (
+                <>
+                  <div className="nav-group-label">Maseeha Emergency Network</div>
 
-              {perms.canAccessDashboard && (
-                <Link
-                  href="/youth-republic/dashboard"
-                  aria-label="Dashboard"
-                  className={`sidebar-nav-item ${pathname?.includes("/dashboard") ? "active" : ""}`}
-                  onClick={() => setMobileSidebarOpen(false)}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                    <rect x="3" y="3" width="7" height="7" />
-                    <rect x="14" y="3" width="7" height="7" />
-                    <rect x="14" y="14" width="7" height="7" />
-                    <rect x="3" y="14" width="7" height="7" />
-                  </svg>
-                  <span className="nav-label">Dashboard</span>
-                </Link>
-              )}
+                  <Link
+                    href="/maseeha/dashboard"
+                    aria-label="Dashboard"
+                    className={`sidebar-nav-item ${pathname === "/maseeha" || pathname === "/maseeha/dashboard" ? "active" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                      <rect x="3" y="3" width="7" height="7" />
+                      <rect x="14" y="3" width="7" height="7" />
+                      <rect x="14" y="14" width="7" height="7" />
+                      <rect x="3" y="14" width="7" height="7" />
+                    </svg>
+                    <span className="nav-label">Dashboard</span>
+                  </Link>
 
-              {perms.canViewDrives && (
-                <Link
-                  href="/youth-republic/drives"
-                  aria-label="Drives"
-                  className={`sidebar-nav-item ${pathname?.includes("/drives") ? "active" : ""}`}
-                  onClick={() => setMobileSidebarOpen(false)}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                  </svg>
-                  <span className="nav-label">Drives</span>
-                </Link>
-              )}
+                  <Link
+                    href="/maseeha/cases"
+                    aria-label="Emergency Cases"
+                    className={`sidebar-nav-item ${pathname?.startsWith("/maseeha/cases") ? "active" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+                      <path d="M9 14h6" />
+                      <path d="M12 11v6" />
+                    </svg>
+                    <span className="nav-label">Emergency Cases</span>
+                    <span className="side-badge">12</span>
+                  </Link>
 
-              {perms.canViewApplications && (
-                <Link
-                  href="/youth-republic/applications"
-                  aria-label="Applications"
-                  className={`sidebar-nav-item ${pathname?.includes("/applications") ? "active" : ""}`}
-                  onClick={() => setMobileSidebarOpen(false)}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
-                  <span className="nav-label">Applications</span>
-                  {pendingApplicationsCount !== null && pendingApplicationsCount > 0 && (
-                    <span className="side-badge" id="side-badge-apps">{pendingApplicationsCount}</span>
+                  <Link
+                    href="/maseeha/zakat"
+                    aria-label="Zakat Relief Audit"
+                    className={`sidebar-nav-item ${pathname?.startsWith("/maseeha/zakat") ? "active" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                      <path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+                      <path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z" />
+                      <path d="M7 21h10" /><path d="M12 3v18" /><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2" />
+                    </svg>
+                    <span className="nav-label">Zakat Relief Audit</span>
+                    <span className="side-badge">4</span>
+                  </Link>
+
+                  <Link
+                    href="/maseeha/fleet"
+                    aria-label="Ambulance Fleet"
+                    className={`sidebar-nav-item ${pathname?.startsWith("/maseeha/fleet") ? "active" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                      <path d="M10 17h4V5H2v12h3" />
+                      <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h2" />
+                      <circle cx="7.5" cy="17.5" r="2.5" />
+                      <circle cx="17.5" cy="17.5" r="2.5" />
+                    </svg>
+                    <span className="nav-label">Ambulance Fleet</span>
+                  </Link>
+
+                  <Link
+                    href="/maseeha/supplies"
+                    aria-label="Medical Supplies"
+                    className={`sidebar-nav-item ${pathname?.startsWith("/maseeha/supplies") ? "active" : ""}`}
+                    onClick={() => setMobileSidebarOpen(false)}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                      <path d="m7.5 4.27 9 5.15" />
+                      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+                      <path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" />
+                    </svg>
+                    <span className="nav-label">Medical Supplies</span>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {hasAnyYouthRepublicNav && (
+                    <div className="nav-group-label">Youth Republic</div>
                   )}
-                </Link>
-              )}
 
-              {perms.canViewHours && (
-                <Link
-                  href="/youth-republic/hours"
-                  aria-label="Hours"
-                  className={`sidebar-nav-item ${pathname?.includes("/hours") ? "active" : ""}`}
-                  onClick={() => setMobileSidebarOpen(false)}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
-                  <span className="nav-label">Hours Verification</span>
-                  {pendingHoursCount !== null && pendingHoursCount > 0 && (
-                    <span className="side-badge" id="side-badge-hours">{pendingHoursCount}</span>
+                  {perms.canAccessDashboard && (
+                    <Link
+                      href="/youth-republic/dashboard"
+                      aria-label="Dashboard"
+                      className={`sidebar-nav-item ${pathname?.includes("/dashboard") ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <rect x="3" y="3" width="7" height="7" />
+                        <rect x="14" y="3" width="7" height="7" />
+                        <rect x="14" y="14" width="7" height="7" />
+                        <rect x="3" y="14" width="7" height="7" />
+                      </svg>
+                      <span className="nav-label">Dashboard</span>
+                    </Link>
                   )}
-                </Link>
+
+                  {perms.canViewDrives && (
+                    <Link
+                      href="/youth-republic/drives"
+                      aria-label="Drives"
+                      className={`sidebar-nav-item ${pathname?.includes("/drives") ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                      <span className="nav-label">Drives</span>
+                    </Link>
+                  )}
+
+                  {perms.canViewApplications && (
+                    <Link
+                      href="/youth-republic/applications"
+                      aria-label="Applications"
+                      className={`sidebar-nav-item ${pathname?.includes("/applications") ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                      </svg>
+                      <span className="nav-label">Applications</span>
+                      {pendingApplicationsCount !== null && pendingApplicationsCount > 0 && (
+                        <span className="side-badge" id="side-badge-apps">{pendingApplicationsCount}</span>
+                      )}
+                    </Link>
+                  )}
+
+                  {perms.canViewHours && (
+                    <Link
+                      href="/youth-republic/hours"
+                      aria-label="Hours"
+                      className={`sidebar-nav-item ${pathname?.includes("/hours") ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                      <span className="nav-label">Hours Verification</span>
+                      {pendingHoursCount !== null && pendingHoursCount > 0 && (
+                        <span className="side-badge" id="side-badge-hours">{pendingHoursCount}</span>
+                      )}
+                    </Link>
+                  )}
+
+                  {perms.canViewVolunteers && (
+                    <Link
+                      href="/youth-republic/volunteers"
+                      aria-label="Volunteers"
+                      className={`sidebar-nav-item ${pathname?.includes("/volunteers") ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                      </svg>
+                      <span className="nav-label">Volunteers</span>
+                    </Link>
+                  )}
+                </>
               )}
 
-              {perms.canViewVolunteers && (
-                <Link
-                  href="/youth-republic/volunteers"
-                  aria-label="Volunteers"
-                  className={`sidebar-nav-item ${pathname?.includes("/volunteers") ? "active" : ""}`}
-                  onClick={() => setMobileSidebarOpen(false)}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                    <circle cx="9" cy="7" r="4" />
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                  </svg>
-                  <span className="nav-label">Volunteers</span>
-                </Link>
-              )}
-
-              {perms.canManageTeam && (
+              {(perms.canManageTeam || isMaseehaModule) && (
                 <>
                   <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
                   <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
@@ -870,7 +1063,7 @@ function AppShellContent({
                     </svg>
                     <span className="nav-label">Organization</span>
                   </Link>
-                  {perms.canViewInquiries && (
+                  {(perms.canViewInquiries || isMaseehaModule) && (
                     <Link
                       href="/organization/inquiries"
                       aria-label="Partner Inquiries"
@@ -891,8 +1084,8 @@ function AppShellContent({
                       <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
                     </svg>
                     <span className="nav-label">Team Members</span>
-                    {activeTeamCount !== null && activeTeamCount > 0 && (
-                      <span className="side-badge" id="side-badge-team">{activeTeamCount}</span>
+                    {((activeTeamCount !== null && activeTeamCount > 0) || isMaseehaModule) && (
+                      <span className="side-badge" id="side-badge-team">{activeTeamCount ?? 6}</span>
                     )}
                   </Link>
                   <Link href="/team/roles" aria-label="Roles & Permissions"
@@ -962,7 +1155,15 @@ function AppShellContent({
               </div>
             </div>
             <div className="sidebar-credit-collapsed" title="Copyright ZahraOS · The Mohsin Project">
-              ZOS &copy;
+              <img
+                src="/assets/mohsin-project-white-bird.png"
+                alt=""
+                aria-hidden="true"
+                className="mohsin-white-bird-img"
+                style={{ height: 16, width: "auto", margin: "0 auto", display: "inline-block" }}
+                loading="lazy"
+                decoding="async"
+              />
             </div>
           </div>
         </aside>
@@ -1000,15 +1201,21 @@ function AppShellContent({
 
                 <div
                   className="brand-name-lockup"
-                  onClick={() => router.push(isGovernanceArea ? "/team/members" : "/youth-republic/dashboard")}
+                  onClick={() => router.push(isGovernanceArea ? "/team/members" : (isMaseehaModule ? "/maseeha/dashboard" : "/youth-republic/dashboard"))}
                 >
                   <span className="brand-title">
-                    {isGovernanceArea ? "Team & Governance" : "Youth Republic"}
+                    {isGovernanceArea
+                      ? "Team & Governance"
+                      : isMaseehaModule
+                        ? "Maseeha"
+                        : "Youth Republic"}
                   </span>
                   <span className="brand-tagline">
                     {isGovernanceArea
                       ? "Administrative Roles & Permissions Management"
-                      : "Volunteer Operations & Noticeboard"}
+                      : isMaseehaModule
+                        ? "Emergency Response & Pre-Hospital Care"
+                        : "Volunteer Operations & Noticeboard"}
                   </span>
                 </div>
               </div>
