@@ -9,15 +9,23 @@ export async function proxy(request: NextRequest) {
     hostname.includes("saving9") ||
     request.nextUrl.searchParams.get("tenant") === "saving9";
 
-  if (isSaving9Host && request.nextUrl.pathname === "/") {
-    return NextResponse.redirect(new URL("/maseeha/dashboard", request.url));
-  }
-
   const response = NextResponse.next({ request });
   if (isSaving9Host) {
     response.cookies.set("saving9_demo", "1", { path: "/" });
   } else if (request.cookies.has("saving9_demo")) {
     response.cookies.delete("saving9_demo");
+  }
+
+  function redirectWithCookies(dest: string | URL) {
+    const redirectResponse = NextResponse.redirect(new URL(dest, request.url));
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+    });
+    return redirectResponse;
+  }
+
+  if (isSaving9Host && request.nextUrl.pathname === "/") {
+    return redirectWithCookies("/maseeha/dashboard");
   }
 
   const supabase = createServerClient(
@@ -56,7 +64,7 @@ export async function proxy(request: NextRequest) {
   });
 
   if (redirectTo) {
-    return NextResponse.redirect(new URL(redirectTo, request.url));
+    return redirectWithCookies(redirectTo);
   }
 
   return response;

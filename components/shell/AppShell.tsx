@@ -87,6 +87,19 @@ function leaveForLogin() {
   if (typeof window === "undefined") return;
   const { pathname } = window.location;
   if (pathname.startsWith("/login") || pathname.startsWith("/set-password")) return;
+  clearStoredOrgId();
+  try {
+    const cookies = document.cookie ? document.cookie.split(";") : [];
+    for (const cookie of cookies) {
+      const eqPos = cookie.indexOf("=");
+      const name = eqPos > -1 ? cookie.slice(0, eqPos).trim() : cookie.trim();
+      if (name.startsWith("sb-") || name.includes("auth-token") || name.includes("selectedOrgId")) {
+        document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
+    }
+  } catch {
+    // Non-fatal
+  }
   window.location.assign("/login");
 }
 
