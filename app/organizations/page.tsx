@@ -7,7 +7,10 @@ import { CreateOrganizationForm } from "@/components/CreateOrganizationForm";
 import { ModuleEnablementPanel, type ModuleSummary } from "@/components/ModuleEnablementPanel";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
+import { useShellAccessToken } from "@/components/shell/AppShell";
+
 export default function OrganizationsPage() {
+  const shellAccessToken = useShellAccessToken();
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [allModules, setAllModules] = useState<ModuleSummary[]>([]);
@@ -16,9 +19,13 @@ export default function OrganizationsPage() {
 
   const load = useCallback(async () => {
     const supabase = getBrowserSupabaseClient();
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) return;
-    setAccessToken(sessionData.session.access_token);
+    let token = shellAccessToken;
+    if (!token) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      token = sessionData.session?.access_token ?? null;
+    }
+    if (!token) return;
+    setAccessToken(token);
 
     const { data: orgs } = await supabase.from("organizations").select("id, name, slug, status").order("created_at", { ascending: false });
     setOrganizations(orgs ?? []);

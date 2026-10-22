@@ -87,6 +87,19 @@ function leaveForLogin() {
   if (typeof window === "undefined") return;
   const { pathname } = window.location;
   if (pathname.startsWith("/login") || pathname.startsWith("/set-password")) return;
+  clearStoredOrgId();
+  try {
+    const cookies = document.cookie ? document.cookie.split(";") : [];
+    for (const cookie of cookies) {
+      const eqPos = cookie.indexOf("=");
+      const name = eqPos > -1 ? cookie.slice(0, eqPos).trim() : cookie.trim();
+      if (name.startsWith("sb-") || name.includes("auth-token") || name.includes("selectedOrgId")) {
+        document.cookie = `${name}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
+    }
+  } catch {
+    // Non-fatal
+  }
   window.location.assign("/login");
 }
 
@@ -257,6 +270,13 @@ export function AppShell({
         return;
       }
       if (session) {
+        if (event === "TOKEN_REFRESHED") {
+          // A token refresh updates the access token string for API calls.
+          // Identity, staff ID, and organization roles have NOT changed!
+          // NEVER re-run loadShellData or reset shell state on token refresh.
+          setAccessToken(session.access_token);
+          return;
+        }
         loadFromSession(session);
       }
     });
