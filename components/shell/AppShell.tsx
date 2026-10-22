@@ -270,6 +270,13 @@ export function AppShell({
         return;
       }
       if (session) {
+        if (event === "TOKEN_REFRESHED") {
+          // A token refresh updates the access token string for API calls.
+          // Identity, staff ID, and organization roles have NOT changed!
+          // NEVER re-run loadShellData or reset shell state on token refresh.
+          setAccessToken(session.access_token);
+          return;
+        }
         loadFromSession(session);
       }
     });
