@@ -6,6 +6,9 @@ export interface MiddlewareRedirectInput {
 
 export function computeMiddlewareRedirect(input: MiddlewareRedirectInput): string | null {
   const { pathname, isAuthenticated, mustChangePassword } = input;
+  if (pathname.startsWith("/api/") || pathname === "/api") {
+    return null;
+  }
   const isLoginPath = pathname === "/login" || pathname.startsWith("/login/");
   const isSetPasswordPath = pathname === "/set-password" || pathname.startsWith("/set-password/");
 

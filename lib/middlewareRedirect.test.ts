@@ -12,6 +12,11 @@ describe("computeMiddlewareRedirect", () => {
     expect(result).toBeNull();
   });
 
+  it("lets any request through on /api routes without redirecting", () => {
+    const result = computeMiddlewareRedirect({ pathname: "/api/platform/list-chapters", isAuthenticated: false, mustChangePassword: false });
+    expect(result).toBeNull();
+  });
+
   it("redirects an authenticated request that must change password to /set-password", () => {
     const result = computeMiddlewareRedirect({ pathname: "/staff", isAuthenticated: true, mustChangePassword: true });
     expect(result).toBe("/set-password");

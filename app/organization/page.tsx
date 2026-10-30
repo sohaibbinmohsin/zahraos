@@ -63,14 +63,20 @@ export default function OrganizationPage() {
   }, [organizationId, accessToken]);
 
   const load = useCallback(async () => {
-    if (!organizationId || shellLoading || !canAccess) { setLoading(false); return; }
+    if (!organizationId || shellLoading || !canAccess) {
+      setLoading(false);
+      return;
+    }
+    if (!accessToken) {
+      return;
+    }
     setLoading(true);
     try {
       await fetchAll();
     } finally {
       setLoading(false);
     }
-  }, [organizationId, shellLoading, canAccess, fetchAll]);
+  }, [organizationId, shellLoading, canAccess, accessToken, fetchAll]);
 
   useEffect(() => { load(); }, [load]);
 

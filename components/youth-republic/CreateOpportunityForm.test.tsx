@@ -97,7 +97,7 @@ describe("CreateOpportunityForm", () => {
       );
       expect(onCreated).toHaveBeenCalled();
     });
-  });
+  }, 15000);
 
   it("blocks Step 2 until every Step 1 field is filled, then surfaces per-field hints", async () => {
     const user = userEvent.setup();

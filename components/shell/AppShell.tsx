@@ -376,7 +376,10 @@ export function AppShell({
       const activeAccess = claims?.moduleAccess?.find((m) => !selectedOrgId || m.organizationId === selectedOrgId);
       if (activeAccess) {
         const isScoped = Boolean(activeAccess.chapterScopes && Object.keys(activeAccess.chapterScopes).length > 0);
-        const derived = deriveRoleTitleFromPermissions(activeAccess.permissions, isScoped);
+        const chapterCount = activeAccess.chapterScopes
+          ? new Set(Object.values(activeAccess.chapterScopes).flat()).size
+          : 1;
+        const derived = deriveRoleTitleFromPermissions(activeAccess.permissions, isScoped, chapterCount);
         if (derived) {
           return [derived];
         }

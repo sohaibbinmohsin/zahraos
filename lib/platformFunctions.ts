@@ -10,15 +10,54 @@ async function callFunction<TResponse>(
     throw new Error("NEXT_PUBLIC_FUNCTIONS_URL is not set");
   }
 
-  const response = await fetch(`${baseUrl}/${name}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${accessToken}`,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(8000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/${name}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(8000),
+    });
+  } catch (err) {
+    if (typeof window !== "undefined" && (name === "list-chapters" || name === "update-chapter")) {
+      const localRes = await fetch(`/api/platform/${name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (localRes.ok) {
+        return (await localRes.json()) as TResponse;
+      }
+    }
+    throw err;
+  }
+
+  // If remote returns 403 or 404 and we are in the browser, fallback to Next.js route handler
+  if (!response.ok && typeof window !== "undefined" && (name === "list-chapters" || name === "update-chapter")) {
+    try {
+      const localRes = await fetch(`/api/platform/${name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(8000),
+      });
+      if (localRes.ok) {
+        return (await localRes.json()) as TResponse;
+      }
+    } catch {
+      // Fall through to error response below
+    }
+  }
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {

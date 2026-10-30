@@ -3,6 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { computeMiddlewareRedirect } from "./lib/middlewareRedirect";
 
 export async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
   const response = NextResponse.next({ request });
 
   const supabase = createServerClient(
