@@ -287,7 +287,7 @@ async function main() {
     { orgId: rizqOrgId, tier: "super_admin" },
   ]);
 
-  await seedAdmin("sohaibbinmohsin@gmail.com", "SuperAdmin123!", "Sohaib Bin Mohsin", true, [
+  await seedAdmin("sohaibbinmohsin@gmail.com", "AdminPassword123!", "Sohaib Bin Mohsin", true, [
     { orgId: rizqOrgId, tier: "super_admin" },
     { orgId: greenCrescentOrgId, tier: "super_admin" },
     { orgId: sehatFirstOrgId, tier: "super_admin" },
