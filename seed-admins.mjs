@@ -283,11 +283,11 @@ async function main() {
     { orgId: readFoundationOrgId, tier: "super_admin" },
   ]);
 
-  await seedAdmin("admin@rizq.example.com", "AdminPassword123!", "Rizq Admin", false, [
+  await seedAdmin("admin@rizq.example.com", "DemoAdmin-2026!", "Rizq Admin", false, [
     { orgId: rizqOrgId, tier: "super_admin" },
   ]);
 
-  await seedAdmin("admin@rizq.org", "AdminPassword123!", "Rizq Super Admin", false, [
+  await seedAdmin("admin@rizq.org", "DemoAdmin-2026!", "Rizq Super Admin", false, [
     { orgId: rizqOrgId, tier: "super_admin" },
   ]);
 
