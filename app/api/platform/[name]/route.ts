@@ -1,6 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { decodeStaffTokenClaims } from "@/lib/staffToken";
+import { gridToPermissionKeys } from "@/lib/capabilityMap";
+
+async function checkIsOrgAdmin(
+  supabaseAdmin: any,
+  callerStaffId: string,
+  callerPlatformOwner: boolean,
+  organizationId: string
+): Promise<boolean> {
+  if (callerPlatformOwner) return true;
+
+  const { data: orgRole } = await (supabaseAdmin
+    .from("staff_org_roles") as any)
+    .select("org_tier")
+    .eq("staff_id", callerStaffId)
+    .eq("organization_id", organizationId)
+    .maybeSingle();
+
+  if (orgRole && ["admin", "super_admin"].includes((orgRole as any).org_tier)) {
+    return true;
+  }
+
+  const { data: assignments } = await (supabaseAdmin
+    .from("staff_role_assignments") as any)
+    .select("role_id, scope_kind")
+    .eq("staff_id", callerStaffId)
+    .eq("organization_id", organizationId);
+
+  if (assignments && assignments.length > 0) {
+    const roleIds = [...new Set(assignments.map((a: any) => a.role_id))];
+    const { data: roles } = await (supabaseAdmin
+      .from("roles") as any)
+      .select("id, name, role_permissions(permissions(resource, action))")
+      .in("id", roleIds);
+
+    for (const r of (roles ?? []) as any[]) {
+      if (["Super Admin", "Org Admin", "Organization Admin"].includes(r.name)) {
+        return true;
+      }
+      const hasRoleWrite = (r.role_permissions ?? []).some(
+        (rp: any) => rp.permissions?.resource === "roles" && rp.permissions?.action === "write"
+      );
+      if (hasRoleWrite) return true;
+    }
+  }
+
+  return false;
+}
 
 export async function POST(
   request: NextRequest,
@@ -350,6 +397,230 @@ export async function POST(
     }));
 
     return NextResponse.json({ teamMembers });
+  }
+
+  // Handle create-custom-role
+  if (name === "create-custom-role") {
+    const body = await request.json().catch(() => ({}));
+    const { organizationId, moduleId, name: roleName, description, capabilities } = body;
+    if (!organizationId || !moduleId || !roleName?.trim()) {
+      return NextResponse.json({ error: "missing_required_fields" }, { status: 400 });
+    }
+
+    const isAuthorized = await checkIsOrgAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, organizationId);
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
+    const { data: orgModule } = await supabaseAdmin
+      .from("org_modules")
+      .select("module_id")
+      .eq("organization_id", organizationId)
+      .eq("module_id", moduleId)
+      .maybeSingle();
+
+    if (!orgModule) {
+      return NextResponse.json({ error: "module_not_enabled" }, { status: 400 });
+    }
+
+    const keys = gridToPermissionKeys(capabilities ?? {});
+    let permissionIds: string[] = [];
+    if (keys.length > 0) {
+      const { data: perms } = await supabaseAdmin
+        .from("permissions")
+        .select("id, resource, action")
+        .eq("module_id", moduleId);
+
+      const byKey = new Map((perms ?? []).map((p: any) => [`${p.resource}:${p.action}`, p.id as string]));
+      permissionIds = keys.map((k) => byKey.get(k)).filter(Boolean) as string[];
+    }
+
+    const { data: role, error: roleError } = await supabaseAdmin
+      .from("roles")
+      .insert({
+        organization_id: organizationId,
+        module_id: moduleId,
+        name: roleName.trim(),
+        description: description || null,
+        is_system: false,
+      })
+      .select("id")
+      .single();
+
+    if (roleError) {
+      if (roleError.code === "23505") {
+        return NextResponse.json({ error: "role_name_taken" }, { status: 400 });
+      }
+      return NextResponse.json({ error: roleError.message }, { status: 500 });
+    }
+
+    if (permissionIds.length > 0) {
+      const { error: permError } = await supabaseAdmin
+        .from("role_permissions")
+        .insert(permissionIds.map((permission_id) => ({ role_id: role.id, permission_id })));
+
+      if (permError) {
+        return NextResponse.json({ error: permError.message }, { status: 500 });
+      }
+    }
+
+    try {
+      const { data: actor } = await supabaseAdmin.from("staff").select("full_name").eq("id", callerStaffId).maybeSingle();
+      await supabaseAdmin.from("admin_audit_log").insert({
+        organization_id: organizationId,
+        actor_staff_id: callerStaffId,
+        actor_name: actor?.full_name ?? "Admin",
+        action: "Role Created",
+        entity_type: "role",
+        entity_id: role.id,
+        summary: `Created custom role '${roleName.trim()}'`,
+      });
+    } catch {
+      // ignore
+    }
+
+    return NextResponse.json({ roleId: role.id }, { status: 201 });
+  }
+
+  // Handle update-custom-role
+  if (name === "update-custom-role") {
+    const body = await request.json().catch(() => ({}));
+    const { roleId, name: roleName, description, capabilities } = body;
+    if (!roleId || !roleName?.trim()) {
+      return NextResponse.json({ error: "missing_required_fields" }, { status: 400 });
+    }
+
+    const { data: role, error: fetchError } = await supabaseAdmin
+      .from("roles")
+      .select("id, organization_id, module_id, is_system")
+      .eq("id", roleId)
+      .single();
+
+    if (fetchError || !role) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    if (role.is_system) {
+      return NextResponse.json({ error: "system_role_immutable" }, { status: 400 });
+    }
+
+    const isAuthorized = await checkIsOrgAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, role.organization_id);
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
+    const keys = gridToPermissionKeys(capabilities ?? {});
+    let permissionIds: string[] = [];
+    if (keys.length > 0) {
+      const { data: perms } = await supabaseAdmin
+        .from("permissions")
+        .select("id, resource, action")
+        .eq("module_id", role.module_id);
+
+      const byKey = new Map((perms ?? []).map((p: any) => [`${p.resource}:${p.action}`, p.id as string]));
+      permissionIds = keys.map((k) => byKey.get(k)).filter(Boolean) as string[];
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from("roles")
+      .update({
+        name: roleName.trim(),
+        description: description || null,
+      })
+      .eq("id", roleId);
+
+    if (updateError) {
+      if (updateError.code === "23505") {
+        return NextResponse.json({ error: "role_name_taken" }, { status: 400 });
+      }
+      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    await supabaseAdmin.from("role_permissions").delete().eq("role_id", roleId);
+    if (permissionIds.length > 0) {
+      const { error: permError } = await supabaseAdmin
+        .from("role_permissions")
+        .insert(permissionIds.map((permission_id) => ({ role_id: roleId, permission_id })));
+
+      if (permError) {
+        return NextResponse.json({ error: permError.message }, { status: 500 });
+      }
+    }
+
+    try {
+      const { data: actor } = await supabaseAdmin.from("staff").select("full_name").eq("id", callerStaffId).maybeSingle();
+      await supabaseAdmin.from("admin_audit_log").insert({
+        organization_id: role.organization_id,
+        actor_staff_id: callerStaffId,
+        actor_name: actor?.full_name ?? "Admin",
+        action: "Role Modified",
+        entity_type: "role",
+        entity_id: roleId,
+        summary: `Updated custom role permissions for '${roleName.trim()}'`,
+      });
+    } catch {
+      // ignore
+    }
+
+    return NextResponse.json({ roleId });
+  }
+
+  // Handle delete-custom-role
+  if (name === "delete-custom-role") {
+    const body = await request.json().catch(() => ({}));
+    const { roleId } = body;
+    if (!roleId) {
+      return NextResponse.json({ error: "role_id_required" }, { status: 400 });
+    }
+
+    const { data: role, error: fetchError } = await supabaseAdmin
+      .from("roles")
+      .select("id, organization_id, name, is_system")
+      .eq("id", roleId)
+      .single();
+
+    if (fetchError || !role) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+    if (role.is_system) {
+      return NextResponse.json({ error: "system_role_immutable" }, { status: 400 });
+    }
+
+    const isAuthorized = await checkIsOrgAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, role.organization_id);
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+
+    const { count } = await supabaseAdmin
+      .from("staff_role_assignments")
+      .select("*", { count: "exact", head: true })
+      .eq("role_id", roleId);
+
+    if ((count ?? 0) > 0) {
+      return NextResponse.json({ error: "role_in_use" }, { status: 400 });
+    }
+
+    await supabaseAdmin.from("role_permissions").delete().eq("role_id", roleId);
+    const { error: delError } = await supabaseAdmin.from("roles").delete().eq("id", roleId);
+    if (delError) {
+      return NextResponse.json({ error: delError.message }, { status: 500 });
+    }
+
+    try {
+      const { data: actor } = await supabaseAdmin.from("staff").select("full_name").eq("id", callerStaffId).maybeSingle();
+      await supabaseAdmin.from("admin_audit_log").insert({
+        organization_id: role.organization_id,
+        actor_staff_id: callerStaffId,
+        actor_name: actor?.full_name ?? "Admin",
+        action: "Role Modified",
+        entity_type: "role",
+        entity_id: roleId,
+        summary: `Deleted custom role '${role.name}'`,
+      });
+    } catch {
+      // ignore
+    }
+
+    return NextResponse.json({ roleId });
   }
 
   return NextResponse.json({ error: "not_found" }, { status: 404 });

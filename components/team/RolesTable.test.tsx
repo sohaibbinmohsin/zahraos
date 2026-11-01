@@ -43,13 +43,15 @@ describe("RolesTable", () => {
       />,
     );
 
-    // 5 fixed IAM headers (plus expand column)
-    expect(screen.getByRole("columnheader", { name: "Expand" })).toBeInTheDocument();
+    // 5 fixed IAM headers
     expect(screen.getByRole("columnheader", { name: "Role Title & Type" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Description" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Governed Modules" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Active Staff" })).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
+
+    // Expand header must NOT exist
+    expect(screen.queryByRole("columnheader", { name: "Expand" })).not.toBeInTheDocument();
 
     // Previous multi-column spreadsheet capability headers must NOT exist
     expect(screen.queryByRole("columnheader", { name: "Drive Creation" })).not.toBeInTheDocument();
@@ -94,7 +96,7 @@ describe("RolesTable", () => {
     expect(logTeamBadge).toHaveClass("badge", "badge-neg");
   });
 
-  it("system rows expose View + Clone; custom rows expose Edit + Clone + Delete", async () => {
+  it("system rows expose View + Clone; custom rows expose View + Edit + Clone + Delete", async () => {
     const user = userEvent.setup();
     const onView = vi.fn();
     const onEdit = vi.fn();
@@ -121,16 +123,17 @@ describe("RolesTable", () => {
     expect(within(superRow).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
     expect(within(superRow).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
 
-    // Regional Logistics Lead: custom role
+    // Regional Logistics Lead: custom role has View, Edit, Clone, Delete
     const logisticsRow = screen.getByText("Regional Logistics Lead").closest("tr")!;
+    await user.click(within(logisticsRow).getByRole("button", { name: "View" }));
+    expect(onView).toHaveBeenCalledWith("r2");
     await user.click(within(logisticsRow).getByRole("button", { name: "Edit" }));
     expect(onEdit).toHaveBeenCalledWith("r2");
     await user.click(within(logisticsRow).getByRole("button", { name: "Delete" }));
     expect(onDelete).toHaveBeenCalledWith("r2");
   });
 
-  it("clicking a row or chevron expands and collapses RoleServiceInspector", async () => {
-    const user = userEvent.setup();
+  it("does not render dropdown card or expandable rows", () => {
     render(
       <RolesTable
         roles={roles}
@@ -142,57 +145,10 @@ describe("RolesTable", () => {
       />,
     );
 
-    // RoleServiceInspector is initially not visible
+    // Expand chevrons or dropdown cards must NOT exist
     expect(screen.queryByText("IAM Service Policy")).not.toBeInTheDocument();
-
-    // Click Regional Logistics Lead row to expand
-    const logisticsRow = screen.getByText("Regional Logistics Lead").closest("tr")!;
-    await user.click(logisticsRow);
-
-    // RoleServiceInspector should now be visible
-    expect(screen.getByText("IAM Service Policy")).toBeInTheDocument();
-
-    // Click the chevron button to collapse
-    const collapseBtn = within(logisticsRow).getByRole("button", { name: /collapse/i });
-    await user.click(collapseBtn);
-
-    // RoleServiceInspector should no longer be visible
-    expect(screen.queryByText("IAM Service Policy")).not.toBeInTheDocument();
-  });
-
-  it("Expand All / Collapse All toolbar button toggles all rows", async () => {
-    const user = userEvent.setup();
-    render(
-      <RolesTable
-        roles={roles}
-        assignmentCountByRoleId={counts}
-        onView={vi.fn()}
-        onEdit={vi.fn()}
-        onClone={vi.fn()}
-        onDelete={vi.fn()}
-      />,
-    );
-
-    const expandAllBtn = screen.getByRole("button", { name: "Expand All" });
-    expect(expandAllBtn).toBeInTheDocument();
-
-    // Click Expand All
-    await user.click(expandAllBtn);
-
-    // Both roles should have their RoleServiceInspector expanded
-    const policyHeaders = screen.getAllByText("IAM Service Policy");
-    expect(policyHeaders).toHaveLength(2);
-
-    // Button text toggles to Collapse All
-    const collapseAllBtn = screen.getByRole("button", { name: "Collapse All" });
-    expect(collapseAllBtn).toBeInTheDocument();
-
-    // Click Collapse All
-    await user.click(collapseAllBtn);
-
-    // All inspectors should be collapsed
-    expect(screen.queryByText("IAM Service Policy")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Expand All" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /expand/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /collapse/i })).not.toBeInTheDocument();
   });
 
   it("filters roles by governed module access using module filter dropdown", async () => {

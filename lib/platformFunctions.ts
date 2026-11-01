@@ -15,9 +15,16 @@ async function callFunction<TResponse>(
     name === "update-chapter" ||
     name === "list-chapter-team-members";
 
+  const isPlatformRoleAction =
+    name === "create-custom-role" ||
+    name === "update-custom-role" ||
+    name === "delete-custom-role";
+
+  const isPlatformLocalAction = isPlatformChapterAction || isPlatformRoleAction;
+
   const isVitestMock = typeof process !== "undefined" && process.env.NODE_ENV === "test";
 
-  if (!isVitestMock && typeof window !== "undefined" && isPlatformChapterAction) {
+  if (!isVitestMock && typeof window !== "undefined" && isPlatformLocalAction) {
     const localRes = await fetch(`/api/platform/${name}`, {
       method: "POST",
       headers: {
@@ -46,7 +53,7 @@ async function callFunction<TResponse>(
       signal: AbortSignal.timeout(8000),
     });
   } catch (err) {
-    if (typeof window !== "undefined" && isPlatformChapterAction) {
+    if (typeof window !== "undefined" && isPlatformLocalAction) {
       const localRes = await fetch(`/api/platform/${name}`, {
         method: "POST",
         headers: {
@@ -64,7 +71,7 @@ async function callFunction<TResponse>(
   }
 
   // If remote returns 403 or 404 and we are in the browser, fallback to Next.js route handler
-  if (!response.ok && typeof window !== "undefined" && isPlatformChapterAction) {
+  if (!response.ok && typeof window !== "undefined" && isPlatformLocalAction) {
     try {
       const localRes = await fetch(`/api/platform/${name}`, {
         method: "POST",

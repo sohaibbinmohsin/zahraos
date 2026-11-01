@@ -14,9 +14,35 @@ async function assertCallerIsOrgAdmin(
   supabase: SupabaseClient, callerStaffId: string, callerPlatformOwner: boolean, organizationId: string,
 ): Promise<void> {
   if (callerPlatformOwner) return;
-  const { data } = await supabase.from("staff_org_roles").select("org_tier")
-    .eq("staff_id", callerStaffId).eq("organization_id", organizationId).single();
-  if (!data || !["admin", "super_admin"].includes(data.org_tier)) throw new Error("forbidden");
+  const { data: orgRole } = await supabase.from("staff_org_roles").select("org_tier")
+    .eq("staff_id", callerStaffId).eq("organization_id", organizationId).maybeSingle();
+  if (orgRole && ["admin", "super_admin"].includes(orgRole.org_tier)) return;
+
+  const { data: assignments } = await supabase
+    .from("staff_role_assignments")
+    .select("role_id, scope_kind")
+    .eq("staff_id", callerStaffId)
+    .eq("organization_id", organizationId);
+
+  if (assignments && assignments.length > 0) {
+    const roleIds = [...new Set(assignments.map((a) => a.role_id))];
+    const { data: roles } = await supabase
+      .from("roles")
+      .select("id, name, role_permissions(permissions(resource, action))")
+      .in("id", roleIds);
+
+    for (const r of roles ?? []) {
+      if (["Super Admin", "Org Admin", "Organization Admin"].includes(r.name)) {
+        return;
+      }
+      const hasRoleWrite = (r.role_permissions ?? []).some(
+        (rp: any) => rp.permissions?.resource === "roles" && rp.permissions?.action === "write",
+      );
+      if (hasRoleWrite) return;
+    }
+  }
+
+  throw new Error("forbidden");
 }
 
 async function permissionIdsForKeys(

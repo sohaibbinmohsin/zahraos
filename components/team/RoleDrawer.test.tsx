@@ -46,10 +46,17 @@ describe("RoleDrawer", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("opens a system role read-only with no save", () => {
+  it("opens a system role read-only with no save and collapsed cards", async () => {
+    const user = userEvent.setup();
     render(<RoleDrawer request={{ mode: "view", roleId: "r1" }} onClose={vi.fn()} />);
-    expect(screen.getByRole("combobox", { name: "Drive Creation" })).toBeDisabled();
+    // Service cards start collapsed in view modal
+    expect(screen.queryByTestId("cap-badge-drive")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Save Role/i })).not.toBeInTheDocument();
+
+    // Toggle Youth Republic card open
+    await user.click(screen.getByRole("button", { name: /Toggle Youth Republic/i }));
+    expect(screen.getByTestId("cap-badge-drive")).toHaveTextContent("Granted");
+    expect(screen.getByTestId("cap-badge-drive")).toHaveClass("badge", "badge-pos");
   });
 
   it("prefills a clone from the source role with an editable name", () => {
@@ -92,17 +99,17 @@ describe("RoleDrawer", () => {
     expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Granted");
   });
 
-  it("opens the Org Admin role in view mode as a protected system specification", () => {
+  it("opens the Org Admin role in view mode as a protected system specification", async () => {
+    const user = userEvent.setup();
     render(<RoleDrawer request={{ mode: "view", roleId: "Org Admin" }} onClose={vi.fn()} />);
     expect(screen.getByText("System Role Specification")).toBeInTheDocument();
     expect((screen.getByLabelText(/Role Title/i) as HTMLInputElement).value).toBe("Org Admin");
-    expect(screen.getByRole("combobox", { name: "Drive Creation" })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: "Publish Noticeboard" })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: "Triage Apps" })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: "Approve Hours" })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: "Team Members" })).toBeDisabled();
-    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: /Save Role/i })).not.toBeInTheDocument();
+
+    // Toggle Youth Republic card open
+    await user.click(screen.getByRole("button", { name: /Toggle Youth Republic/i }));
+    expect(screen.getByTestId("cap-badge-drive")).toHaveTextContent("Granted");
+    expect(screen.getByTestId("cap-badge-drive")).toHaveClass("badge", "badge-pos");
   });
 
   it("organizes capabilities into Youth Republic and Team & Governance service accordions", () => {
@@ -173,10 +180,11 @@ describe("RoleDrawer", () => {
     expect(screen.getByRole("combobox", { name: "Volunteer Directory" })).toHaveTextContent("Restricted");
     expect(screen.getByTestId("service-badge-youth-republic")).toHaveTextContent("Restricted");
 
-    // Set one capability manually to make it Custom
+    // Set one capability manually to make it Limited (not Custom)
     await user.click(screen.getByRole("combobox", { name: "Drive Creation" }));
     await user.click(screen.getByRole("option", { name: "Granted" }));
-    expect(screen.getByTestId("service-badge-youth-republic")).toHaveTextContent("Custom");
+    expect(screen.getByTestId("service-badge-youth-republic")).toHaveTextContent("Limited");
+    expect(screen.getByTestId("service-badge-youth-republic")).toHaveClass("badge", "badge-warn");
 
     // Team & Governance presets
     const tgFullBtn = screen.getByRole("button", { name: /Team & Governance: Full Access/i });

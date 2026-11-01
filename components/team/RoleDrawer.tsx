@@ -194,37 +194,60 @@ export type ServicePreset = "full" | "read_only" | "restricted";
 export function getServiceStatus(
   serviceCaps: readonly CapabilityKey[],
   grid: CapabilityGrid,
-): "Full Access" | "Read Only" | "Restricted" | "Custom" {
-  const isFull = serviceCaps.every((cap) => {
-    const meta = CAPABILITY_META[cap];
-    const target = meta.levels.includes("granted") ? "granted" : "read_only";
-    return grid[cap] === target;
-  });
-  if (isFull) return "Full Access";
+): "Full Access" | "Limited" | "Read Only" | "Restricted" {
+  let grantedCount = 0;
+  let readOnlyCount = 0;
+  let restrictedCount = 0;
 
-  const isReadOnly = serviceCaps.every((cap) => {
-    const meta = CAPABILITY_META[cap];
-    const target = meta.levels.includes("read_only") ? "read_only" : "restricted";
-    return grid[cap] === target;
-  });
-  if (isReadOnly) return "Read Only";
+  for (const cap of serviceCaps) {
+    const level = grid[cap] ?? "restricted";
+    if (level === "granted") grantedCount++;
+    else if (level === "read_only") readOnlyCount++;
+    else restrictedCount++;
+  }
 
-  const isRestricted = serviceCaps.every((cap) => grid[cap] === "restricted");
-  if (isRestricted) return "Restricted";
+  const totalCount = serviceCaps.length;
+  if (totalCount === 0 || restrictedCount === totalCount) {
+    return "Restricted";
+  }
 
-  return "Custom";
+  const grantableCaps = serviceCaps.filter(
+    (cap) => CAPABILITY_META[cap]?.levels?.includes("granted"),
+  );
+  const isAllGrantableGranted =
+    grantableCaps.length > 0 &&
+    grantableCaps.every((cap) => grid[cap] === "granted");
+
+  const isStrictFull =
+    restrictedCount === 0 &&
+    totalCount > 0 &&
+    serviceCaps.every((cap) => {
+      const meta = CAPABILITY_META[cap];
+      const maxLevel = meta?.levels?.includes("granted") ? "granted" : "read_only";
+      return grid[cap] === maxLevel;
+    });
+
+  if (isAllGrantableGranted || isStrictFull) {
+    return "Full Access";
+  }
+
+  if (grantedCount === 0 && readOnlyCount > 0) {
+    return "Read Only";
+  }
+
+  return "Limited";
 }
 
-export function getServiceBadgeClass(status: "Full Access" | "Read Only" | "Restricted" | "Custom"): string {
+export function getServiceBadgeClass(status: "Full Access" | "Limited" | "Read Only" | "Restricted"): string {
   switch (status) {
     case "Full Access":
       return "badge-pos";
+    case "Limited":
+      return "badge-warn";
     case "Read Only":
-      return "badge-prog";
-    case "Restricted":
       return "badge-neu";
-    case "Custom":
-      return "badge-custom";
+    case "Restricted":
+      return "badge-neg";
   }
 }
 
@@ -259,10 +282,7 @@ export function RoleDrawer({
   const [grid, setGrid] = useState<CapabilityGrid>(RESTRICTED_GRID);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [busy, setBusy] = useState(false);
-  const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({
-    "youth-republic": true,
-    "team-governance": true,
-  });
+  const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({});
 
   function toggleService(key: string) {
     setExpandedServices((prev) => ({
@@ -299,12 +319,18 @@ export function RoleDrawer({
     if (request.mode === "create") {
       setName(""); setDescription(""); setSelectedTemplate("");
       setGrid({ ...RESTRICTED_GRID, drive: "granted", publish: "restricted", triage: "granted", hours: "restricted", team: "restricted" });
+      setExpandedServices({ "youth-republic": true, "team-governance": true });
     } else if (source) {
       const g = permissionKeysToGrid(source.permissionKeys);
       setGrid(g);
       setDescription(source.description ?? "");
       setName(request.mode === "clone" ? `${source.name} (Copy)` : source.name);
       setSelectedTemplate("");
+      setExpandedServices(
+        request.mode === "view"
+          ? {}
+          : { "youth-republic": true, "team-governance": true }
+      );
     }
     // `source` is intentionally not a dep: it is recomputed every render
     // (roles.find over a fresh array), so including it would re-run this
@@ -437,7 +463,7 @@ export function RoleDrawer({
                 <label className="form-label">Granular Module Permissions</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
                   {SERVICES.map((service) => {
-                    const isOpen = expandedServices[service.key] ?? true;
+                    const isOpen = Boolean(expandedServices[service.key]);
                     const status = getServiceStatus(service.capabilities, grid);
                     const badgeClass = getServiceBadgeClass(status);
 
@@ -560,24 +586,38 @@ export function RoleDrawer({
                             }}
                           >
                             {service.capabilities.map((cap) => (
-                              <div className="perm-checkbox-row" key={cap}>
+                              <div className="perm-checkbox-row" key={cap} data-capability={cap}>
                                 <span>{CAPABILITY_META[cap].column}</span>
-                                <Select
-                                  aria-label={CAPABILITY_META[cap].column}
-                                  value={grid[cap]}
-                                  disabled={readOnly}
-                                  onChange={(val) => {
-                                    const nextGrid = { ...grid, [cap]: val as CapabilityLevel };
-                                    if (cap === "members") {
-                                      nextGrid.team = val === "granted" ? "granted" : "restricted";
-                                    }
-                                    setGrid(nextGrid);
-                                  }}
-                                  options={CAPABILITY_META[cap].levels.map((lvl) => ({
-                                    value: lvl,
-                                    label: LEVEL_LABEL[lvl],
-                                  }))}
-                                />
+                                {readOnly ? (
+                                  <span
+                                    className={`badge ${
+                                      grid[cap] === "granted"
+                                        ? "badge-pos"
+                                        : grid[cap] === "read_only"
+                                        ? "badge-neu"
+                                        : "badge-neg"
+                                    }`}
+                                    data-testid={`cap-badge-${cap}`}
+                                  >
+                                    {LEVEL_LABEL[grid[cap]]}
+                                  </span>
+                                ) : (
+                                  <Select
+                                    aria-label={CAPABILITY_META[cap].column}
+                                    value={grid[cap]}
+                                    onChange={(val) => {
+                                      const nextGrid = { ...grid, [cap]: val as CapabilityLevel };
+                                      if (cap === "members") {
+                                        nextGrid.team = val === "granted" ? "granted" : "restricted";
+                                      }
+                                      setGrid(nextGrid);
+                                    }}
+                                    options={CAPABILITY_META[cap].levels.map((lvl) => ({
+                                      value: lvl,
+                                      label: LEVEL_LABEL[lvl],
+                                    }))}
+                                  />
+                                )}
                               </div>
                             ))}
                           </div>

@@ -17,9 +17,41 @@ export async function deleteCustomRole(
   if (role.is_system) throw new Error("system_role_immutable");
 
   if (!callerPlatformOwner) {
-    const { data } = await supabase.from("staff_org_roles").select("org_tier")
-      .eq("staff_id", callerStaffId).eq("organization_id", role.organization_id).single();
-    if (!data || !["admin", "super_admin"].includes(data.org_tier)) throw new Error("forbidden");
+    let isAuthorized = false;
+    const { data: orgRole } = await supabase.from("staff_org_roles").select("org_tier")
+      .eq("staff_id", callerStaffId).eq("organization_id", role.organization_id).maybeSingle();
+    if (orgRole && ["admin", "super_admin"].includes(orgRole.org_tier)) {
+      isAuthorized = true;
+    } else {
+      const { data: assignments } = await supabase
+        .from("staff_role_assignments")
+        .select("role_id, scope_kind")
+        .eq("staff_id", callerStaffId)
+        .eq("organization_id", role.organization_id);
+
+      if (assignments && assignments.length > 0) {
+        const roleIds = [...new Set(assignments.map((a) => a.role_id))];
+        const { data: roles } = await supabase
+          .from("roles")
+          .select("id, name, role_permissions(permissions(resource, action))")
+          .in("id", roleIds);
+
+        for (const r of roles ?? []) {
+          if (["Super Admin", "Org Admin", "Organization Admin"].includes(r.name)) {
+            isAuthorized = true;
+            break;
+          }
+          const hasRoleWrite = (r.role_permissions ?? []).some(
+            (rp: any) => rp.permissions?.resource === "roles" && rp.permissions?.action === "write",
+          );
+          if (hasRoleWrite) {
+            isAuthorized = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!isAuthorized) throw new Error("forbidden");
   }
 
   const { count } = await supabase.from("staff_role_assignments")
