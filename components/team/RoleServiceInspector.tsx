@@ -127,7 +127,7 @@ export function RoleServiceInspector({
               <button
                 type="button"
                 onClick={() => toggleModule(summary.moduleKey)}
-                className="w-full text-left p-3 flex flex-wrap items-center justify-between gap-3 transition-colors cursor-pointer select-none"
+                className="w-full text-left p-3 flex flex-wrap items-center justify-between gap-3 transition-colors cursor-pointer select-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--brand)]"
                 style={{
                   background: isExpanded ? "var(--bg-page, #F8F9FA)" : "transparent",
                 }}

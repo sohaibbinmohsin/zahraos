@@ -65,10 +65,13 @@ export function RolesTable({
   const [moduleFilter, setModuleFilter] = useState("all");
   const [expandedRoleIds, setExpandedRoleIds] = useState<Set<string>>(() => new Set());
 
-  const moduleOptions = [
-    { value: "all", label: "All Modules" },
-    ...SERVICE_MODULES.map((m) => ({ value: m.key, label: m.title })),
-  ];
+  const moduleOptions = useMemo(
+    () => [
+      { value: "all", label: "All Modules" },
+      ...SERVICE_MODULES.map((m) => ({ value: m.key, label: m.title })),
+    ],
+    [],
+  );
 
   const rolesWithSummaries = useMemo(() => {
     return roles.map((r) => {
