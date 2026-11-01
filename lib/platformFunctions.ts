@@ -20,7 +20,9 @@ async function callFunction<TResponse>(
     name === "update-custom-role" ||
     name === "delete-custom-role";
 
-  const isPlatformLocalAction = isPlatformChapterAction || isPlatformRoleAction;
+  const isPlatformAuthAction = name === "set-password";
+
+  const isPlatformLocalAction = isPlatformChapterAction || isPlatformRoleAction || isPlatformAuthAction;
 
   const isVitestMock = typeof process !== "undefined" && process.env.NODE_ENV === "test";
 

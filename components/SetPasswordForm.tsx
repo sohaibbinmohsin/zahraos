@@ -70,11 +70,40 @@ export function SetPasswordForm() {
         setError("unauthorized");
         return;
       }
+
+      // Check if newPassword is the same as the user's current temporary password
+      const userEmail = sessionData.session.user?.email;
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      if (userEmail && url && anonKey) {
+        try {
+          const { createClient } = await import("@supabase/supabase-js");
+          const tempClient = createClient(url, anonKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { data: testAuth, error: testAuthError } = await tempClient.auth.signInWithPassword({
+            email: userEmail,
+            password: newPassword,
+          });
+          if (!testAuthError && testAuth.session) {
+            setError("New password cannot be the same as your temporary password");
+            return;
+          }
+        } catch {
+          // Fall through to server-side check
+        }
+      }
+
       await setPassword({ newPassword }, sessionData.session.access_token);
       router.push("/");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "unknown_error");
+      const message = err instanceof Error ? err.message : "unknown_error";
+      if (message === "new_password_same_as_temporary") {
+        setError("New password cannot be the same as your temporary password");
+      } else {
+        setError(message);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -153,6 +182,10 @@ export function SetPasswordForm() {
         <li className={`flex items-center gap-2 transition ${isMatch ? "text-[#14161B] font-medium" : ""}`}>
           <span className={isMatch ? "text-[#1B5E20] font-bold" : "text-[#8A8E99]"}>✓</span>
           <span>Passwords match</span>
+        </li>
+        <li className="flex items-center gap-2 text-[#8A8E99]">
+          <span>✓</span>
+          <span>Must be different from temporary password</span>
         </li>
       </ul>
 

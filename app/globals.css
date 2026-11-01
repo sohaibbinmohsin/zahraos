@@ -1846,8 +1846,9 @@ input[type="password"].dots-placeholder::placeholder,
   background: var(--bg-page);
 }
 
-/* Brand Checkbox */
-input[type="checkbox"] {
+/* Brand Checkbox & Radio */
+input[type="checkbox"],
+input[type="radio"] {
   accent-color: var(--brand);
 }
 

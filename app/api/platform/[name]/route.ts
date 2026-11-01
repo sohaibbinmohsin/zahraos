@@ -108,6 +108,53 @@ export async function POST(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  // Handle set-password
+  if (name === "set-password") {
+    const body = await request.json().catch(() => ({}));
+    const { newPassword } = body;
+    if (!newPassword || typeof newPassword !== "string") {
+      return NextResponse.json({ error: "missing_required_fields" }, { status: 400 });
+    }
+
+    if (!user || !user.email) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    }
+
+    // Check if newPassword is the same as the existing temporary password
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+    if (supabaseUrl && anonKey) {
+      const anonClient = createClient(supabaseUrl, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      const { data: checkData, error: checkError } = await anonClient.auth.signInWithPassword({
+        email: user.email,
+        password: newPassword,
+      });
+      if (!checkError && checkData.session) {
+        return NextResponse.json({ error: "new_password_same_as_temporary" }, { status: 400 });
+      }
+    }
+
+    const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(user.id, {
+      password: newPassword,
+    });
+    if (authError) {
+      return NextResponse.json({ error: authError.message }, { status: 500 });
+    }
+
+    if (callerStaffId) {
+      const { error: staffError } = await supabaseAdmin
+        .from("staff")
+        .update({ must_change_password: false })
+        .eq("id", callerStaffId);
+      if (staffError) {
+        return NextResponse.json({ error: staffError.message }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ staffId: callerStaffId ?? user.id });
+  }
+
   // Handle list-chapters
   if (name === "list-chapters") {
     const body = await request.json().catch(() => ({}));
