@@ -6,7 +6,12 @@ import {
   deriveRoleTitleFromPermissions,
   RESTRICTED_GRID,
   MODULE_CAPABILITIES,
+  SERVICE_MODULES,
+  getRoleModuleSummaries,
   type CapabilityGrid,
+  type RoleModuleSummary,
+  type ModuleAccessLevel,
+  type ServiceModuleConfig,
 } from "./capabilityMap";
 
 describe("capabilityMap", () => {
@@ -198,6 +203,166 @@ describe("capabilityMap", () => {
     it("returns null for unrecognized or empty permission sets", () => {
       expect(deriveRoleTitleFromPermissions([], false)).toBeNull();
       expect(deriveRoleTitleFromPermissions(["volunteers:read"], false)).toBeNull();
+    });
+  });
+
+  describe("getRoleModuleSummaries & SERVICE_MODULES", () => {
+    it("exports SERVICE_MODULES with correct service configs for Youth Republic and Team & Governance", () => {
+      expect(SERVICE_MODULES).toHaveLength(2);
+      expect(SERVICE_MODULES[0]).toMatchObject({
+        key: "youth-republic",
+        title: "Youth Republic",
+        capabilities: ["drive", "publish", "triage", "hours", "volunteers"],
+      });
+      expect(SERVICE_MODULES[1]).toMatchObject({
+        key: "team-governance",
+        title: "Team & Governance",
+        capabilities: ["org_governance", "members", "roles", "audit", "inquiries"],
+      });
+    });
+
+    it("derives full access for Super Admin across all modules", () => {
+      const superAdminGrid: CapabilityGrid = {
+        drive: "granted",
+        publish: "granted",
+        triage: "granted",
+        hours: "granted",
+        volunteers: "read_only",
+        org_governance: "granted",
+        members: "granted",
+        roles: "granted",
+        audit: "read_only",
+        inquiries: "granted",
+        team: "granted",
+      };
+
+      const summaries = getRoleModuleSummaries(superAdminGrid);
+      expect(summaries).toHaveLength(2);
+
+      const yr = summaries.find((s) => s.moduleKey === "youth-republic")!;
+      expect(yr).toBeDefined();
+      expect(yr.title).toBe("Youth Republic");
+      expect(yr.level).toBe("full");
+      expect(yr.grantedCount).toBe(4);
+      expect(yr.readOnlyCount).toBe(1);
+      expect(yr.restrictedCount).toBe(0);
+      expect(yr.totalCount).toBe(5);
+
+      const tg = summaries.find((s) => s.moduleKey === "team-governance")!;
+      expect(tg).toBeDefined();
+      expect(tg.title).toBe("Team & Governance");
+      expect(tg.level).toBe("full");
+      expect(tg.grantedCount).toBe(4);
+      expect(tg.readOnlyCount).toBe(1);
+      expect(tg.restrictedCount).toBe(0);
+      expect(tg.totalCount).toBe(5);
+    });
+
+    it("derives limited access for Chapter Lead (strict zero restricted model)", () => {
+      const chapterLeadGrid: CapabilityGrid = {
+        ...RESTRICTED_GRID,
+        drive: "granted",
+        publish: "granted",
+        triage: "granted",
+        hours: "granted",
+        volunteers: "restricted",
+        org_governance: "granted",
+      };
+
+      const summaries = getRoleModuleSummaries(chapterLeadGrid);
+      const yr = summaries.find((s) => s.moduleKey === "youth-republic")!;
+      expect(yr.level).toBe("limited");
+      expect(yr.grantedCount).toBe(4);
+      expect(yr.readOnlyCount).toBe(0);
+      expect(yr.restrictedCount).toBe(1);
+      expect(yr.totalCount).toBe(5);
+
+      const tg = summaries.find((s) => s.moduleKey === "team-governance")!;
+      expect(tg.level).toBe("limited");
+      expect(tg.grantedCount).toBe(1);
+      expect(tg.readOnlyCount).toBe(0);
+      expect(tg.restrictedCount).toBe(4);
+      expect(tg.totalCount).toBe(5);
+    });
+
+    it("derives restricted access for fully restricted grid", () => {
+      const summaries = getRoleModuleSummaries(RESTRICTED_GRID);
+      for (const summary of summaries) {
+        expect(summary.level).toBe("restricted");
+        expect(summary.grantedCount).toBe(0);
+        expect(summary.readOnlyCount).toBe(0);
+        expect(summary.restrictedCount).toBe(5);
+        expect(summary.totalCount).toBe(5);
+      }
+    });
+
+    it("derives read_only access for Auditor role", () => {
+      const auditorGrid: CapabilityGrid = {
+        ...RESTRICTED_GRID,
+        triage: "read_only",
+        hours: "read_only",
+        volunteers: "read_only",
+        audit: "read_only",
+      };
+
+      const summaries = getRoleModuleSummaries(auditorGrid);
+      const yr = summaries.find((s) => s.moduleKey === "youth-republic")!;
+      expect(yr.level).toBe("read_only");
+      expect(yr.grantedCount).toBe(0);
+      expect(yr.readOnlyCount).toBe(3);
+      expect(yr.restrictedCount).toBe(2);
+
+      const tg = summaries.find((s) => s.moduleKey === "team-governance")!;
+      expect(tg.level).toBe("read_only");
+      expect(tg.grantedCount).toBe(0);
+      expect(tg.readOnlyCount).toBe(1);
+      expect(tg.restrictedCount).toBe(4);
+    });
+
+    it("accepts permission keys array directly", () => {
+      const superAdminPerms = [
+        "opportunities:write",
+        "opportunities:read",
+        "noticeboard:write",
+        "applications:update",
+        "applications:read",
+        "hours:update",
+        "hours:read",
+        "volunteers:read",
+        "chapters:write",
+        "chapters:read",
+        "members:write",
+        "roles:write",
+        "admin_action_log:read",
+        "inquiries:write",
+        "inquiries:read",
+      ];
+
+      const summaries = getRoleModuleSummaries(superAdminPerms);
+      expect(summaries[0].level).toBe("full");
+      expect(summaries[1].level).toBe("full");
+    });
+
+    it("supports custom modules config override", () => {
+      const customModule: ServiceModuleConfig = {
+        key: "custom-ops",
+        title: "Custom Ops",
+        description: "Custom operational checks",
+        capabilities: ["drive", "hours"],
+      };
+
+      const grid: CapabilityGrid = {
+        ...RESTRICTED_GRID,
+        drive: "granted",
+        hours: "granted",
+      };
+
+      const summaries = getRoleModuleSummaries(grid, [customModule]);
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0].moduleKey).toBe("custom-ops");
+      expect(summaries[0].level).toBe("full");
+      expect(summaries[0].grantedCount).toBe(2);
+      expect(summaries[0].totalCount).toBe(2);
     });
   });
 });
