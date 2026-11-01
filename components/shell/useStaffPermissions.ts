@@ -142,7 +142,6 @@ export function useStaffPermissions(): StaffPermissions {
   const canViewOrganization = Boolean(
     isAdmin ||
     canManageTeam ||
-    isChapterScoped ||
     hasPerm("chapters:read") ||
     hasPerm("chapters:write")
   );

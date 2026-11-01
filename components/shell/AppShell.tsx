@@ -500,6 +500,7 @@ function AppShellContent({
 }: AppShellContentProps) {
   const router = useRouter();
   const perms = useStaffPermissions();
+  const isOrgAdminOrAbove = useIsOrgAdminOrAbove();
   const selectedOrgId = useSelectedOrg();
   const accessToken = useShellAccessToken();
   const claims = useStaffClaims();
@@ -857,14 +858,14 @@ function AppShellContent({
                 </Link>
               )}
 
-              {perms.canManageTeam && (
+              {(perms.canManageTeam || perms.canViewOrganization || isOrgAdminOrAbove) && (
                 <>
                   <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
                   <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
                   <Link
-                    href="/organization"
+                    href="/team/organization"
                     aria-label="Organization"
-                    className={`sidebar-nav-item ${pathname === "/organization" ? "active" : ""}`}
+                    className={`sidebar-nav-item ${pathname === "/team/organization" || pathname === "/organization" ? "active" : ""}`}
                     onClick={() => setMobileSidebarOpen(false)}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
@@ -875,9 +876,9 @@ function AppShellContent({
                   </Link>
                   {perms.canViewInquiries && (
                     <Link
-                      href="/organization/inquiries"
+                      href="/team/organization/inquiries"
                       aria-label="Partner Inquiries"
-                      className={`sidebar-nav-item ${pathname?.startsWith("/organization/inquiries") ? "active" : ""}`}
+                      className={`sidebar-nav-item ${pathname?.startsWith("/team/organization/inquiries") || pathname?.startsWith("/organization/inquiries") ? "active" : ""}`}
                       onClick={() => setMobileSidebarOpen(false)}
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
@@ -886,47 +887,51 @@ function AppShellContent({
                       <span className="nav-label">Partner Inquiries</span>
                     </Link>
                   )}
-                  <Link href="/team/members" aria-label="Team Members"
-                    className={`sidebar-nav-item ${pathname === "/team/members" ? "active" : ""}`}
-                    onClick={() => setMobileSidebarOpen(false)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-                    </svg>
-                    <span className="nav-label">Team Members</span>
-                    {activeTeamCount !== null && activeTeamCount > 0 && (
-                      <span className="side-badge" id="side-badge-team">{activeTeamCount}</span>
-                    )}
-                  </Link>
-                  <Link href="/team/roles" aria-label="Roles & Permissions"
-                    className={`sidebar-nav-item ${pathname === "/team/roles" ? "active" : ""}`}
-                    onClick={() => setMobileSidebarOpen(false)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                    </svg>
-                    <span className="nav-label">Roles &amp; Permissions</span>
-                  </Link>
-                  <Link href="/team/audit" aria-label="Audit Log"
-                    className={`sidebar-nav-item ${pathname === "/team/audit" ? "active" : ""}`}
-                    onClick={() => setMobileSidebarOpen(false)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-                    </svg>
-                    <span className="nav-label">Audit Log</span>
-                  </Link>
-                  <div
-                    className="sidebar-nav-item coming-soon-nav-item cursor-not-allowed opacity-65"
-                    title="Data Controls (Coming Soon)"
-                    aria-label="Data Controls"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <ellipse cx="12" cy="5" rx="9" ry="3" />
-                      <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
-                      <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-                    </svg>
-                    <span className="nav-label">Data Controls</span>
-                    <span className="coming-soon-badge">Coming Soon</span>
-                  </div>
+                  {(perms.canManageTeam || isOrgAdminOrAbove) && (
+                    <>
+                      <Link href="/team/members" aria-label="Team Members"
+                        className={`sidebar-nav-item ${pathname === "/team/members" ? "active" : ""}`}
+                        onClick={() => setMobileSidebarOpen(false)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                          <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        <span className="nav-label">Team Members</span>
+                        {activeTeamCount !== null && activeTeamCount > 0 && (
+                          <span className="side-badge" id="side-badge-team">{activeTeamCount}</span>
+                        )}
+                      </Link>
+                      <Link href="/team/roles" aria-label="Roles & Permissions"
+                        className={`sidebar-nav-item ${pathname === "/team/roles" ? "active" : ""}`}
+                        onClick={() => setMobileSidebarOpen(false)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                        <span className="nav-label">Roles &amp; Permissions</span>
+                      </Link>
+                      <Link href="/team/audit" aria-label="Audit Log"
+                        className={`sidebar-nav-item ${pathname === "/team/audit" ? "active" : ""}`}
+                        onClick={() => setMobileSidebarOpen(false)}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                          <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+                        </svg>
+                        <span className="nav-label">Audit Log</span>
+                      </Link>
+                      <div
+                        className="sidebar-nav-item coming-soon-nav-item cursor-not-allowed opacity-65"
+                        title="Data Controls (Coming Soon)"
+                        aria-label="Data Controls"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                          <ellipse cx="12" cy="5" rx="9" ry="3" />
+                          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" />
+                          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
+                        </svg>
+                        <span className="nav-label">Data Controls</span>
+                        <span className="coming-soon-badge">Coming Soon</span>
+                      </div>
+                    </>
+                  )}
                 </>
               )}
 

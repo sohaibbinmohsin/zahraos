@@ -148,5 +148,5 @@ export function landingPathFor(shell: ShellData | null, cookieOrgId: string | nu
     const yr = MODULE_REGISTRY.find((m) => m.key === "youth-republic");
     return `${yr?.route ?? "/youth-republic"}/dashboard`;
   }
-  return "/organization";
+  return "/team/organization";
 }

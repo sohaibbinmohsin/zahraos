@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   ],
   async redirects() {
     return [
+      { source: "/organization", destination: "/team/organization", permanent: false },
+      { source: "/organization/inquiries", destination: "/team/organization/inquiries", permanent: false },
       { source: "/team", destination: "/team/members", permanent: false },
       { source: "/staff", destination: "/team/members", permanent: false },
       { source: "/roles", destination: "/team/roles", permanent: false },

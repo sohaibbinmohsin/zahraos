@@ -216,38 +216,138 @@ export async function POST(
     }
 
     if (teamMembers !== undefined && Array.isArray(teamMembers)) {
-      const { data: currentMembers } = await supabaseAdmin
+      const { data: existingRows, error: fetchMembersError } = await supabaseAdmin
         .from("chapter_team_members")
-        .select("id, volunteer_code")
+        .select("id, volunteer_code, term")
         .eq("chapter_id", chapterId);
 
-      const inputCodes = new Set(teamMembers.map((m: any) => m.volunteerCode));
-      const toDelete = (currentMembers ?? [])
-        .filter((m: any) => !inputCodes.has(m.volunteer_code))
-        .map((m: any) => m.id);
-
-      if (toDelete.length > 0) {
-        await supabaseAdmin.from("chapter_team_members").delete().in("id", toDelete);
+      if (fetchMembersError) {
+        return NextResponse.json({ error: fetchMembersError.message }, { status: 500 });
       }
 
+      const existingList = existingRows ?? [];
+      const existingKeyMap = new Map<string, string>();
+      for (const row of existingList) {
+        const key = `${(row.volunteer_code as string).toUpperCase()}::${row.term ?? ""}`;
+        existingKeyMap.set(key, row.id);
+      }
+
+      const incomingKeys = new Set<string>();
+      const toUpsert: Array<Record<string, unknown>> = [];
+
       for (const m of teamMembers) {
-        await supabaseAdmin.from("chapter_team_members").upsert(
-          {
-            chapter_id: chapterId,
-            volunteer_code: m.volunteerCode,
-            full_name: m.fullName,
-            email: m.email || null,
-            avatar_url: m.avatarUrl || null,
-            designation: m.designation,
-            term: m.term || null,
-            status: m.status || "active",
-          },
-          { onConflict: "chapter_id,volunteer_code" }
-        );
+        const normalizedCode = (m.volunteerCode || "").trim().toUpperCase();
+        const term = m.term?.trim() || null;
+        const key = `${normalizedCode}::${term ?? ""}`;
+        incomingKeys.add(key);
+
+        const existingId = existingKeyMap.get(key);
+        toUpsert.push({
+          ...(existingId ? { id: existingId } : {}),
+          chapter_id: chapterId,
+          volunteer_code: normalizedCode,
+          full_name: (m.fullName || "").trim(),
+          email: m.email?.trim() || null,
+          avatar_url: m.avatarUrl?.trim() || null,
+          designation: (m.designation || "").trim(),
+          term,
+          status: m.status || "active",
+          created_by: callerStaffId,
+        });
+      }
+
+      const idsToDelete = existingList
+        .filter((row) => !incomingKeys.has(`${(row.volunteer_code as string).toUpperCase()}::${row.term ?? ""}`))
+        .map((row) => row.id);
+
+      if (idsToDelete.length > 0) {
+        const { error: delError } = await supabaseAdmin
+          .from("chapter_team_members")
+          .delete()
+          .in("id", idsToDelete);
+        if (delError) {
+          return NextResponse.json({ error: delError.message }, { status: 500 });
+        }
+      }
+
+      if (toUpsert.length > 0) {
+        const { error: upsertError } = await supabaseAdmin
+          .from("chapter_team_members")
+          .upsert(toUpsert);
+        if (upsertError) {
+          return NextResponse.json({ error: upsertError.message }, { status: 500 });
+        }
       }
     }
 
     return NextResponse.json({ chapterId });
+  }
+
+  // Handle list-chapter-team-members
+  if (name === "list-chapter-team-members") {
+    const body = await request.json().catch(() => ({}));
+    const { chapterId } = body;
+    if (!chapterId) {
+      return NextResponse.json({ error: "chapter_id_required" }, { status: 400 });
+    }
+
+    const { data: chapter, error: chapterError } = await supabaseAdmin
+      .from("chapters")
+      .select("id, organization_id")
+      .eq("id", chapterId)
+      .single();
+
+    if (chapterError || !chapter) {
+      return NextResponse.json({ error: "not_found" }, { status: 404 });
+    }
+
+    if (!callerPlatformOwner) {
+      const { data: orgRole } = await supabaseAdmin
+        .from("staff_org_roles")
+        .select("org_tier")
+        .eq("staff_id", callerStaffId)
+        .eq("organization_id", chapter.organization_id)
+        .maybeSingle();
+
+      if (!orgRole) {
+        const { data: assignments } = await supabaseAdmin
+          .from("staff_role_assignments")
+          .select("id")
+          .eq("staff_id", callerStaffId)
+          .eq("organization_id", chapter.organization_id)
+          .limit(1);
+
+        if (!assignments || assignments.length === 0) {
+          return NextResponse.json({ error: "forbidden" }, { status: 403 });
+        }
+      }
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("chapter_team_members")
+      .select("id, chapter_id, volunteer_code, full_name, email, avatar_url, designation, term, status, created_at, created_by")
+      .eq("chapter_id", chapterId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const teamMembers = (data ?? []).map((m: any) => ({
+      id: m.id,
+      chapterId: m.chapter_id,
+      volunteerCode: m.volunteer_code,
+      fullName: m.full_name,
+      email: m.email ?? null,
+      avatarUrl: m.avatar_url ?? null,
+      designation: m.designation,
+      term: m.term ?? null,
+      status: m.status,
+      createdAt: m.created_at,
+      createdBy: m.created_by ?? null,
+    }));
+
+    return NextResponse.json({ teamMembers });
   }
 
   return NextResponse.json({ error: "not_found" }, { status: 404 });

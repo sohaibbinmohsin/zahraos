@@ -6,7 +6,7 @@ import { useCenterActiveTab } from "@/components/shell/useCenterActiveTab";
 
 const TABS = [
   {
-    href: "/organization",
+    href: "/team/organization",
     label: "Organization",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -16,7 +16,7 @@ const TABS = [
     ),
   },
   {
-    href: "/organization/inquiries",
+    href: "/team/organization/inquiries",
     label: "Partner Inquiries",
     icon: (
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -79,8 +79,13 @@ export function GovernanceTabs() {
   return (
     <nav className="module-nav-bar">
       <div className="module-nav-wrap" ref={wrapRef}>
-        {TABS.map((tab) =>
-          tab.comingSoon ? (
+        {TABS.map((tab) => {
+          const isActive =
+            pathname === tab.href ||
+            (tab.href === "/team/organization" && (pathname === "/organization" || pathname === "/team/organization")) ||
+            (tab.href === "/team/organization/inquiries" && (pathname === "/organization/inquiries" || pathname === "/team/organization/inquiries"));
+
+          return tab.comingSoon ? (
             <span key={tab.label} className="module-tab opacity-50 cursor-not-allowed">
               <span className="icon-svg" aria-hidden="true">{tab.icon}</span>
               <span>{tab.label}</span>
@@ -91,13 +96,13 @@ export function GovernanceTabs() {
               key={tab.href}
               href={tab.href}
               onClick={onTabClick}
-              className={`module-tab ${pathname === tab.href ? "active" : ""}`}
+              className={`module-tab ${isActive ? "active" : ""}`}
             >
               <span className="icon-svg" aria-hidden="true">{tab.icon}</span>
               <span>{tab.label}</span>
             </Link>
-          ),
-        )}
+          );
+        })}
       </div>
     </nav>
   );

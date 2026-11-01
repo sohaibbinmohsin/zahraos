@@ -441,9 +441,9 @@ const ROLES: Record<string, RoleDefinition> = {
       scopedChapterIds: ["lhr"],
     },
     sidebar: {
-      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours"],
+      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours", "Organization"],
       forbiddenLinks: ["Volunteers", "Team Members", "Roles & Permissions", "Partner Inquiries"],
-      canSeeTeamAndGovernance: false,
+      canSeeTeamAndGovernance: true,
     },
     layoutTabs: {
       expected: ["Dashboard", "Drives", "Applications", "Hours"],
@@ -494,9 +494,9 @@ const ROLES: Record<string, RoleDefinition> = {
       scopedChapterIds: ["lhr", "north"],
     },
     sidebar: {
-      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours"],
+      expectedLinks: ["Dashboard", "Drives", "Applications", "Hours", "Organization"],
       forbiddenLinks: ["Volunteers", "Team Members", "Roles & Permissions", "Partner Inquiries"],
-      canSeeTeamAndGovernance: false,
+      canSeeTeamAndGovernance: true,
     },
     layoutTabs: {
       expected: ["Dashboard", "Drives", "Applications", "Hours"],

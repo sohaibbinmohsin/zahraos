@@ -37,7 +37,7 @@ describe("landingPathFor", () => {
   });
 
   it("falls back to the Organization page when the active org has no Youth Republic module", () => {
-    expect(landingPathFor(makeShell({}), "org-1")).toBe("/organization");
+    expect(landingPathFor(makeShell({}), "org-1")).toBe("/team/organization");
   });
 
   it("keys the module check to the cookie's org, not just the first available one", () => {
@@ -50,7 +50,7 @@ describe("landingPathFor", () => {
       },
     });
     expect(landingPathFor(shell, "org-2")).toBe("/youth-republic/dashboard");
-    expect(landingPathFor(shell, "org-1")).toBe("/organization");
+    expect(landingPathFor(shell, "org-1")).toBe("/team/organization");
   });
 
   it("returns null (no redirect) when there is no shell or no org access", () => {
