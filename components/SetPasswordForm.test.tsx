@@ -107,4 +107,27 @@ describe("SetPasswordForm", () => {
 
     expect(await screen.findByText("New password cannot be the same as your temporary password")).toBeInTheDocument();
   });
+
+  it("shows green tick for temporary password requirement when new password is typed and different", async () => {
+    sessionStorage.setItem("current_temp_password", "TempPass-123!");
+    const user = userEvent.setup();
+    render(<SetPasswordForm />);
+
+    const tempItem = screen.getByText("Must be different from temporary password").closest("li");
+    const checkSpan = tempItem?.querySelector("span");
+
+    // Initially when empty, checkmark is not green
+    expect(checkSpan).toHaveClass("text-[#8A8E99]");
+
+    // Type a different password
+    await user.type(screen.getByLabelText("New password"), "MyBrandNew-1!");
+    expect(checkSpan).toHaveClass("text-[#1B5E20]");
+
+    // Type the temporary password
+    await user.clear(screen.getByLabelText("New password"));
+    await user.type(screen.getByLabelText("New password"), "TempPass-123!");
+    expect(checkSpan).toHaveClass("text-[#8A8E99]");
+
+    sessionStorage.clear();
+  });
 });

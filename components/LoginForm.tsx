@@ -25,6 +25,11 @@ export function LoginForm() {
         setLoading(false);
         return;
       }
+      try {
+        sessionStorage.setItem("current_temp_password", password);
+      } catch {
+        // Non-fatal
+      }
       router.push("/youth-republic/dashboard");
       router.refresh();
     } catch (err) {
