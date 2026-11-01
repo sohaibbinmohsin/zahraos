@@ -86,13 +86,13 @@ describe("ChaptersPanel", () => {
   });
 
   it("deactivates an active chapter when user can edit", async () => {
-    updateCh.mockResolvedValue({ chapterId: "c1" });
+    updateCh.mockResolvedValue({ chapterId: "c2" });
     const user = userEvent.setup();
     const onChanged = renderPanel();
     const deactivateBtns = screen.getAllByRole("button", { name: /Deactivate/i });
     await user.click(deactivateBtns[0]);
     await waitFor(() => expect(updateCh).toHaveBeenCalledWith(
-      { chapterId: "c1", status: "inactive" }, "access-token",
+      { chapterId: "c2", status: "inactive" }, "access-token",
     ));
     expect(onChanged).toHaveBeenCalled();
   });
@@ -169,6 +169,29 @@ describe("ChaptersPanel", () => {
     expect(screen.getByText(/View Details \(Read Only\)/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Save Chapter/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Close$/i })).toBeInTheDocument();
+  });
+
+  it("sorts editable chapters to the top of the table", () => {
+    mockPerms = {
+      canCreateChapters: false,
+      canEditChapter: (id: string) => id === "c2",
+      canManageOrgProfile: false,
+      canManageTeam: true,
+      canViewInquiries: false,
+      isChapterScoped: true,
+    };
+
+    renderPanel(vi.fn(), [
+      { id: "c1", name: "Alpha Chapter", city: "Lahore", status: "active" },
+      { id: "c2", name: "Beta Chapter", city: "Karachi", status: "active" },
+    ]);
+
+    const rows = screen.getAllByRole("row");
+    // Row 0 is header; Row 1 should be Beta Chapter (editable); Row 2 should be Alpha Chapter (view only)
+    expect(rows[1]).toHaveTextContent("Beta Chapter");
+    expect(rows[1]).toHaveTextContent("Edit");
+    expect(rows[2]).toHaveTextContent("Alpha Chapter");
+    expect(rows[2]).toHaveTextContent("View Details");
   });
 });
 

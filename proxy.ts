@@ -51,23 +51,36 @@ export async function proxy(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   let mustChangePassword = false;
+  let isActiveStaff = false;
+
   if (user) {
     const { data: staffRow } = await supabase
       .from("staff")
-      .select("must_change_password")
+      .select("must_change_password, status")
       .eq("auth_user_id", user.id)
-      .single();
-    mustChangePassword = staffRow?.must_change_password ?? false;
+      .maybeSingle();
+
+    if (staffRow && staffRow.status !== "deactivated") {
+      isActiveStaff = true;
+      mustChangePassword = staffRow.must_change_password ?? false;
+    }
   }
 
   const redirectTo = computeMiddlewareRedirect({
     pathname: request.nextUrl.pathname,
-    isAuthenticated: Boolean(user),
+    isAuthenticated: Boolean(user && isActiveStaff),
     mustChangePassword,
     isSaving9Host,
   });
 
   if (redirectTo) {
+    if (user && !isActiveStaff) {
+      for (const c of request.cookies.getAll()) {
+        if (c.name.startsWith("sb-") || c.name.includes("auth-token")) {
+          response.cookies.delete(c.name);
+        }
+      }
+    }
     return redirectWithCookies(redirectTo);
   }
 

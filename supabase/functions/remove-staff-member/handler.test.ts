@@ -40,6 +40,8 @@ Deno.test("removeStaffMember deletes assignments, deactivates, and audits", asyn
   assertEquals(rows!.length, 0);
   const { data: s } = await supabase.from("staff").select("status").eq("id", member!.id).single();
   assertEquals(s!.status, "deactivated");
+  const { data: bannedUser } = await supabase.auth.admin.getUserById(mAuth!.user!.id);
+  assertEquals(Boolean(bannedUser?.user?.banned_until), true);
   const { data: audit } = await supabase.from("admin_audit_log").select("action")
     .eq("entity_id", member!.id).eq("action", "Member Removed").single();
   assertEquals(audit!.action, "Member Removed");
