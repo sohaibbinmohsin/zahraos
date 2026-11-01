@@ -92,7 +92,7 @@ export function SetPasswordForm() {
       )}
 
       <div>
-        <label htmlFor="newPassword" className="block text-xs font-semibold text-[#4A4D57] mb-1.5 font-['Jost']">
+        <label htmlFor="newPassword" className="block text-xs font-semibold text-[#4A4D57] mb-1.5 font-['Inter']">
           New password
         </label>
         <div className="relative flex items-center">
@@ -101,7 +101,7 @@ export function SetPasswordForm() {
             type={showNewPassword ? "text" : "password"}
             required
             className={`w-full rounded-lg border border-[#E2E4E8] px-3.5 pr-10 py-2.5 text-sm text-[#14161B] bg-white placeholder-[#8A8E99] focus:outline-none focus:border-[#14161B] focus:ring-2 focus:ring-[#D3BD2A]/20 transition ${
-              showNewPassword ? "font-['Jost'] tracking-normal" : "font-sans tracking-[0.18em]"
+              showNewPassword ? "font-['Inter'] tracking-normal" : "font-sans tracking-[0.18em]"
             }`}
             placeholder="Enter new password (min. 8 characters)"
             value={newPassword}
@@ -129,7 +129,7 @@ export function SetPasswordForm() {
       </div>
 
       {/* Supabase Password Requirements Checklist */}
-      <ul className="rounded-lg border border-[#E2E4E8] bg-[#F8F9FA] p-3 space-y-1.5 text-xs text-[#8A8E99] font-['Jost']">
+      <ul className="rounded-lg border border-[#E2E4E8] bg-[#F8F9FA] p-3 space-y-1.5 text-xs text-[#8A8E99] font-['Inter']">
         <li className={`flex items-center gap-2 transition ${isMinLen ? "text-[#14161B] font-medium" : ""}`}>
           <span className={isMinLen ? "text-[#1B5E20] font-bold" : "text-[#8A8E99]"}>✓</span>
           <span>At least 8 characters</span>
@@ -157,7 +157,7 @@ export function SetPasswordForm() {
       </ul>
 
       <div>
-        <label htmlFor="confirmPassword" className="block text-xs font-semibold text-[#4A4D57] mb-1.5 font-['Jost']">
+        <label htmlFor="confirmPassword" className="block text-xs font-semibold text-[#4A4D57] mb-1.5 font-['Inter']">
           Confirm password
         </label>
         <div className="relative flex items-center">
@@ -166,7 +166,7 @@ export function SetPasswordForm() {
             type={showConfirmPassword ? "text" : "password"}
             required
             className={`w-full rounded-lg border border-[#E2E4E8] px-3.5 pr-10 py-2.5 text-sm text-[#14161B] bg-white placeholder-[#8A8E99] focus:outline-none focus:border-[#14161B] focus:ring-2 focus:ring-[#D3BD2A]/20 transition ${
-              showConfirmPassword ? "font-['Jost'] tracking-normal" : "font-sans tracking-[0.18em]"
+              showConfirmPassword ? "font-['Inter'] tracking-normal" : "font-sans tracking-[0.18em]"
             }`}
             placeholder="Re-enter new password"
             value={confirmPassword}

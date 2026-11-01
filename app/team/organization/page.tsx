@@ -37,7 +37,26 @@ export default function OrganizationPage() {
 
   const canAccess = Boolean(perms.canViewOrganization || perms.canManageTeam || isOrgAdminOrAbove || perms.isChapterScoped);
 
+  const isSaving9Host =
+    typeof window !== "undefined" &&
+    (window.location.hostname.startsWith("saving9.") || window.location.hostname.includes("saving9"));
+  const isSaving9Demo = organizationId === "org-saving9" || (!organizationId && isSaving9Host);
+
   const fetchAll = useCallback(async () => {
+    if (isSaving9Demo) {
+      setProfile({
+        name: "Saving 9",
+        about: "Saving 9 is an emergency response non-profit empowering rural and peri-urban communities in Pakistan with community-first pre-hospital care and ambulance dispatch.",
+        brandColor: "#0B1F3D",
+        logoUrl: "/assets/saving9-logo-cropped.png",
+      });
+      setChapters([
+        { id: "chap-pind-begwal", name: "Pind Begwal Hub", city: "Islamabad Rural", status: "active" },
+        { id: "chap-tumair", name: "Tumair Hub", city: "Islamabad Rural", status: "active" },
+        { id: "chap-jheeng", name: "Jheeng Hub", city: "Islamabad Rural", status: "active" },
+      ]);
+      return;
+    }
     if (!organizationId) return;
     const supabase = getBrowserSupabaseClient();
     try {
@@ -60,9 +79,15 @@ export default function OrganizationPage() {
       setProfile({ name: "", about: "", brandColor: "", logoUrl: "" });
       setChapters([]);
     }
-  }, [organizationId, accessToken]);
+  }, [organizationId, accessToken, isSaving9Demo]);
 
   const load = useCallback(async () => {
+    if (isSaving9Demo && !shellLoading) {
+      setLoading(true);
+      await fetchAll();
+      setLoading(false);
+      return;
+    }
     if (!organizationId || shellLoading || !canAccess) {
       setLoading(false);
       return;
@@ -76,7 +101,7 @@ export default function OrganizationPage() {
     } finally {
       setLoading(false);
     }
-  }, [organizationId, shellLoading, canAccess, accessToken, fetchAll]);
+  }, [isSaving9Demo, shellLoading, organizationId, canAccess, accessToken, fetchAll]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -129,9 +154,9 @@ export default function OrganizationPage() {
     } finally { setSaving(false); }
   }
 
-  if (!organizationId) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Select an organization.</p></div>;
   if (shellLoading) return <OrganizationSkeleton />;
-  if (!canAccess) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">You need organization or chapter admin access to view this page.</p></div>;
+  if (!organizationId && !isSaving9Demo) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">Select an organization.</p></div>;
+  if (!canAccess && !isSaving9Demo) return <div className="panel p-8 text-center"><p className="text-[var(--ink-2)] font-medium">You need organization or chapter admin access to view this page.</p></div>;
   if (loading || !profile) return <OrganizationSkeleton />;
 
   return (
@@ -220,7 +245,7 @@ export default function OrganizationPage() {
       </Card>
 
       <ChaptersPanel
-        organizationId={organizationId}
+        organizationId={organizationId ?? (isSaving9Demo ? "org-saving9" : "")}
         accessToken={accessToken ?? ""}
         chapters={chapters}
         onChanged={fetchAll}

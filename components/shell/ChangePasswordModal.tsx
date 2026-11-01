@@ -171,7 +171,7 @@ export function ChangePasswordModal({
                 id="modal-current-password"
                 type={showCurrentPassword ? "text" : "password"}
                 className={`form-input pr-10 ${
-                  showCurrentPassword ? "font-['Jost'] tracking-normal" : "font-sans tracking-[0.18em]"
+                  showCurrentPassword ? "font-['Inter'] tracking-normal" : "font-sans tracking-[0.18em]"
                 }`}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -207,7 +207,7 @@ export function ChangePasswordModal({
                 id="modal-new-password"
                 type={showNewPassword ? "text" : "password"}
                 className={`form-input pr-10 ${
-                  showNewPassword ? "font-['Jost'] tracking-normal" : "font-sans tracking-[0.18em]"
+                  showNewPassword ? "font-['Inter'] tracking-normal" : "font-sans tracking-[0.18em]"
                 }`}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -236,7 +236,7 @@ export function ChangePasswordModal({
           </div>
 
           {/* Supabase Password Requirements Checklist */}
-          <ul className="rounded-lg border border-[var(--line)] bg-[var(--bg-page)] p-3 space-y-1.5 text-xs text-[var(--ink-3)] font-['Jost']">
+          <ul className="rounded-lg border border-[var(--line)] bg-[var(--bg-page)] p-3 space-y-1.5 text-xs text-[var(--ink-3)] font-['Inter']">
             <li className={`flex items-center gap-2 transition ${isMinLen ? "text-[var(--ink)] font-medium" : ""}`}>
               <span className={isMinLen ? "text-[#1B5E20] font-bold" : "text-[var(--ink-3)]"}>✓</span>
               <span>At least 8 characters</span>
@@ -271,7 +271,7 @@ export function ChangePasswordModal({
                 id="modal-confirm-password"
                 type={showConfirmPassword ? "text" : "password"}
                 className={`form-input pr-10 ${
-                  showConfirmPassword ? "font-['Jost'] tracking-normal" : "font-sans tracking-[0.18em]"
+                  showConfirmPassword ? "font-['Inter'] tracking-normal" : "font-sans tracking-[0.18em]"
                 }`}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}

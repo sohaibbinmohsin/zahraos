@@ -70,6 +70,132 @@ export const FALLBACK_SYSTEM_ROLES: TeamRole[] = [
   },
 ];
 
+export const SAVING9_FALLBACK_CHAPTERS: Chapter[] = [
+  { id: "chap-pind-begwal", name: "Pind Begwal Hub", city: "Islamabad Rural", status: "active" },
+  { id: "chap-tumair", name: "Tumair Hub", city: "Islamabad Rural", status: "active" },
+  { id: "chap-jheeng", name: "Jheeng Hub", city: "Islamabad Rural", status: "active" },
+];
+
+export const SAVING9_FALLBACK_ROLES: TeamRole[] = [
+  {
+    id: "role-super-admin",
+    name: "Super Admin",
+    description: "Full platform control and unconstrained administrative privileges across all operational modules.",
+    isSystem: true,
+    permissionKeys: ["team:write", "applications:update", "hours:update", "opportunities:write"],
+  },
+  {
+    id: "role-org-admin",
+    name: "Org Admin",
+    description: "Full operational permissions and organization-wide emergency fleet and personnel governance.",
+    isSystem: true,
+    permissionKeys: ["team:write", "applications:update", "hours:update", "opportunities:write"],
+  },
+  {
+    id: "role-ops-lead",
+    name: "Operations Lead",
+    description: "Hub-level dispatch commander, field crew supervision, and live telemetry triage.",
+    isSystem: false,
+    permissionKeys: ["applications:update", "hours:update", "opportunities:write"],
+  },
+  {
+    id: "role-drive-coord",
+    name: "Drive Coordinator",
+    description: "Fleet logistics, ambulance equipment calibration, and shift rota management.",
+    isSystem: false,
+    permissionKeys: ["opportunities:write", "hours:read"],
+  },
+  {
+    id: "role-reviewer",
+    name: "Application Reviewer",
+    description: "Paramedic volunteer onboarding and candidate credential triage.",
+    isSystem: false,
+    permissionKeys: ["applications:read", "applications:update"],
+  },
+  {
+    id: "role-auditor",
+    name: "Auditor",
+    description: "Independent oversight of Zakat relief funds, clinical waivers, and mileage logs.",
+    isSystem: true,
+    permissionKeys: ["hours:read", "applications:read"],
+  },
+];
+
+export const SAVING9_FALLBACK_MEMBERS: TeamMember[] = [
+  {
+    id: "staff-usama",
+    fullName: "Usama Bilal",
+    email: "usama@saving9.org",
+    status: "active",
+    lastActiveLabel: "Active now",
+    enforce2fa: true,
+    expiresAt: null,
+    assignments: [
+      { id: "asgn-1", roleId: "role-super-admin", roleName: "Super Admin", scopeKind: "org_wide", chapterId: null, scopeLabel: "All Hubs (Org-wide)" },
+    ],
+  },
+  {
+    id: "staff-zainab",
+    fullName: "Zainab Nosheen",
+    email: "zainab@saving9.org",
+    status: "active",
+    lastActiveLabel: "14 mins ago",
+    enforce2fa: true,
+    expiresAt: null,
+    assignments: [
+      { id: "asgn-2", roleId: "role-ops-lead", roleName: "Operations Lead", scopeKind: "chapter", chapterId: "chap-pind-begwal", scopeLabel: "Pind Begwal Hub" },
+    ],
+  },
+  {
+    id: "staff-faizan",
+    fullName: "Muhammad Faizan",
+    email: "faizan@saving9.org",
+    status: "active",
+    lastActiveLabel: "28 mins ago",
+    enforce2fa: true,
+    expiresAt: null,
+    assignments: [
+      { id: "asgn-3", roleId: "role-drive-coord", roleName: "Drive Coordinator", scopeKind: "chapter", chapterId: "chap-tumair", scopeLabel: "Tumair Hub" },
+    ],
+  },
+  {
+    id: "staff-hamza",
+    fullName: "Hamza Abbasi",
+    email: "hamza@saving9.org",
+    status: "active",
+    lastActiveLabel: "1 hour ago",
+    enforce2fa: true,
+    expiresAt: null,
+    assignments: [
+      { id: "asgn-4", roleId: "role-reviewer", roleName: "Application Reviewer", scopeKind: "chapter", chapterId: "chap-jheeng", scopeLabel: "Jheeng Hub" },
+    ],
+  },
+  {
+    id: "staff-ayesha",
+    fullName: "Dr. Ayesha Malik",
+    email: "ayesha@saving9.org",
+    status: "active",
+    lastActiveLabel: "3 hours ago",
+    enforce2fa: true,
+    expiresAt: null,
+    assignments: [
+      { id: "asgn-5", roleId: "role-org-admin", roleName: "Org Admin", scopeKind: "org_wide", chapterId: null, scopeLabel: "All Hubs (Org-wide)" },
+    ],
+  },
+  {
+    id: "staff-fatima",
+    fullName: "Fatima Zahra",
+    email: "fatima@saving9.org",
+    status: "active",
+    lastActiveLabel: "5 hours ago",
+    enforce2fa: true,
+    expiresAt: null,
+    assignments: [
+      { id: "asgn-6", roleId: "role-auditor", roleName: "Auditor", scopeKind: "org_wide", chapterId: null, scopeLabel: "All Hubs (Org-wide)" },
+    ],
+  },
+];
+
 interface TeamAccessValue {
   organizationId: string | null;
   accessToken: string | null;
@@ -104,7 +230,25 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!organizationId) { setLoading(false); return; }
+    const isSaving9Host =
+      typeof window !== "undefined" &&
+      (window.location.hostname.startsWith("saving9.") || window.location.hostname.includes("saving9"));
+    const isSaving9Demo = organizationId === "org-saving9" || (!organizationId && isSaving9Host);
+
+    if (isSaving9Demo) {
+      setRoles(SAVING9_FALLBACK_ROLES);
+      setMembers(SAVING9_FALLBACK_MEMBERS);
+      setChapters(SAVING9_FALLBACK_CHAPTERS);
+      setLoading(false);
+      return;
+    }
+    if (!organizationId) {
+      setRoles(FALLBACK_SYSTEM_ROLES);
+      setMembers([]);
+      setChapters([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
