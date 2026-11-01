@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+
+import { useState, useMemo } from "react";
 import { useToast } from "@/components/shell/ToastContext";
 import { createChapter, updateChapter, type ChapterRow } from "@/lib/platformFunctions";
 import { LoadingButton } from "@/components/ui/LoadingButton";
@@ -23,6 +24,17 @@ export function ChaptersPanel({
   const [busy, setBusy] = useState<"add" | string | null>(null);
   const [editingChapter, setEditingChapter] = useState<ChapterRow | null>(null);
   const [isDrawerReadOnly, setIsDrawerReadOnly] = useState(false);
+
+  const sortedChapters = useMemo(() => {
+    return [...chapters].sort((a, b) => {
+      const aCanEdit = perms.canEditChapter(a.id) ? 1 : 0;
+      const bCanEdit = perms.canEditChapter(b.id) ? 1 : 0;
+      if (aCanEdit !== bCanEdit) {
+        return bCanEdit - aCanEdit;
+      }
+      return a.name.localeCompare(b.name);
+    });
+  }, [chapters, perms]);
 
   function closeForm() {
     setShowForm(false);
@@ -94,7 +106,7 @@ export function ChaptersPanel({
           <tbody>
             {chapters.length === 0 ? (
               <tr><td colSpan={4} style={{ textAlign: "center", padding: "1.5rem", color: "var(--ink-3)" }}>No chapters yet.</td></tr>
-            ) : chapters.map((c) => {
+            ) : sortedChapters.map((c) => {
               const canEdit = perms.canEditChapter(c.id);
               const canDeactivate = canEdit && !perms.isChapterScoped;
               return (

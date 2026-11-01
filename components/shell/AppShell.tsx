@@ -242,7 +242,21 @@ export function AppShell({
         setStatus("ready");
       } catch (err) {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : "Unknown error");
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        if (
+          msg.includes("deactivated") ||
+          msg.includes("unauthorized") ||
+          msg.includes("PGRST116")
+        ) {
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // Non-fatal
+          }
+          leaveForLogin();
+          return;
+        }
+        setLoadError(msg);
         setStatus("error");
       }
     }
@@ -254,7 +268,21 @@ export function AppShell({
         await loadFromSession(sessionData.session);
       } catch (err) {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : "Unknown error");
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        if (
+          msg.includes("deactivated") ||
+          msg.includes("unauthorized") ||
+          msg.includes("PGRST116")
+        ) {
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // Non-fatal
+          }
+          leaveForLogin();
+          return;
+        }
+        setLoadError(msg);
         setStatus("error");
       }
     }
@@ -302,12 +330,41 @@ export function AppShell({
         setPlatformOwner(decoded.platformOwner);
       } catch (err) {
         console.error("Failed to refresh staff claims", err);
+        const msg = err instanceof Error ? err.message : "";
+        if (msg.includes("unauthorized") || msg.includes("deactivated")) {
+          const supabase = getBrowserSupabaseClient();
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // Non-fatal
+          }
+          leaveForLogin();
+        }
       }
     }, CLAIMS_REFRESH_INTERVAL_MS);
+
+    function checkLivenessOnFocus() {
+      if (!accessToken) return;
+      fetchStaffToken(accessToken).catch(async (err) => {
+        const msg = err instanceof Error ? err.message : "";
+        if (msg.includes("unauthorized") || msg.includes("deactivated")) {
+          const supabase = getBrowserSupabaseClient();
+          try {
+            await supabase.auth.signOut();
+          } catch {
+            // Non-fatal
+          }
+          leaveForLogin();
+        }
+      });
+    }
+
+    window.addEventListener("focus", checkLivenessOnFocus);
 
     return () => {
       cancelled = true;
       clearInterval(intervalId);
+      window.removeEventListener("focus", checkLivenessOnFocus);
     };
   }, [accessToken]);
 

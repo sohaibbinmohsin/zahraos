@@ -95,4 +95,16 @@ describe("SetPasswordForm", () => {
       );
     });
   });
+
+  it("rejects when the new password is the same as the temporary password", async () => {
+    vi.mocked(platformFunctions.setPassword).mockRejectedValue(new Error("new_password_same_as_temporary"));
+    const user = userEvent.setup();
+    render(<SetPasswordForm />);
+
+    await user.type(screen.getByLabelText("New password"), "DemoAdmin-2026!");
+    await user.type(screen.getByLabelText("Confirm password"), "DemoAdmin-2026!");
+    await user.click(screen.getByRole("button", { name: "Set password" }));
+
+    expect(await screen.findByText("New password cannot be the same as your temporary password")).toBeInTheDocument();
+  });
 });

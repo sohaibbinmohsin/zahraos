@@ -69,7 +69,7 @@ export async function loadShellData(
     : resolveOrgSwitcherOptions(claims.orgRoles, claims.moduleAccess);
 
   const [staffResult, tierResult, assignmentResult, orgResult] = await Promise.all([
-    supabase.from("staff").select("full_name, platform_owner, email").eq("auth_user_id", authUserId).single(),
+    supabase.from("staff").select("full_name, platform_owner, email, status").eq("auth_user_id", authUserId).single(),
     supabase.from("staff_org_roles").select("organization_id, org_tier").eq("staff_id", claims.staffId),
     supabase.from("staff_role_assignments").select("organization_id, scope_kind, scope_label, roles(name)").eq("staff_id", claims.staffId),
     scopedOrgIds === null
@@ -80,6 +80,9 @@ export async function loadShellData(
   ]);
 
   if (staffResult.error) throw staffResult.error;
+  if (!staffResult.data || (staffResult.data as Record<string, unknown>).status === "deactivated") {
+    throw new Error("account_deactivated");
+  }
   if (tierResult.error) throw tierResult.error;
   if (orgResult.error) throw orgResult.error;
 

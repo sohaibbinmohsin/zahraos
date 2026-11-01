@@ -42,7 +42,7 @@ function encodeFakeToken(payload: Record<string, unknown>) {
 
 function mockSupabase(options: {
   initialSession?: { access_token: string; user?: { id?: string; email?: string } } | null;
-  staffRow: { full_name: string; platform_owner: boolean; email?: string };
+  staffRow: { full_name: string; platform_owner: boolean; email?: string; status?: string };
   orgTierRows: Array<{ organization_id: string; org_tier: string }>;
   organizations: Array<{ id: string; name: string; logo_url?: string | null; brand_color?: string | null }>;
   staffRoleAssignments?: Array<{ staff_id: string }>;
@@ -787,5 +787,24 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Organization" })).toBeInTheDocument();
     // Partner Inquiries must be hidden
     expect(screen.queryByRole("link", { name: "Partner Inquiries" })).not.toBeInTheDocument();
+  });
+
+  it("immediately signs out and redirects to /login when staff account is deactivated", async () => {
+    const supabaseClient = mockSupabase({
+      staffRow: { full_name: "Deactivated Lead", platform_owner: false, status: "deactivated" },
+      orgTierRows: [],
+      organizations: [],
+    });
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(supabaseClient as never);
+    vi.mocked(fetchStaffToken).mockRejectedValue(new Error("unauthorized"));
+
+    render(
+      <AppShell>
+        <p>secret content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(supabaseClient.auth.signOut).toHaveBeenCalled());
+    await waitFor(() => expect(assignSpy).toHaveBeenCalledWith("/login"));
   });
 });

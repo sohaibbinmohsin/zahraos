@@ -316,6 +316,7 @@ export function RoleScopeRepeater({
                       checked={row.scopeKind === "org_wide"}
                       onChange={() => handleScopeKindChange(idx, "org_wide")}
                       aria-label="All Chapters"
+                      style={{ accentColor: "var(--brand)", cursor: "pointer" }}
                     />
                     <span>All Chapters (National / All Chapters)</span>
                   </label>
@@ -336,6 +337,7 @@ export function RoleScopeRepeater({
                       checked={row.scopeKind === "chapter"}
                       onChange={() => handleScopeKindChange(idx, "chapter")}
                       aria-label="Specific Chapters"
+                      style={{ accentColor: "var(--brand)", cursor: "pointer" }}
                     />
                     <span>Specific Chapters</span>
                   </label>

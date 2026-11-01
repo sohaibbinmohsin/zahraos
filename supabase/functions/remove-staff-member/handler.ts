@@ -18,7 +18,7 @@ export async function removeStaffMember(
     if (!(await callerMayDeactivate(supabase, callerStaffId, input.staffId))) throw new Error("forbidden");
   }
 
-  const { data: target } = await supabase.from("staff").select("full_name, platform_owner")
+  const { data: target } = await supabase.from("staff").select("full_name, platform_owner, auth_user_id")
     .eq("id", input.staffId).single();
   if (!target) throw new Error("not_found");
   if (target.platform_owner) throw new Error("forbidden");
@@ -27,6 +27,19 @@ export async function removeStaffMember(
     .eq("staff_id", input.staffId).eq("organization_id", input.organizationId);
   await supabase.from("staff").update({ status: "deactivated", deactivated_at: new Date().toISOString() })
     .eq("id", input.staffId);
+
+  if (target.auth_user_id) {
+    const { error: banError } = await supabase.auth.admin.updateUserById(
+      target.auth_user_id as string,
+      { ban_duration: "876000h" },
+    );
+    if (banError) {
+      console.error(
+        `removeStaffMember: staff ${input.staffId} was removed but revoking their Supabase Auth session failed`,
+        banError,
+      );
+    }
+  }
 
   await writeAuditLog(supabase, {
     organizationId: input.organizationId,
