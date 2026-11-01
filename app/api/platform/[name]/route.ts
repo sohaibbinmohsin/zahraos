@@ -233,7 +233,7 @@ export async function POST(
       }
 
       const incomingKeys = new Set<string>();
-      const toUpsert: Array<Record<string, unknown>> = [];
+      const toUpsertMap = new Map<string, Record<string, unknown>>();
 
       for (const m of teamMembers) {
         const normalizedCode = (m.volunteerCode || "").trim().toUpperCase();
@@ -242,8 +242,8 @@ export async function POST(
         incomingKeys.add(key);
 
         const existingId = existingKeyMap.get(key);
-        toUpsert.push({
-          ...(existingId ? { id: existingId } : {}),
+        toUpsertMap.set(key, {
+          id: existingId ?? crypto.randomUUID(),
           chapter_id: chapterId,
           volunteer_code: normalizedCode,
           full_name: (m.fullName || "").trim(),
@@ -255,6 +255,8 @@ export async function POST(
           created_by: callerStaffId,
         });
       }
+
+      const toUpsert = Array.from(toUpsertMap.values());
 
       const idsToDelete = existingList
         .filter((row) => !incomingKeys.has(`${(row.volunteer_code as string).toUpperCase()}::${row.term ?? ""}`))

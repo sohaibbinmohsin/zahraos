@@ -18,28 +18,20 @@ async function callFunction<TResponse>(
   const isVitestMock = typeof process !== "undefined" && process.env.NODE_ENV === "test";
 
   if (!isVitestMock && typeof window !== "undefined" && isPlatformChapterAction) {
-    try {
-      const localRes = await fetch(`/api/platform/${name}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(8000),
-      });
-      if (localRes.ok) {
-        return (await localRes.json()) as TResponse;
-      }
-      const errData = await localRes.json().catch(() => ({}));
-      if (localRes.status === 403 || localRes.status === 400 || localRes.status === 404 || localRes.status === 409) {
-        throw new Error(errData?.error ?? "request_failed");
-      }
-    } catch (localErr) {
-      if (localErr instanceof Error && localErr.message !== "Failed to fetch") {
-        throw localErr;
-      }
+    const localRes = await fetch(`/api/platform/${name}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (localRes.ok) {
+      return (await localRes.json()) as TResponse;
     }
+    const errData = await localRes.json().catch(() => ({}));
+    throw new Error(errData?.error ?? "request_failed");
   }
 
   let response: Response;

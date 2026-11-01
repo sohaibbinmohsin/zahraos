@@ -146,9 +146,6 @@ export default function OrganizationPage() {
       <Card>
         <div className="flex items-center justify-between gap-3" style={{ marginBottom: ".75rem" }}>
           <h2 className="panel-title" style={{ margin: 0 }}>Profile</h2>
-          {!perms.canManageOrgProfile && (
-            <span className="badge badge-neutral">Read-only view for chapter leaders. Contact organization admins to modify platform details.</span>
-          )}
         </div>
         <div className="grid-2col">
           <div className="form-group">

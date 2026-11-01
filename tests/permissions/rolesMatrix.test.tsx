@@ -1493,7 +1493,7 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       expect(screen.getByRole("button", { name: /View Details/i })).toBeInTheDocument();
     });
 
-    it("Chapter Admin on /organization has profile inputs disabled, read-only banner, and no Save profile button", async () => {
+    it("Chapter Admin on /organization has profile inputs disabled and no Save profile button", async () => {
       setupRoleEnvironment(ROLES.CHAPTER_ADMIN);
 
       renderWithSwr(<OrganizationPage />);
@@ -1501,8 +1501,8 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
       // Wait for org profile data to load
       await waitFor(() => expect(screen.getByDisplayValue("Rizq Foundation")).toBeInTheDocument());
 
-      // Read-only indicator banner
-      expect(screen.getByText(/Read-only view for chapter leaders/i)).toBeInTheDocument();
+      // No read-only indicator banner
+      expect(screen.queryByText(/Read-only view for chapter leaders/i)).not.toBeInTheDocument();
 
       // Organization profile inputs are disabled
       expect(screen.getByLabelText(/Organization name/i)).toBeDisabled();

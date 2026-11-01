@@ -139,8 +139,8 @@ describe("OrganizationPage", () => {
     render(<OrganizationPage />);
     await waitFor(() => expect(screen.getByDisplayValue("Rizq")).toBeInTheDocument());
 
-    // Informational badge
-    expect(screen.getByText(/Read-only view for chapter leaders/i)).toBeInTheDocument();
+    // No read-only informational banner
+    expect(screen.queryByText(/Read-only view for chapter leaders/i)).not.toBeInTheDocument();
 
     // Inputs disabled
     expect(screen.getByLabelText(/Organization name/i)).toBeDisabled();
@@ -182,7 +182,7 @@ describe("OrganizationPage", () => {
     expect(screen.getByLabelText(/Description/i)).toBeDisabled();
     expect(screen.queryByRole("button", { name: /Upload logo/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Save profile/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/Read-only view for chapter leaders/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Read-only view for chapter leaders/i)).not.toBeInTheDocument();
 
     // 3. Assigned chapter has active "Edit" button, but no Deactivate button
     expect(screen.getByRole("button", { name: /^Edit$/i })).toBeInTheDocument();
