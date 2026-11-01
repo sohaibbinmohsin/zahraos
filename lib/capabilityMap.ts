@@ -246,16 +246,26 @@ export function getRoleModuleSummaries(
     const totalCount = mod.capabilities.length;
 
     let level: ModuleAccessLevel;
-    if (restrictedCount === totalCount) {
-      level = "restricted";
-    } else if (
+    const grantableCaps = mod.capabilities.filter(
+      (cap) => CAPABILITY_META[cap]?.levels?.includes("granted"),
+    );
+
+    const isAllGrantableGranted =
+      grantableCaps.length > 0 &&
+      grantableCaps.every((cap) => grid[cap] === "granted");
+
+    const isStrictFull =
       restrictedCount === 0 &&
+      totalCount > 0 &&
       mod.capabilities.every((cap) => {
         const meta = CAPABILITY_META[cap];
         const maxLevel = meta?.levels?.includes("granted") ? "granted" : "read_only";
         return grid[cap] === maxLevel;
-      })
-    ) {
+      });
+
+    if (totalCount === 0 || restrictedCount === totalCount) {
+      level = "restricted";
+    } else if (isAllGrantableGranted || isStrictFull) {
       level = "full";
     } else if (grantedCount === 0 && readOnlyCount > 0) {
       level = "read_only";

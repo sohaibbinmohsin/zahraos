@@ -258,7 +258,7 @@ describe("capabilityMap", () => {
       expect(tg.totalCount).toBe(5);
     });
 
-    it("derives limited access for Chapter Lead (strict zero restricted model)", () => {
+    it("derives full access for Youth Republic and limited for Team Governance for Chapter Lead", () => {
       const chapterLeadGrid: CapabilityGrid = {
         ...RESTRICTED_GRID,
         drive: "granted",
@@ -271,7 +271,7 @@ describe("capabilityMap", () => {
 
       const summaries = getRoleModuleSummaries(chapterLeadGrid);
       const yr = summaries.find((s) => s.moduleKey === "youth-republic")!;
-      expect(yr.level).toBe("limited");
+      expect(yr.level).toBe("full");
       expect(yr.grantedCount).toBe(4);
       expect(yr.readOnlyCount).toBe(0);
       expect(yr.restrictedCount).toBe(1);
@@ -283,6 +283,22 @@ describe("capabilityMap", () => {
       expect(tg.readOnlyCount).toBe(0);
       expect(tg.restrictedCount).toBe(4);
       expect(tg.totalCount).toBe(5);
+    });
+
+    it("derives restricted for an empty capability module", () => {
+      const emptyModule: ServiceModuleConfig = {
+        key: "empty-module",
+        title: "Empty Module",
+        description: "Module with no capabilities yet",
+        capabilities: [],
+      };
+
+      const summaries = getRoleModuleSummaries(RESTRICTED_GRID, [emptyModule]);
+      expect(summaries).toHaveLength(1);
+      expect(summaries[0].level).toBe("restricted");
+      expect(summaries[0].totalCount).toBe(0);
+      expect(summaries[0].grantedCount).toBe(0);
+      expect(summaries[0].restrictedCount).toBe(0);
     });
 
     it("derives restricted access for fully restricted grid", () => {
