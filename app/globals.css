@@ -19,6 +19,7 @@
   
   --bg-page: #F8F9FA;       /* Clean Off-White Page */
   --bg-panel: #FFFFFF;      /* Pure White Surface */
+  --bg-surface: #FFFFFF;    /* Surface Card */
   --bg-dark: #14161B;       /* Deep Black */
   --bg-sidebar: #14161B;    /* Deep Charcoal Sidebar */
   
@@ -920,7 +921,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .badge-pos { background: var(--st-pos-bg); color: var(--st-pos-fg); border-color: var(--st-pos-bd); }
 .badge-prog { background: var(--st-prog-bg); color: var(--st-prog-fg); border-color: var(--st-prog-bd); }
-.badge-pend { background: var(--st-pend-bg); color: var(--st-pend-fg); border-color: var(--st-pend-bd); }
+.badge-pend, .badge-warn { background: var(--st-pend-bg); color: var(--st-pend-fg); border-color: var(--st-pend-bd); }
 .badge-neg { background: var(--st-neg-bg); color: var(--st-neg-fg); border-color: var(--st-neg-bd); }
 .badge-neu { background: var(--st-neu-bg); color: var(--st-neu-fg); border-color: var(--st-neu-bd); }
 
