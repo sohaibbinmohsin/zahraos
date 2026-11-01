@@ -5,61 +5,254 @@ import { RolesTable } from "./RolesTable";
 import type { TeamRole } from "./TeamAccessProvider";
 
 const roles: TeamRole[] = [
-  { id: "r1", name: "Super Admin", description: "Full control", isSystem: true,
-    permissionKeys: ["opportunities:write", "noticeboard:write", "applications:update", "applications:read", "hours:update", "hours:read", "team:write"] },
-  { id: "r2", name: "Regional Logistics Lead", description: "Logistics", isSystem: false,
-    permissionKeys: ["opportunities:write", "hours:update", "hours:read"] },
+  {
+    id: "r1",
+    name: "Super Admin",
+    description: "Full control across platform",
+    isSystem: true,
+    permissionKeys: [
+      "opportunities:write",
+      "noticeboard:write",
+      "applications:update",
+      "applications:read",
+      "hours:update",
+      "hours:read",
+      "team:write",
+    ],
+  },
+  {
+    id: "r2",
+    name: "Regional Logistics Lead",
+    description: "Logistics and shift hours coordinator",
+    isSystem: false,
+    permissionKeys: ["opportunities:write", "hours:update", "hours:read"],
+  },
 ];
 const counts = new Map([["r1", 1], ["r2", 0]]);
 
 describe("RolesTable", () => {
-  it("shows SYSTEM/CUSTOM badges and per-capability Granted/Restricted cells", () => {
-    render(<RolesTable roles={roles} assignmentCountByRoleId={counts} onView={vi.fn()} onEdit={vi.fn()} onClone={vi.fn()} onDelete={vi.fn()} />);
+  it("renders 5 fixed headers instead of horizontal capability columns", () => {
+    render(
+      <RolesTable
+        roles={roles}
+        assignmentCountByRoleId={counts}
+        onView={vi.fn()}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    // 5 fixed IAM headers
+    expect(screen.getByRole("columnheader", { name: "Role Title & Type" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Description" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Governed Modules" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Active Staff" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Actions" })).toBeInTheDocument();
+
+    // Expand header must NOT exist
+    expect(screen.queryByRole("columnheader", { name: "Expand" })).not.toBeInTheDocument();
+
+    // Previous multi-column spreadsheet capability headers must NOT exist
+    expect(screen.queryByRole("columnheader", { name: "Drive Creation" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Publish Noticeboard" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Triage Apps" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Approve Hours" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Volunteer Directory" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Org Governance" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Team Members" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Roles & Permissions" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Audit Logs" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Partner Inquiries" })).not.toBeInTheDocument();
+  });
+
+  it("shows SYSTEM/CUSTOM badges and module access pills in Governed Modules column", () => {
+    render(
+      <RolesTable
+        roles={roles}
+        assignmentCountByRoleId={counts}
+        onView={vi.fn()}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
     expect(screen.getByText("SYSTEM")).toBeInTheDocument();
     expect(screen.getByText("CUSTOM")).toBeInTheDocument();
-    // Super Admin row: Team Management = Granted
+
+    // Super Admin row: Full Access in Youth Republic, Limited in Team & Governance (only team:write)
     const superRow = screen.getByText("Super Admin").closest("tr")!;
-    expect(superRow).toHaveTextContent("Granted");
-    // Regional Logistics Lead row: Publish Noticeboard = Restricted
+    const superYRBadge = within(superRow).getByText(/Youth Republic.*Full Access/i);
+    expect(superYRBadge).toHaveClass("badge", "badge-pos");
+    const superTeamBadge = within(superRow).getByText(/Team & Governance.*Limited/i);
+    expect(superTeamBadge).toHaveClass("badge", "badge-warn");
+
+    // Regional Logistics Lead row: Limited in Youth Republic, Restricted in Team & Governance
     const logisticsRow = screen.getByText("Regional Logistics Lead").closest("tr")!;
-    expect(logisticsRow).toHaveTextContent("Restricted");
+    const logYRBadge = within(logisticsRow).getByText(/Youth Republic.*Limited/i);
+    expect(logYRBadge).toHaveClass("badge", "badge-warn");
+    const logTeamBadge = within(logisticsRow).getByText(/Team & Governance.*Restricted/i);
+    expect(logTeamBadge).toHaveClass("badge", "badge-neg");
   });
 
-  it("system rows expose View + Clone; custom rows expose Edit + Clone + Delete", async () => {
+  it("system rows expose View + Clone; custom rows expose View + Edit + Clone + Delete", async () => {
     const user = userEvent.setup();
+    const onView = vi.fn();
     const onEdit = vi.fn();
+    const onClone = vi.fn();
     const onDelete = vi.fn();
-    render(<RolesTable roles={roles} assignmentCountByRoleId={counts} onView={vi.fn()} onEdit={onEdit} onClone={vi.fn()} onDelete={onDelete} />);
+
+    render(
+      <RolesTable
+        roles={roles}
+        assignmentCountByRoleId={counts}
+        onView={onView}
+        onEdit={onEdit}
+        onClone={onClone}
+        onDelete={onDelete}
+      />,
+    );
+
+    // Super Admin: system role
+    const superRow = screen.getByText("Super Admin").closest("tr")!;
+    await user.click(within(superRow).getByRole("button", { name: "View" }));
+    expect(onView).toHaveBeenCalledWith("r1");
+    await user.click(within(superRow).getByRole("button", { name: "Clone" }));
+    expect(onClone).toHaveBeenCalledWith("r1");
+    expect(within(superRow).queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(within(superRow).queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+
+    // Regional Logistics Lead: custom role has View, Edit, Clone, Delete
     const logisticsRow = screen.getByText("Regional Logistics Lead").closest("tr")!;
+    await user.click(within(logisticsRow).getByRole("button", { name: "View" }));
+    expect(onView).toHaveBeenCalledWith("r2");
     await user.click(within(logisticsRow).getByRole("button", { name: "Edit" }));
     expect(onEdit).toHaveBeenCalledWith("r2");
+    await user.click(within(logisticsRow).getByRole("button", { name: "Delete" }));
+    expect(onDelete).toHaveBeenCalledWith("r2");
   });
 
-  it("renders grouped multi-level column headers for Youth Republic and Team & Governance", () => {
-    render(<RolesTable roles={roles} assignmentCountByRoleId={counts} onView={vi.fn()} onEdit={vi.fn()} onClone={vi.fn()} onDelete={vi.fn()} />);
+  it("does not render dropdown card or expandable rows", () => {
+    render(
+      <RolesTable
+        roles={roles}
+        assignmentCountByRoleId={counts}
+        onView={vi.fn()}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
 
-    // Header row 1 module grouping
-    const yrHeader = screen.getByRole("columnheader", { name: "Youth Republic" });
-    expect(yrHeader).toBeInTheDocument();
-    expect(yrHeader).toHaveAttribute("colspan", "5");
+    // Expand chevrons or dropdown cards must NOT exist
+    expect(screen.queryByText("IAM Service Policy")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /expand/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /collapse/i })).not.toBeInTheDocument();
+  });
 
-    const teamGovHeader = screen.getByRole("columnheader", { name: "Team & Governance" });
-    expect(teamGovHeader).toBeInTheDocument();
-    expect(teamGovHeader).toHaveAttribute("colspan", "5");
+  it("filters roles by governed module access using module filter dropdown", async () => {
+    const user = userEvent.setup();
+    render(
+      <RolesTable
+        roles={roles}
+        assignmentCountByRoleId={counts}
+        onView={vi.fn()}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
 
-    // Header row 2 specific capabilities
-    // Youth Republic capabilities
-    expect(screen.getByRole("columnheader", { name: "Drive Creation" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Publish Noticeboard" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Triage Apps" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Approve Hours" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Volunteer Directory" })).toBeInTheDocument();
+    // Initially both roles are present
+    expect(screen.getByText("Super Admin")).toBeInTheDocument();
+    expect(screen.getByText("Regional Logistics Lead")).toBeInTheDocument();
 
-    // Team & Governance capabilities
-    expect(screen.getByRole("columnheader", { name: "Org Governance" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Team Members" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Roles & Permissions" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Audit Logs" })).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Partner Inquiries" })).toBeInTheDocument();
+    // Open module filter dropdown
+    const moduleSelect = screen.getByRole("combobox", { name: "Module filter" });
+    await user.click(moduleSelect);
+
+    // Select Team & Governance
+    await user.click(screen.getByRole("option", { name: "Team & Governance" }));
+
+    // Super Admin has Team & Governance access (Limited) -> visible
+    expect(screen.getByText("Super Admin")).toBeInTheDocument();
+    // Regional Logistics Lead is Restricted in Team & Governance -> hidden
+    expect(screen.queryByText("Regional Logistics Lead")).not.toBeInTheDocument();
+
+    // Switch back to All Modules
+    await user.click(screen.getByRole("combobox", { name: "Module filter" }));
+    await user.click(screen.getByRole("option", { name: "All Modules" }));
+
+    // Both are visible again
+    expect(screen.getByText("Super Admin")).toBeInTheDocument();
+    expect(screen.getByText("Regional Logistics Lead")).toBeInTheDocument();
+  });
+
+  it("filters roles by search input matching role title, description, and governed module names", async () => {
+    const user = userEvent.setup();
+    render(
+      <RolesTable
+        roles={roles}
+        assignmentCountByRoleId={counts}
+        onView={vi.fn()}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    const searchInput = screen.getByPlaceholderText(/search/i);
+
+    // Search by title
+    await user.type(searchInput, "Logistics");
+    expect(screen.queryByText("Super Admin")).not.toBeInTheDocument();
+    expect(screen.getByText("Regional Logistics Lead")).toBeInTheDocument();
+
+    // Clear search
+    await user.clear(searchInput);
+    expect(screen.getByText("Super Admin")).toBeInTheDocument();
+    expect(screen.getByText("Regional Logistics Lead")).toBeInTheDocument();
+
+    // Search by description
+    await user.type(searchInput, "Full control");
+    expect(screen.getByText("Super Admin")).toBeInTheDocument();
+    expect(screen.queryByText("Regional Logistics Lead")).not.toBeInTheDocument();
+
+    // Clear search
+    await user.clear(searchInput);
+
+    // Search by governed module name "Youth Republic"
+    await user.type(searchInput, "Youth Republic");
+    expect(screen.getByText("Super Admin")).toBeInTheDocument();
+    expect(screen.getByText("Regional Logistics Lead")).toBeInTheDocument();
+
+    // Clear search
+    await user.clear(searchInput);
+
+    // Search nonexistent term
+    await user.type(searchInput, "Nonexistent Role");
+    expect(screen.getByText(/no roles found/i)).toBeInTheDocument();
+  });
+
+  it("renders only View button when canManageRoles is false", () => {
+    render(
+      <RolesTable
+        roles={roles}
+        assignmentCountByRoleId={counts}
+        canManageRoles={false}
+        onView={vi.fn()}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    // View button should be present
+    expect(screen.getAllByRole("button", { name: "View" })).toHaveLength(2);
+    // Edit, Clone, Delete buttons should NOT be present
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clone" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
   });
 });

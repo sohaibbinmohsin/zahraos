@@ -10,9 +10,11 @@ import { StatGridSkeleton, TableSkeleton } from "@/components/ui/skeletons";
 import { useToast } from "@/components/shell/ToastContext";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { deleteCustomRole } from "@/lib/platformFunctions";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
 
 export default function TeamRolesPage() {
   const { roles, members, accessToken, loading, error, refresh } = useTeamAccess();
+  const perms = useStaffPermissions();
   const { setAction } = useTeamHeader();
   const { openCreateRole, openEditRole, openCloneRole } = useTeamDrawers();
   const { showToast } = useToast();
@@ -20,9 +22,13 @@ export default function TeamRolesPage() {
   const [deletingRoleId, setDeletingRoleId] = useState<string | null>(null);
 
   useEffect(() => {
-    setAction({ label: "Create Custom Role", onClick: openCreateRole, variant: "primary" });
+    if (perms.canManageRoles) {
+      setAction({ label: "Create Custom Role", onClick: openCreateRole, variant: "primary" });
+    } else {
+      setAction(null);
+    }
     return () => setAction(null);
-  }, [setAction, openCreateRole]);
+  }, [setAction, openCreateRole, perms.canManageRoles]);
 
   const assignmentCountByRoleId = useMemo(() => {
     const counts = new Map<string, number>();
@@ -79,6 +85,7 @@ export default function TeamRolesPage() {
       <RolesTable
         roles={roles}
         assignmentCountByRoleId={assignmentCountByRoleId}
+        canManageRoles={perms.canManageRoles}
         onView={(id) => openEditRole(id, true)}
         onEdit={(id) => openEditRole(id, false)}
         onClone={openCloneRole}

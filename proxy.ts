@@ -3,6 +3,10 @@ import { NextResponse, type NextRequest } from "next/server";
 import { computeMiddlewareRedirect } from "./lib/middlewareRedirect";
 
 export async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.next();
+  }
+
   const hostname = request.headers.get("host") || "";
   const isSaving9Host =
     hostname.startsWith("saving9.") ||

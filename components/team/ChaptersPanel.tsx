@@ -96,6 +96,7 @@ export function ChaptersPanel({
               <tr><td colSpan={4} style={{ textAlign: "center", padding: "1.5rem", color: "var(--ink-3)" }}>No chapters yet.</td></tr>
             ) : chapters.map((c) => {
               const canEdit = perms.canEditChapter(c.id);
+              const canDeactivate = canEdit && !perms.isChapterScoped;
               return (
                 <tr key={c.id}>
                   <td style={{ fontWeight: 600 }}>{c.name}</td>
@@ -115,9 +116,11 @@ export function ChaptersPanel({
                           >
                             Edit
                           </button>
-                          <LoadingButton className="btn btn-secondary btn-xs" disabled={busy !== null} loading={busy === c.id} loadingText={c.status === "active" ? "Deactivating…" : "Reactivating…"} onClick={() => toggle(c.id, c.status)}>
-                            {c.status === "active" ? "Deactivate" : "Reactivate"}
-                          </LoadingButton>
+                          {canDeactivate && (
+                            <LoadingButton className="btn btn-secondary btn-xs" disabled={busy !== null} loading={busy === c.id} loadingText={c.status === "active" ? "Deactivating…" : "Reactivating…"} onClick={() => toggle(c.id, c.status)}>
+                              {c.status === "active" ? "Deactivate" : "Reactivate"}
+                            </LoadingButton>
+                          )}
                         </>
                       ) : (
                         <button

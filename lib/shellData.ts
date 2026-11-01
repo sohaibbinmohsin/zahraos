@@ -101,7 +101,10 @@ export async function loadShellData(
         const modAccess = claims.moduleAccess.find((m) => m.organizationId === orgId);
         if (modAccess) {
           const isScoped = a.scope_kind === "chapter" || Boolean(modAccess.chapterScopes && Object.keys(modAccess.chapterScopes).length > 0);
-          roleName = deriveRoleTitleFromPermissions(modAccess.permissions, isScoped) ?? undefined;
+          const chapterCount = modAccess.chapterScopes
+            ? new Set(Object.values(modAccess.chapterScopes).flat()).size
+            : 1;
+          roleName = deriveRoleTitleFromPermissions(modAccess.permissions, isScoped, chapterCount) ?? undefined;
         }
       }
 
@@ -145,5 +148,5 @@ export function landingPathFor(shell: ShellData | null, cookieOrgId: string | nu
     const yr = MODULE_REGISTRY.find((m) => m.key === "youth-republic");
     return `${yr?.route ?? "/youth-republic"}/dashboard`;
   }
-  return "/organization";
+  return "/team/organization";
 }

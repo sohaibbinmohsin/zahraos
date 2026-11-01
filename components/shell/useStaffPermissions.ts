@@ -29,11 +29,13 @@ export interface StaffPermissions {
   canAccessDashboard: boolean;
 
   // Team & Governance
+  canViewOrganization: boolean;
   canManageTeam: boolean;
   canManageOrgProfile: boolean;
   canCreateChapters: boolean;
   canEditChapter: (chapterId: string) => boolean;
   canViewInquiries: boolean;
+  canManageRoles?: boolean;
 
   // Chapter Scope Helpers
   isChapterScoped: boolean;
@@ -138,6 +140,12 @@ export function useStaffPermissions(): StaffPermissions {
   const canAccessDashboard = Boolean(canViewDrives || canViewApplications || canViewHours || canViewVolunteers);
 
   // Team & Governance scoped rules
+  const canViewOrganization = Boolean(
+    isAdmin ||
+    canManageTeam ||
+    hasPerm("chapters:read") ||
+    hasPerm("chapters:write")
+  );
   const canManageOrgProfile = !isChapterScoped && canManageTeam;
   const canCreateChapters = !isChapterScoped && canManageTeam;
   const canEditChapter = useCallback(
@@ -145,6 +153,12 @@ export function useStaffPermissions(): StaffPermissions {
     [hasChapterPermission]
   );
   const canViewInquiries = !isChapterScoped && (isAdmin || hasPerm("inquiries:read"));
+  const orgTier = useOrgTier();
+  const canManageRoles = Boolean(
+    isPlatformOwner ||
+    orgTier === "super_admin" ||
+    permissions.includes("roles:write")
+  );
 
   return useMemo<StaffPermissions>(
     () => ({
@@ -157,11 +171,13 @@ export function useStaffPermissions(): StaffPermissions {
       canApproveHours,
       canViewVolunteers,
       canAccessDashboard,
+      canViewOrganization,
       canManageTeam,
       canManageOrgProfile,
       canCreateChapters,
       canEditChapter,
       canViewInquiries,
+      canManageRoles,
       isChapterScoped,
       scopedChapterIds,
       hasChapterPermission,
@@ -176,11 +192,13 @@ export function useStaffPermissions(): StaffPermissions {
       canApproveHours,
       canViewVolunteers,
       canAccessDashboard,
+      canViewOrganization,
       canManageTeam,
       canManageOrgProfile,
       canCreateChapters,
       canEditChapter,
       canViewInquiries,
+      canManageRoles,
       isChapterScoped,
       scopedChapterIds,
       hasChapterPermission,

@@ -329,7 +329,7 @@ describe("EditChapterDrawer", () => {
     expect(screen.getByText("Ali Ahmed")).toBeInTheDocument();
 
     // Remove Ali Ahmed
-    const removeBtn = screen.getByRole("button", { name: /Remove/i });
+    const removeBtn = screen.getByRole("button", { name: /^Remove$/i });
     await user.click(removeBtn);
     expect(screen.queryByText("Ali Ahmed")).not.toBeInTheDocument();
   });
@@ -351,8 +351,9 @@ describe("EditChapterDrawer", () => {
     expect(screen.getByDisplayValue("Lahore")).toBeDisabled();
     expect(screen.getByDisplayValue("Premier Punjab university chapter dedicated to community welfare.")).toBeDisabled();
 
-    // Logo upload input should be hidden
+    // Logo upload input and remove button should be hidden
     expect(screen.queryByLabelText(/Upload Chapter Logo/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Remove Logo/i })).not.toBeInTheDocument();
 
     // Add Team Member section should be hidden
     expect(screen.queryByLabelText(/Youth Republic ID/i)).not.toBeInTheDocument();
@@ -363,7 +364,7 @@ describe("EditChapterDrawer", () => {
 
     // Roster action buttons hidden
     expect(screen.queryByRole("button", { name: /Transition to Alumni/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Remove/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Remove$/i })).not.toBeInTheDocument();
 
     // Save button hidden, only Close button
     expect(screen.queryByRole("button", { name: /Save Chapter/i })).not.toBeInTheDocument();
@@ -645,5 +646,58 @@ describe("EditChapterDrawer", () => {
       // Falls back to initials TM
       expect(screen.getByText("TM")).toBeInTheDocument();
     });
+  });
+
+  it("allows removing chapter logo when user has edit options", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditChapterDrawer
+        open={true}
+        onClose={vi.fn()}
+        chapter={mockChapter}
+        organizationId="org-1"
+        accessToken="access-token"
+      />
+    );
+
+    expect(screen.getByAltText("Chapter logo")).toBeInTheDocument();
+    const removeLogoBtn = screen.getByRole("button", { name: /Remove Logo/i });
+    expect(removeLogoBtn).toBeInTheDocument();
+
+    await user.click(removeLogoBtn);
+
+    expect(screen.queryByAltText("Chapter logo")).not.toBeInTheDocument();
+    expect(screen.getByText("No Logo")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Remove Logo/i })).not.toBeInTheDocument();
+  });
+
+  it("shows designation requirement and error message when trying to add member without designation", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditChapterDrawer
+        open={true}
+        onClose={vi.fn()}
+        chapter={mockChapter}
+        organizationId="org-1"
+        accessToken="access-token"
+      />
+    );
+
+    // Verify YR ID
+    await user.type(screen.getByLabelText(/Youth Republic ID/i), "YR-2026-000100");
+    await user.click(screen.getByRole("button", { name: /Verify ID/i }));
+    await waitFor(() => expect(screen.getByText("Zainab Tariq")).toBeInTheDocument());
+
+    // Designation has required indicator
+    expect(screen.getByText("*")).toBeInTheDocument();
+
+    // Leave designation empty and click Add to Chapter Roster
+    const addBtn = screen.getByRole("button", { name: /Add to Chapter Roster/i });
+    expect(addBtn).not.toBeDisabled();
+    await user.click(addBtn);
+
+    // Should display validation requirement message and show toast
+    expect(screen.getByText("Designation is required to add a member.")).toBeInTheDocument();
+    expect(showToast).toHaveBeenCalledWith("Designation is required to add a member.");
   });
 });

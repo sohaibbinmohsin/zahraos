@@ -53,6 +53,7 @@ describe("useStaffPermissions", () => {
     expect(result.current.canApproveHours).toBe(false);
     expect(result.current.canViewVolunteers).toBe(false);
     expect(result.current.canAccessDashboard).toBe(false);
+    expect(result.current.canViewOrganization).toBe(false);
     expect(result.current.canManageTeam).toBe(false);
     expect(result.current.canManageOrgProfile).toBe(false);
     expect(result.current.canCreateChapters).toBe(false);
@@ -80,6 +81,7 @@ describe("useStaffPermissions", () => {
     expect(result.current.canApproveHours).toBe(true);
     expect(result.current.canViewVolunteers).toBe(true);
     expect(result.current.canAccessDashboard).toBe(true);
+    expect(result.current.canViewOrganization).toBe(true);
     expect(result.current.canManageTeam).toBe(true);
     expect(result.current.canManageOrgProfile).toBe(true);
     expect(result.current.canCreateChapters).toBe(true);
@@ -323,6 +325,91 @@ describe("useStaffPermissions", () => {
       );
       const { result: noPermResult } = renderHook(() => useStaffPermissions());
       expect(noPermResult.current.canViewInquiries).toBe(false);
+    });
+
+    it("evaluates canViewOrganization: granted to org admin, team managers, chapter-scoped leads, or chapters permissions", () => {
+      // 1. Chapter Lead with chapterScopes on chapters:write
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [
+            {
+              organizationId: "org-1",
+              module: "youth-republic",
+              permissions: ["chapters:write"],
+              chapterScopes: { "chapters:write": ["c1"] },
+            },
+          ],
+        })
+      );
+      const { result: chapterLeadResult } = renderHook(() => useStaffPermissions());
+      expect(chapterLeadResult.current.canViewOrganization).toBe(true);
+      expect(chapterLeadResult.current.canManageOrgProfile).toBe(false);
+      expect(chapterLeadResult.current.canCreateChapters).toBe(false);
+      expect(chapterLeadResult.current.canEditChapter("c1")).toBe(true);
+      expect(chapterLeadResult.current.canEditChapter("c2")).toBe(false);
+      expect(chapterLeadResult.current.isChapterScoped).toBe(true);
+
+      // 2. Staff with chapters:read org-wide
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [
+            {
+              organizationId: "org-1",
+              module: "youth-republic",
+              permissions: ["chapters:read"],
+            },
+          ],
+        })
+      );
+      const { result: chaptersReadResult } = renderHook(() => useStaffPermissions());
+      expect(chaptersReadResult.current.canViewOrganization).toBe(true);
+
+      // 3. User with only volunteers:read
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [
+            {
+              organizationId: "org-1",
+              module: "youth-republic",
+              permissions: ["volunteers:read"],
+            },
+          ],
+        })
+      );
+      const { result: volunteerViewerResult } = renderHook(() => useStaffPermissions());
+      expect(volunteerViewerResult.current.canViewOrganization).toBe(false);
+    });
+
+    it("verifies canManageRoles is restricted to Super Admin or platform owner", () => {
+      // 1. Super Admin
+      vi.mocked(appShell.useOrgTier).mockReturnValue("super_admin");
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["roles:write"] }],
+        })
+      );
+      const { result: superAdminResult } = renderHook(() => useStaffPermissions());
+      expect(superAdminResult.current.canManageRoles).toBe(true);
+
+      // 2. Org Admin (admin tier)
+      vi.mocked(appShell.useOrgTier).mockReturnValue("admin");
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["roles:read", "team:write"] }],
+        })
+      );
+      const { result: orgAdminResult } = renderHook(() => useStaffPermissions());
+      expect(orgAdminResult.current.canManageRoles).toBe(false);
+
+      // 3. Chapter Lead
+      vi.mocked(appShell.useOrgTier).mockReturnValue("staff");
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["chapters:write"] }],
+        })
+      );
+      const { result: chapterLeadResult } = renderHook(() => useStaffPermissions());
+      expect(chapterLeadResult.current.canManageRoles).toBe(false);
     });
   });
 });

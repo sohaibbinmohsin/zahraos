@@ -32,6 +32,15 @@ export default function TeamLayout({ children }: { children: React.ReactNode }) 
   const heading = HEADINGS[pathname] ?? HEADINGS["/team/members"];
   const headerValue = useMemo(() => ({ action, setAction }), [action]);
 
+  if (pathname.startsWith("/team/organization")) {
+    return (
+      <div>
+        <GovernanceTabs />
+        {children}
+      </div>
+    );
+  }
+
   if (shellLoading) {
     return (
       <div>

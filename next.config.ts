@@ -6,9 +6,15 @@ const nextConfig: NextConfig = {
   // the stray package-lock.json in ~/Developer/rizq, which is outside this
   // repo, and warns that it ignored it.
   turbopack: { root: path.resolve(__dirname) },
-  allowedDevOrigins: ["browser3000.sohaibbinmohsin.com"],
+  allowedDevOrigins: [
+    "browser3000.sohaibbinmohsin.com",
+    "zahraos.sohaibbinmohsin.com",
+    "zahraos-leads.sohaibbinmohsin.com",
+  ],
   async redirects() {
     return [
+      { source: "/organization", destination: "/team/organization", permanent: false },
+      { source: "/organization/inquiries", destination: "/team/organization/inquiries", permanent: false },
       { source: "/team", destination: "/team/members", permanent: false },
       { source: "/staff", destination: "/team/members", permanent: false },
       { source: "/roles", destination: "/team/roles", permanent: false },

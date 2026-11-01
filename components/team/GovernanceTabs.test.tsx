@@ -10,17 +10,22 @@ describe("GovernanceTabs", () => {
   it("renders every governance tab including Organization", () => {
     pathname = "/team/members";
     render(<GovernanceTabs />);
-    expect(screen.getByRole("link", { name: /Organization/i })).toHaveAttribute("href", "/organization");
+    expect(screen.getByRole("link", { name: /Organization/i })).toHaveAttribute("href", "/team/organization");
     expect(screen.getByRole("link", { name: /Team Members/i })).toHaveAttribute("href", "/team/members");
     expect(screen.getByRole("link", { name: /Roles & Permissions/i })).toHaveAttribute("href", "/team/roles");
     expect(screen.getByRole("link", { name: /Audit Log/i })).toHaveAttribute("href", "/team/audit");
     expect(screen.getByText("Data Controls")).toBeInTheDocument();
   });
 
-  it("marks the Organization tab active on /organization", () => {
+  it("marks the Organization tab active on /team/organization and /organization", () => {
+    pathname = "/team/organization";
+    const { unmount } = render(<GovernanceTabs />);
+    expect(screen.getByRole("link", { name: /Organization/i })).toHaveClass("active");
+    expect(screen.getByRole("link", { name: /Team Members/i })).not.toHaveClass("active");
+    unmount();
+
     pathname = "/organization";
     render(<GovernanceTabs />);
     expect(screen.getByRole("link", { name: /Organization/i })).toHaveClass("active");
-    expect(screen.getByRole("link", { name: /Team Members/i })).not.toHaveClass("active");
   });
 });

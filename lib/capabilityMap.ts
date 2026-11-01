@@ -124,7 +124,11 @@ export function effectivePermissionTags(permissionKeyGroups: string[][]): string
   return tags;
 }
 
-export function deriveRoleTitleFromPermissions(permissions: string[], isChapterScoped = false): string | null {
+export function deriveRoleTitleFromPermissions(
+  permissions: string[],
+  isChapterScoped = false,
+  chapterCount = 1,
+): string | null {
   const grid = permissionKeysToGrid(permissions);
   const hasFullOps =
     grid.drive === "granted" &&
@@ -132,6 +136,7 @@ export function deriveRoleTitleFromPermissions(permissions: string[], isChapterS
     grid.triage === "granted" &&
     grid.hours === "granted";
 
+  const hasChapterGovernance = grid.org_governance === "granted";
   const hasTeamManagement = grid.team === "granted" || grid.members === "granted";
 
   if (hasFullOps && hasTeamManagement) {
@@ -150,8 +155,14 @@ export function deriveRoleTitleFromPermissions(permissions: string[], isChapterS
     return "Org Admin";
   }
 
+  if (hasFullOps && hasChapterGovernance) {
+    if (isChapterScoped && chapterCount > 1) return "City Lead";
+    if (isChapterScoped) return "Chapter Lead";
+    return "City Lead";
+  }
+
   if (hasFullOps) {
-    return isChapterScoped ? "Chapter Operations Lead" : "Operations Lead";
+    return isChapterScoped ? "Chapter Lead" : "City Lead";
   }
 
   if (grid.drive === "granted" && grid.triage === "granted" && grid.hours === "granted") {
@@ -172,3 +183,106 @@ export function deriveRoleTitleFromPermissions(permissions: string[], isChapterS
 
   return null;
 }
+
+export type ModuleAccessLevel = "full" | "limited" | "read_only" | "restricted";
+
+export interface ServiceModuleConfig {
+  key: string;
+  title: string;
+  description: string;
+  capabilities: readonly CapabilityKey[];
+}
+
+export interface RoleModuleSummary {
+  moduleKey: string;
+  title: string;
+  description: string;
+  level: ModuleAccessLevel;
+  grantedCount: number;
+  readOnlyCount: number;
+  restrictedCount: number;
+  totalCount: number;
+}
+
+export const SERVICE_MODULES: readonly ServiceModuleConfig[] = [
+  {
+    key: "youth-republic",
+    title: "Youth Republic",
+    description: "Volunteer drives, public noticeboard, applicant screening, and shift hours logging.",
+    capabilities: MODULE_CAPABILITIES["youth-republic"],
+  },
+  {
+    key: "team-governance",
+    title: "Team & Governance",
+    description: "Chapter governance, team roster, roles configuration, partner inquiries, and audit logs.",
+    capabilities: MODULE_CAPABILITIES["team-governance"],
+  },
+] as const;
+
+export function getRoleModuleSummaries(
+  gridOrKeys: CapabilityGrid | string[],
+  modules: readonly ServiceModuleConfig[] = SERVICE_MODULES,
+): RoleModuleSummary[] {
+  const grid = Array.isArray(gridOrKeys)
+    ? permissionKeysToGrid(gridOrKeys)
+    : gridOrKeys;
+
+  return modules.map((mod) => {
+    let grantedCount = 0;
+    let readOnlyCount = 0;
+    let restrictedCount = 0;
+
+    for (const cap of mod.capabilities) {
+      const level = grid[cap] ?? "restricted";
+      if (level === "granted") {
+        grantedCount++;
+      } else if (level === "read_only") {
+        readOnlyCount++;
+      } else {
+        restrictedCount++;
+      }
+    }
+
+    const totalCount = mod.capabilities.length;
+
+    let level: ModuleAccessLevel;
+    const grantableCaps = mod.capabilities.filter(
+      (cap) => CAPABILITY_META[cap]?.levels?.includes("granted"),
+    );
+
+    const isAllGrantableGranted =
+      grantableCaps.length > 0 &&
+      grantableCaps.every((cap) => grid[cap] === "granted");
+
+    const isStrictFull =
+      restrictedCount === 0 &&
+      totalCount > 0 &&
+      mod.capabilities.every((cap) => {
+        const meta = CAPABILITY_META[cap];
+        const maxLevel = meta?.levels?.includes("granted") ? "granted" : "read_only";
+        return grid[cap] === maxLevel;
+      });
+
+    if (totalCount === 0 || restrictedCount === totalCount) {
+      level = "restricted";
+    } else if (isAllGrantableGranted || isStrictFull) {
+      level = "full";
+    } else if (grantedCount === 0 && readOnlyCount > 0) {
+      level = "read_only";
+    } else {
+      level = "limited";
+    }
+
+    return {
+      moduleKey: mod.key,
+      title: mod.title,
+      description: mod.description,
+      level,
+      grantedCount,
+      readOnlyCount,
+      restrictedCount,
+      totalCount,
+    };
+  });
+}
+

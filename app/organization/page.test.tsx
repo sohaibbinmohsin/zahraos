@@ -18,6 +18,7 @@ vi.mock("@/components/shell/ToastContext", () => ({ useToast: () => ({ showToast
 let isOrgAdmin = true;
 let shellLoading = false;
 let mockPerms = {
+  canViewOrganization: true,
   canCreateChapters: true,
   canEditChapter: (_id: string) => true,
   canManageOrgProfile: true,
@@ -51,6 +52,7 @@ describe("OrganizationPage", () => {
     isOrgAdmin = true;
     shellLoading = false;
     mockPerms = {
+      canViewOrganization: true,
       canCreateChapters: true,
       canEditChapter: (_id: string) => true,
       canManageOrgProfile: true,
@@ -115,6 +117,7 @@ describe("OrganizationPage", () => {
     mockPerms = {
       ...mockPerms,
       canManageTeam: false,
+      canViewOrganization: false,
     };
     render(<OrganizationPage />);
     expect(screen.getByText(/organization or chapter admin access/i)).toBeInTheDocument();
@@ -124,6 +127,7 @@ describe("OrganizationPage", () => {
   it("allows chapter admin to view page with disabled profile inputs and no Save Profile button, but chapters visible", async () => {
     isOrgAdmin = false;
     mockPerms = {
+      canViewOrganization: true,
       canCreateChapters: false,
       canEditChapter: (id: string) => id === "c1",
       canManageOrgProfile: false,
@@ -135,8 +139,8 @@ describe("OrganizationPage", () => {
     render(<OrganizationPage />);
     await waitFor(() => expect(screen.getByDisplayValue("Rizq")).toBeInTheDocument());
 
-    // Informational badge
-    expect(screen.getByText(/Read-only view for chapter leaders/i)).toBeInTheDocument();
+    // No read-only informational banner
+    expect(screen.queryByText(/Read-only view for chapter leaders/i)).not.toBeInTheDocument();
 
     // Inputs disabled
     expect(screen.getByLabelText(/Organization name/i)).toBeDisabled();
@@ -151,6 +155,41 @@ describe("OrganizationPage", () => {
 
     // Chapters panel still rendered with chapter list
     expect(screen.getByText("Rizq LUMS")).toBeInTheDocument();
+  });
+
+  it("allows Chapter Lead with chapter scopes to access /organization with disabled org profile, active edit for assigned chapter, and no add chapter button", async () => {
+    isOrgAdmin = false;
+    mockPerms = {
+      canViewOrganization: true,
+      canCreateChapters: false,
+      canEditChapter: (id: string) => id === "c1",
+      canManageOrgProfile: false,
+      canManageTeam: false,
+      canViewInquiries: false,
+      isChapterScoped: true,
+    };
+
+    render(<OrganizationPage />);
+    await waitFor(() => expect(screen.getByDisplayValue("Rizq")).toBeInTheDocument());
+
+    // 1. Can load /organization (no access error)
+    expect(screen.queryByText(/organization or chapter admin access/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Organization" })).toBeInTheDocument();
+
+    // 2. Org Profile fields are disabled / read-only
+    expect(screen.getByLabelText(/Organization name/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Brand color/i)).toBeDisabled();
+    expect(screen.getByLabelText(/Description/i)).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /Upload logo/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Save profile/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Read-only view for chapter leaders/i)).not.toBeInTheDocument();
+
+    // 3. Assigned chapter has active "Edit" button, but no Deactivate button
+    expect(screen.getByRole("button", { name: /^Edit$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Deactivate/i })).not.toBeInTheDocument();
+
+    // 4. "Add Chapter" button is not visible
+    expect(screen.queryByRole("button", { name: /Add Chapter/i })).not.toBeInTheDocument();
   });
 
   it("uploads organization logo to R2 via requestPublicAssetUpload and direct PUT fetch", async () => {

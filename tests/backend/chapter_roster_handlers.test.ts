@@ -412,6 +412,165 @@ describe("Backend Handlers: Youth Republic Member Lookup & Chapter Team Roster",
       ).rejects.toThrow("forbidden");
     });
 
+    it("allows Chapter Lead to update details and roster of assigned chapter", async () => {
+      const { client, db } = createMockSupabase({
+        assignments: [
+          {
+            roleId: "role-chapter-lead",
+            roleName: "Chapter Lead",
+            scopeKind: "chapter",
+            chapterId: mockChapterId,
+          },
+        ],
+      });
+
+      const res = await updateChapter(client, mockCallerId, false, {
+        chapterId: mockChapterId,
+        about: "Chapter Lead updated about",
+        logoUrl: "https://example.com/cl-logo.png",
+        teamMembers: [
+          {
+            volunteerCode: "YR-2026-001",
+            fullName: "Lead Vol",
+            designation: "Coordinator",
+            status: "active",
+          },
+        ],
+      });
+
+      expect(res.chapterId).toBe(mockChapterId);
+      expect(db.chapters[0].about).toBe("Chapter Lead updated about");
+      expect(db.chapters[0].logo_url).toBe("https://example.com/cl-logo.png");
+      expect(db.chapter_team_members.find((m) => m.volunteer_code === "YR-2026-001")?.designation).toBe("Coordinator");
+    });
+
+    it("allows City Lead to update any of their assigned chapters", async () => {
+      const { client, db } = createMockSupabase({
+        assignments: [
+          {
+            roleId: "role-city-lead",
+            roleName: "City Lead",
+            scopeKind: "chapter",
+            chapterId: mockChapterId,
+          },
+          {
+            roleId: "role-city-lead",
+            roleName: "City Lead",
+            scopeKind: "chapter",
+            chapterId: mockOtherChapterId,
+          },
+        ],
+      });
+
+      db.chapters.push({
+        id: mockOtherChapterId,
+        organization_id: mockOrgId,
+        name: "Other Chapter",
+        city: "Lahore",
+        status: "active",
+        logo_url: null,
+        about: null,
+      });
+
+      const res1 = await updateChapter(client, mockCallerId, false, {
+        chapterId: mockChapterId,
+        name: "Karachi Updated",
+      });
+      expect(res1.chapterId).toBe(mockChapterId);
+
+      const res2 = await updateChapter(client, mockCallerId, false, {
+        chapterId: mockOtherChapterId,
+        name: "Lahore Updated",
+      });
+      expect(res2.chapterId).toBe(mockOtherChapterId);
+    });
+
+    it("forbids Chapter Lead and City Lead from updating an unassigned chapter", async () => {
+      const { client, db } = createMockSupabase({
+        assignments: [
+          {
+            roleId: "role-chapter-lead",
+            roleName: "Chapter Lead",
+            scopeKind: "chapter",
+            chapterId: mockChapterId,
+          },
+        ],
+      });
+
+      db.chapters.push({
+        id: mockOtherChapterId,
+        organization_id: mockOrgId,
+        name: "Other Chapter",
+        city: "Lahore",
+        status: "active",
+        logo_url: null,
+        about: null,
+      });
+
+      await expect(
+        updateChapter(client, mockCallerId, false, {
+          chapterId: mockOtherChapterId,
+          about: "Unauthorized",
+        }),
+      ).rejects.toThrow("forbidden");
+    });
+
+    it("forbids Chapter Lead and City Lead from deactivating a chapter", async () => {
+      const { client: clientCL } = createMockSupabase({
+        assignments: [
+          {
+            roleId: "role-chapter-lead",
+            roleName: "Chapter Lead",
+            scopeKind: "chapter",
+            chapterId: mockChapterId,
+          },
+        ],
+      });
+
+      await expect(
+        updateChapter(clientCL, mockCallerId, false, {
+          chapterId: mockChapterId,
+          status: "inactive",
+        }),
+      ).rejects.toThrow("forbidden_status_change");
+
+      const { client: clientCityLead } = createMockSupabase({
+        assignments: [
+          {
+            roleId: "role-city-lead",
+            roleName: "City Lead",
+            scopeKind: "chapter",
+            chapterId: mockChapterId,
+          },
+        ],
+      });
+
+      await expect(
+        updateChapter(clientCityLead, mockCallerId, false, {
+          chapterId: mockChapterId,
+          status: "inactive",
+        }),
+      ).rejects.toThrow("forbidden_status_change");
+    });
+
+    it("allows org-level admin and platform owner to change chapter status", async () => {
+      const { client, db } = createMockSupabase({
+        orgTier: "admin",
+      });
+
+      await updateChapter(client, mockCallerId, false, {
+        chapterId: mockChapterId,
+        status: "inactive",
+      });
+      expect(db.chapters[0].status).toBe("inactive");
+
+      await updateChapter(client, mockCallerId, true, {
+        chapterId: mockChapterId,
+        status: "active",
+      });
+      expect(db.chapters[0].status).toBe("active");
+    });
+
     it("allows National Org Admin and Super Admin to update any chapter", async () => {
       const { client, db } = createMockSupabase({
         orgTier: "super_admin",

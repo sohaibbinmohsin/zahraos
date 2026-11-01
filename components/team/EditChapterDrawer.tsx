@@ -153,8 +153,10 @@ export function EditChapterDrawer({
   const [verifiedVolunteer, setVerifiedVolunteer] = useState<YouthRepublicMemberLookupResult | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [designationInput, setDesignationInput] = useState("");
+  const [designationError, setDesignationError] = useState<string | null>(null);
   const [termInput, setTermInput] = useState(getDefaultTerm);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Submission state
   const [saving, setSaving] = useState(false);
@@ -232,6 +234,7 @@ export function EditChapterDrawer({
       setIsSearching(false);
       setIsDropdownOpen(false);
       setDesignationInput("");
+      setDesignationError(null);
       setTermInput(getDefaultTerm());
       setActiveTab("active");
 
@@ -299,6 +302,7 @@ export function EditChapterDrawer({
     setSearchQuery(`${selected.fullName} (${selected.volunteerCode})`);
     setIsDropdownOpen(false);
     setLookupError(null);
+    setDesignationError(null);
     const designationInputEl = document.getElementById("designation-input");
     designationInputEl?.focus();
   }
@@ -309,6 +313,7 @@ export function EditChapterDrawer({
 
     setYrVerifying(true);
     setLookupError(null);
+    setDesignationError(null);
     setVerifiedVolunteer(null);
     setIsDropdownOpen(false);
 
@@ -339,7 +344,29 @@ export function EditChapterDrawer({
   }
 
   function handleAddMember() {
-    if (!verifiedVolunteer || !designationInput.trim()) return;
+    if (!verifiedVolunteer) {
+      showToast("Please verify a Youth Republic ID first.");
+      return;
+    }
+    if (!designationInput.trim()) {
+      setDesignationError("Designation is required to add a member.");
+      showToast("Designation is required to add a member.");
+      const designationInputEl = document.getElementById("designation-input");
+      designationInputEl?.focus();
+      return;
+    }
+
+    const normalizedCode = verifiedVolunteer.volunteerCode.trim().toUpperCase();
+    const term = termInput.trim() || null;
+    const isDuplicate = roster.some(
+      (m) => m.volunteerCode.trim().toUpperCase() === normalizedCode && (m.term?.trim() || null) === term
+    );
+    if (isDuplicate) {
+      showToast("This member is already on the roster for this term.");
+      return;
+    }
+
+    setDesignationError(null);
 
     const newMember: LocalRosterMember = {
       volunteerCode: verifiedVolunteer.volunteerCode,
@@ -347,7 +374,7 @@ export function EditChapterDrawer({
       email: verifiedVolunteer.email ?? null,
       avatarUrl: verifiedVolunteer.avatarUrl ?? null,
       designation: designationInput.trim(),
-      term: termInput.trim() || null,
+      term,
       status: "active",
     };
 
@@ -357,6 +384,7 @@ export function EditChapterDrawer({
     setSearchResults([]);
     setIsDropdownOpen(false);
     setDesignationInput("");
+    setDesignationError(null);
     setActiveTab("active");
   }
 
@@ -523,16 +551,32 @@ export function EditChapterDrawer({
                 )}
 
                 {!readOnly && (
-                  <div>
-                    <input
-                      id={fileInputId}
-                      aria-label="Upload Chapter Logo"
-                      type="file"
-                      accept="image/*"
-                      style={{ fontSize: "var(--text-sm)" }}
-                      disabled={logoUploading}
-                      onChange={handleLogoUpload}
-                    />
+                  <div style={{ display: "flex", flexDirection: "column", gap: ".35rem" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: ".5rem", flexWrap: "wrap" }}>
+                      <input
+                        ref={fileInputRef}
+                        id={fileInputId}
+                        aria-label="Upload Chapter Logo"
+                        type="file"
+                        accept="image/*"
+                        style={{ fontSize: "var(--text-sm)" }}
+                        disabled={logoUploading}
+                        onChange={handleLogoUpload}
+                      />
+                      {logoUrl && !logoUploading && (
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-xs"
+                          onClick={() => {
+                            setLogoUrl("");
+                            setLogoError(false);
+                            if (fileInputRef.current) fileInputRef.current.value = "";
+                          }}
+                        >
+                          Remove Logo
+                        </button>
+                      )}
+                    </div>
                     {logoUploading && (
                       <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: ".25rem" }}>
                         Uploading logo…
@@ -894,17 +938,27 @@ export function EditChapterDrawer({
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".65rem", marginBottom: ".75rem" }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" htmlFor="designation-input">
-                      Designation
+                      Designation <span style={{ color: "var(--red, #e11d48)" }}>*</span>
                     </label>
                     <input
                       id="designation-input"
                       aria-label="Designation"
                       type="text"
-                      className="form-input"
+                      className={`form-input ${designationError ? "border-red-500" : ""}`}
                       placeholder="e.g. President, Media Lead"
                       value={designationInput}
-                      onChange={(e) => setDesignationInput(e.target.value)}
+                      onChange={(e) => {
+                        setDesignationInput(e.target.value);
+                        if (designationError && e.target.value.trim()) {
+                          setDesignationError(null);
+                        }
+                      }}
                     />
+                    {designationError && (
+                      <div style={{ color: "var(--red, #e11d48)", fontSize: "var(--text-xs)", marginTop: ".35rem" }}>
+                        {designationError}
+                      </div>
+                    )}
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
@@ -926,7 +980,7 @@ export function EditChapterDrawer({
                 <button
                   type="button"
                   className="btn btn-primary btn-sm"
-                  disabled={!verifiedVolunteer || !designationInput.trim()}
+                  disabled={!verifiedVolunteer}
                   onClick={handleAddMember}
                 >
                   Add to Chapter Roster
