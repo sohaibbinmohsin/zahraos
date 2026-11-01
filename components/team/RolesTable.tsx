@@ -50,6 +50,7 @@ export function RolesTable({
   onClone,
   onDelete,
   deletingRoleId = null,
+  canManageRoles = true,
 }: {
   roles: TeamRole[];
   assignmentCountByRoleId: Map<string, number>;
@@ -58,6 +59,7 @@ export function RolesTable({
   onClone: (roleId: string) => void;
   onDelete: (roleId: string) => void;
   deletingRoleId?: string | null;
+  canManageRoles?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -216,15 +218,24 @@ export function RolesTable({
                             justifyContent: "flex-end",
                           }}
                         >
-                          {r.isSystem ? (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-xs"
+                            onClick={() => onView(r.id)}
+                          >
+                            View
+                          </button>
+                          {canManageRoles && (
                             <>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-xs"
-                                onClick={() => onView(r.id)}
-                              >
-                                View
-                              </button>
+                              {!r.isSystem && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-xs"
+                                  onClick={() => onEdit(r.id)}
+                                >
+                                  Edit
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-xs"
@@ -232,45 +243,23 @@ export function RolesTable({
                               >
                                 Clone
                               </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-xs"
-                                onClick={() => onView(r.id)}
-                              >
-                                View
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-xs"
-                                onClick={() => onEdit(r.id)}
-                              >
-                                Edit
-                              </button>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-xs"
-                                onClick={() => onClone(r.id)}
-                              >
-                                Clone
-                              </button>
-                              <LoadingButton
-                                type="button"
-                                className="btn btn-secondary btn-xs"
-                                style={{ color: "var(--accent-red)" }}
-                                loading={deletingRoleId === r.id}
-                                disabled={count > 0}
-                                title={
-                                  count > 0
-                                    ? "Reassign staff before deleting this role"
-                                    : undefined
-                                }
-                                onClick={() => onDelete(r.id)}
-                              >
-                                Delete
-                              </LoadingButton>
+                              {!r.isSystem && (
+                                <LoadingButton
+                                  type="button"
+                                  className="btn btn-secondary btn-xs"
+                                  style={{ color: "var(--accent-red)" }}
+                                  loading={deletingRoleId === r.id}
+                                  disabled={count > 0}
+                                  title={
+                                    count > 0
+                                      ? "Reassign staff before deleting this role"
+                                      : undefined
+                                  }
+                                  onClick={() => onDelete(r.id)}
+                                >
+                                  Delete
+                                </LoadingButton>
+                              )}
                             </>
                           )}
                         </div>

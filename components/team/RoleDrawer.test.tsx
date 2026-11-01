@@ -84,7 +84,7 @@ describe("RoleDrawer", () => {
     expect(screen.getByRole("combobox", { name: "Approve Hours" })).toHaveTextContent("Granted");
   });
 
-  it("applies the Org Admin template with full capabilities across all modules", async () => {
+  it("applies the Org Admin template with operations granted and governance read-only", async () => {
     const user = userEvent.setup();
     render(<RoleDrawer request={{ mode: "create", roleId: null }} onClose={vi.fn()} />);
     await user.click(screen.getByRole("combobox", { name: "Base Permission Template" }));
@@ -95,8 +95,8 @@ describe("RoleDrawer", () => {
     expect(screen.getByRole("combobox", { name: "Triage Apps" })).toHaveTextContent("Granted");
     expect(screen.getByRole("combobox", { name: "Approve Hours" })).toHaveTextContent("Granted");
     expect(screen.getByRole("combobox", { name: "Team Members" })).toHaveTextContent("Granted");
-    expect(screen.getByRole("combobox", { name: "Roles & Permissions" })).toHaveTextContent("Granted");
-    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Granted");
+    expect(screen.getByRole("combobox", { name: "Roles & Permissions" })).toHaveTextContent("Read Only");
+    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Read Only");
   });
 
   it("opens the Org Admin role in view mode as a protected system specification", async () => {
@@ -249,9 +249,9 @@ describe("RoleDrawer", () => {
     await user.click(screen.getByRole("option", { name: "Clone from Chapter Admin" }));
     expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Restricted");
 
-    // 4. Org Admin template grants Partner Inquiries
+    // 4. Org Admin template grants Read Only for Partner Inquiries
     await user.click(screen.getByRole("combobox", { name: "Base Permission Template" }));
     await user.click(screen.getByRole("option", { name: "Clone from Org Admin" }));
-    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Granted");
+    expect(screen.getByRole("combobox", { name: "Partner Inquiries" })).toHaveTextContent("Read Only");
   });
 });

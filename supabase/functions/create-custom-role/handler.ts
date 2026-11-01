@@ -10,13 +10,13 @@ export interface CreateCustomRoleInput {
   capabilities: CapabilityGrid;
 }
 
-async function assertCallerIsOrgAdmin(
+async function assertCallerIsSuperAdmin(
   supabase: SupabaseClient, callerStaffId: string, callerPlatformOwner: boolean, organizationId: string,
 ): Promise<void> {
   if (callerPlatformOwner) return;
   const { data: orgRole } = await supabase.from("staff_org_roles").select("org_tier")
     .eq("staff_id", callerStaffId).eq("organization_id", organizationId).maybeSingle();
-  if (orgRole && ["admin", "super_admin"].includes(orgRole.org_tier)) return;
+  if (orgRole && orgRole.org_tier === "super_admin") return;
 
   const { data: assignments } = await supabase
     .from("staff_role_assignments")
@@ -32,7 +32,7 @@ async function assertCallerIsOrgAdmin(
       .in("id", roleIds);
 
     for (const r of roles ?? []) {
-      if (["Super Admin", "Org Admin", "Organization Admin"].includes(r.name)) {
+      if (r.name === "Super Admin") {
         return;
       }
       const hasRoleWrite = (r.role_permissions ?? []).some(
@@ -62,7 +62,7 @@ export async function createCustomRole(
   callerPlatformOwner: boolean,
   input: CreateCustomRoleInput,
 ): Promise<{ roleId: string }> {
-  await assertCallerIsOrgAdmin(supabase, callerStaffId, callerPlatformOwner, input.organizationId);
+  await assertCallerIsSuperAdmin(supabase, callerStaffId, callerPlatformOwner, input.organizationId);
   if (!input.name?.trim()) throw new Error("missing_name");
 
   const { data: orgModule } = await supabase.from("org_modules").select("module_id")

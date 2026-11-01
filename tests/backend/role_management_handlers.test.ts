@@ -64,8 +64,10 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
                     id: "role-assigned",
                     name: roleAssignmentName,
                     role_permissions:
-                      roleAssignmentName === "Super Admin" || roleAssignmentName === "Org Admin"
+                      roleAssignmentName === "Super Admin"
                         ? [{ permissions: { resource: "roles", action: "write" } }]
+                        : roleAssignmentName === "Org Admin"
+                        ? [{ permissions: { resource: "roles", action: "read" } }]
                         : [],
                   },
                 ],
@@ -180,23 +182,23 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
       expect(result).toEqual({ roleId: "new-role-id" });
     });
 
-    it("allows Org Admin to create a custom role", async () => {
+    it("forbids Org Admin from creating a custom role", async () => {
       const mockSupabase = createMockSupabase({ roleAssignmentName: "Org Admin" });
-      const result = await createCustomRole(mockSupabase, orgAdminStaffId, false, {
-        organizationId: mockOrgId,
-        moduleId: mockModuleId,
-        name: "New Org Role",
-        description: "Org description",
-        capabilities: {
-          drive: "granted",
-          publish: "restricted",
-          triage: "restricted",
-          hours: "read_only",
-          team: "restricted",
-        },
-      });
-
-      expect(result).toEqual({ roleId: "new-role-id" });
+      await expect(
+        createCustomRole(mockSupabase, orgAdminStaffId, false, {
+          organizationId: mockOrgId,
+          moduleId: mockModuleId,
+          name: "New Org Role",
+          description: "Org description",
+          capabilities: {
+            drive: "granted",
+            publish: "restricted",
+            triage: "restricted",
+            hours: "read_only",
+            team: "restricted",
+          },
+        }),
+      ).rejects.toThrow("forbidden");
     });
 
     it("forbids Chapter Lead from creating a custom role", async () => {
@@ -220,9 +222,9 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
   });
 
   describe("updateCustomRole", () => {
-    it("allows Super Admin and Org Admin to update a custom role", async () => {
-      const mockSupabase = createMockSupabase({ roleAssignmentName: "Org Admin" });
-      const result = await updateCustomRole(mockSupabase, orgAdminStaffId, false, {
+    it("allows Super Admin to update a custom role", async () => {
+      const mockSupabase = createMockSupabase({ roleAssignmentName: "Super Admin" });
+      const result = await updateCustomRole(mockSupabase, superAdminStaffId, false, {
         roleId: "target-role-id",
         name: "Updated Field Coordinator",
         description: "Updated description",
@@ -236,6 +238,24 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
       });
 
       expect(result).toEqual({ roleId: "target-role-id" });
+    });
+
+    it("forbids Org Admin from updating a custom role", async () => {
+      const mockSupabase = createMockSupabase({ roleAssignmentName: "Org Admin" });
+      await expect(
+        updateCustomRole(mockSupabase, orgAdminStaffId, false, {
+          roleId: "target-role-id",
+          name: "Attempted Org Admin Update",
+          description: "",
+          capabilities: {
+            drive: "granted",
+            publish: "restricted",
+            triage: "restricted",
+            hours: "restricted",
+            team: "restricted",
+          },
+        }),
+      ).rejects.toThrow("forbidden");
     });
 
     it("prevents updating system default roles", async () => {
@@ -261,16 +281,28 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
   });
 
   describe("deleteCustomRole", () => {
-    it("allows Org Admin to delete an unassigned custom role", async () => {
+    it("allows Super Admin to delete an unassigned custom role", async () => {
       const mockSupabase = createMockSupabase({
-        roleAssignmentName: "Org Admin",
+        roleAssignmentName: "Super Admin",
         assignmentCount: 0,
       });
-      const result = await deleteCustomRole(mockSupabase, orgAdminStaffId, false, {
+      const result = await deleteCustomRole(mockSupabase, superAdminStaffId, false, {
         roleId: "target-role-id",
       });
 
       expect(result).toEqual({ roleId: "target-role-id" });
+    });
+
+    it("forbids Org Admin from deleting a custom role", async () => {
+      const mockSupabase = createMockSupabase({
+        roleAssignmentName: "Org Admin",
+        assignmentCount: 0,
+      });
+      await expect(
+        deleteCustomRole(mockSupabase, orgAdminStaffId, false, {
+          roleId: "target-role-id",
+        }),
+      ).rejects.toThrow("forbidden");
     });
 
     it("prevents deleting a custom role currently in use", async () => {

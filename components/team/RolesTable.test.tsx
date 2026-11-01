@@ -234,4 +234,25 @@ describe("RolesTable", () => {
     await user.type(searchInput, "Nonexistent Role");
     expect(screen.getByText(/no roles found/i)).toBeInTheDocument();
   });
+
+  it("renders only View button when canManageRoles is false", () => {
+    render(
+      <RolesTable
+        roles={roles}
+        assignmentCountByRoleId={counts}
+        canManageRoles={false}
+        onView={vi.fn()}
+        onEdit={vi.fn()}
+        onClone={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+
+    // View button should be present
+    expect(screen.getAllByRole("button", { name: "View" })).toHaveLength(2);
+    // Edit, Clone, Delete buttons should NOT be present
+    expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Clone" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
+  });
 });

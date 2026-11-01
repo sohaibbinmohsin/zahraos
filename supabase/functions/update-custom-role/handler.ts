@@ -24,7 +24,7 @@ export async function updateCustomRole(
     let isAuthorized = false;
     const { data: orgRole } = await supabase.from("staff_org_roles").select("org_tier")
       .eq("staff_id", callerStaffId).eq("organization_id", role.organization_id).maybeSingle();
-    if (orgRole && ["admin", "super_admin"].includes(orgRole.org_tier)) {
+    if (orgRole && orgRole.org_tier === "super_admin") {
       isAuthorized = true;
     } else {
       const { data: assignments } = await supabase
@@ -41,7 +41,7 @@ export async function updateCustomRole(
           .in("id", roleIds);
 
         for (const r of roles ?? []) {
-          if (["Super Admin", "Org Admin", "Organization Admin"].includes(r.name)) {
+          if (r.name === "Super Admin") {
             isAuthorized = true;
             break;
           }

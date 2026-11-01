@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { decodeStaffTokenClaims } from "@/lib/staffToken";
 import { gridToPermissionKeys } from "@/lib/capabilityMap";
 
-async function checkIsOrgAdmin(
+async function checkIsSuperAdmin(
   supabaseAdmin: any,
   callerStaffId: string,
   callerPlatformOwner: boolean,
@@ -18,7 +18,7 @@ async function checkIsOrgAdmin(
     .eq("organization_id", organizationId)
     .maybeSingle();
 
-  if (orgRole && ["admin", "super_admin"].includes((orgRole as any).org_tier)) {
+  if (orgRole && (orgRole as any).org_tier === "super_admin") {
     return true;
   }
 
@@ -36,7 +36,7 @@ async function checkIsOrgAdmin(
       .in("id", roleIds);
 
     for (const r of (roles ?? []) as any[]) {
-      if (["Super Admin", "Org Admin", "Organization Admin"].includes(r.name)) {
+      if (r.name === "Super Admin") {
         return true;
       }
       const hasRoleWrite = (r.role_permissions ?? []).some(
@@ -407,7 +407,7 @@ export async function POST(
       return NextResponse.json({ error: "missing_required_fields" }, { status: 400 });
     }
 
-    const isAuthorized = await checkIsOrgAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, organizationId);
+    const isAuthorized = await checkIsSuperAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, organizationId);
     if (!isAuthorized) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
@@ -503,7 +503,7 @@ export async function POST(
       return NextResponse.json({ error: "system_role_immutable" }, { status: 400 });
     }
 
-    const isAuthorized = await checkIsOrgAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, role.organization_id);
+    const isAuthorized = await checkIsSuperAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, role.organization_id);
     if (!isAuthorized) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
@@ -585,7 +585,7 @@ export async function POST(
       return NextResponse.json({ error: "system_role_immutable" }, { status: 400 });
     }
 
-    const isAuthorized = await checkIsOrgAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, role.organization_id);
+    const isAuthorized = await checkIsSuperAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, role.organization_id);
     if (!isAuthorized) {
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }

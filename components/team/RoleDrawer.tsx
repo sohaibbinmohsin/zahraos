@@ -52,9 +52,9 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       volunteers: "read_only",
       org_governance: "granted",
       members: "granted",
-      roles: "granted",
+      roles: "read_only",
       audit: "read_only",
-      inquiries: "granted",
+      inquiries: "read_only",
       team: "granted",
     },
   },
@@ -475,26 +475,31 @@ export function RoleDrawer({
                         style={{ minWidth: 0, padding: "0.85rem 1rem" }}
                       >
                         <div
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`Toggle ${service.title}`}
+                          aria-expanded={isOpen}
+                          onClick={() => toggleService(service.key)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              toggleService(service.key);
+                            }
+                          }}
                           style={{
                             display: "flex",
                             alignItems: "flex-start",
                             justifyContent: "space-between",
                             gap: "0.75rem",
                             flexWrap: "wrap",
+                            cursor: "pointer",
+                            userSelect: "none",
                           }}
                         >
                           <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem", flex: 1, minWidth: 200 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                              <button
-                                type="button"
-                                aria-label={`Toggle ${service.title}`}
-                                aria-expanded={isOpen}
-                                onClick={() => toggleService(service.key)}
+                              <span
                                 style={{
-                                  background: "none",
-                                  border: "none",
-                                  padding: 0,
-                                  cursor: "pointer",
                                   display: "inline-flex",
                                   alignItems: "center",
                                   gap: "0.4rem",
@@ -522,7 +527,7 @@ export function RoleDrawer({
                                   <polyline points="6 9 12 15 18 9" />
                                 </svg>
                                 <span>{service.title}</span>
-                              </button>
+                              </span>
                               <span
                                 className={`badge ${badgeClass}`}
                                 data-testid={`service-badge-${service.key}`}
@@ -538,6 +543,7 @@ export function RoleDrawer({
                           {!readOnly && (
                             <div
                               className="service-presets"
+                              onClick={(e) => e.stopPropagation()}
                               style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}
                             >
                               <button
@@ -545,7 +551,10 @@ export function RoleDrawer({
                                 className="btn btn-secondary btn-xs"
                                 aria-label={`${service.title}: Full Access`}
                                 data-testid={`preset-full-${service.key}`}
-                                onClick={() => applyServicePreset(service.capabilities, "full")}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  applyServicePreset(service.capabilities, "full");
+                                }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
                                 Full Access
@@ -555,7 +564,10 @@ export function RoleDrawer({
                                 className="btn btn-secondary btn-xs"
                                 aria-label={`${service.title}: Read Only`}
                                 data-testid={`preset-readonly-${service.key}`}
-                                onClick={() => applyServicePreset(service.capabilities, "read_only")}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  applyServicePreset(service.capabilities, "read_only");
+                                }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
                                 Read Only
@@ -565,7 +577,10 @@ export function RoleDrawer({
                                 className="btn btn-secondary btn-xs"
                                 aria-label={`${service.title}: Restricted`}
                                 data-testid={`preset-restricted-${service.key}`}
-                                onClick={() => applyServicePreset(service.capabilities, "restricted")}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  applyServicePreset(service.capabilities, "restricted");
+                                }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
                                 Restricted
