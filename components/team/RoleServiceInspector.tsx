@@ -90,7 +90,7 @@ export function RoleServiceInspector({
               IAM Service Policy
             </span>
             {readOnly && (
-              <span className="badge badge-neu" style={{ fontSize: "10px" }}>
+              <span className="badge badge-neu" style={{ fontSize: "var(--text-2xs)" }}>
                 Inspector Mode
               </span>
             )}
@@ -136,12 +136,13 @@ export function RoleServiceInspector({
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span
+                    aria-hidden="true"
                     style={{
                       display: "inline-block",
                       transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
                       transition: "transform 0.15s ease",
                       color: "var(--ink-3)",
-                      fontSize: "12px",
+                      fontSize: "var(--text-xs)",
                       lineHeight: 1,
                     }}
                   >

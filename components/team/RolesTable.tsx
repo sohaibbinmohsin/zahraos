@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   SERVICE_MODULES,
   getRoleModuleSummaries,
@@ -34,7 +34,7 @@ function moduleBadge(summary: RoleModuleSummary) {
       style={{
         display: "inline-flex",
         alignItems: "center",
-        fontSize: "11px",
+        fontSize: "var(--text-2xs)",
         padding: "0.2rem 0.5rem",
       }}
     >
@@ -70,41 +70,48 @@ export function RolesTable({
     ...SERVICE_MODULES.map((m) => ({ value: m.key, label: m.title })),
   ];
 
-  const filtered = roles.filter((r) => {
-    const grid = permissionKeysToGrid(r.permissionKeys);
-    const summaries = getRoleModuleSummaries(grid);
+  const rolesWithSummaries = useMemo(() => {
+    return roles.map((r) => {
+      const grid = permissionKeysToGrid(r.permissionKeys);
+      const summaries = getRoleModuleSummaries(grid);
+      return { role: r, grid, summaries };
+    });
+  }, [roles]);
 
+  const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const matchSearch =
-      !q ||
-      r.name.toLowerCase().includes(q) ||
-      (r.description ?? "").toLowerCase().includes(q) ||
-      summaries.some(
-        (s) => s.level !== "restricted" && s.title.toLowerCase().includes(q),
-      );
+    return rolesWithSummaries.filter(({ role: r, summaries }) => {
+      const matchSearch =
+        !q ||
+        r.name.toLowerCase().includes(q) ||
+        (r.description ?? "").toLowerCase().includes(q) ||
+        summaries.some(
+          (s) => s.level !== "restricted" && s.title.toLowerCase().includes(q),
+        );
 
-    const matchType =
-      typeFilter === "all" ||
-      (typeFilter === "system" && r.isSystem) ||
-      (typeFilter === "custom" && !r.isSystem);
+      const matchType =
+        typeFilter === "all" ||
+        (typeFilter === "system" && r.isSystem) ||
+        (typeFilter === "custom" && !r.isSystem);
 
-    const matchModule =
-      moduleFilter === "all" ||
-      summaries.some(
-        (s) => s.moduleKey === moduleFilter && s.level !== "restricted",
-      );
+      const matchModule =
+        moduleFilter === "all" ||
+        summaries.some(
+          (s) => s.moduleKey === moduleFilter && s.level !== "restricted",
+        );
 
-    return matchSearch && matchType && matchModule;
-  });
+      return matchSearch && matchType && matchModule;
+    });
+  }, [rolesWithSummaries, search, typeFilter, moduleFilter]);
 
   const allExpanded =
-    filtered.length > 0 && filtered.every((r) => expandedRoleIds.has(r.id));
+    filtered.length > 0 && filtered.every(({ role: r }) => expandedRoleIds.has(r.id));
 
   const toggleExpandAll = () => {
     if (allExpanded) {
       setExpandedRoleIds((prev) => {
         const next = new Set(prev);
-        for (const r of filtered) {
+        for (const { role: r } of filtered) {
           next.delete(r.id);
         }
         return next;
@@ -112,7 +119,7 @@ export function RolesTable({
     } else {
       setExpandedRoleIds((prev) => {
         const next = new Set(prev);
-        for (const r of filtered) {
+        for (const { role: r } of filtered) {
           next.add(r.id);
         }
         return next;
@@ -170,6 +177,7 @@ export function RolesTable({
         <button
           type="button"
           className="btn btn-secondary btn-sm"
+          disabled={filtered.length === 0}
           onClick={toggleExpandAll}
         >
           {allExpanded ? "Collapse All" : "Expand All"}
@@ -204,9 +212,7 @@ export function RolesTable({
                   </td>
                 </tr>
               ) : (
-                filtered.map((r) => {
-                  const grid = permissionKeysToGrid(r.permissionKeys);
-                  const summaries = getRoleModuleSummaries(grid);
+                filtered.map(({ role: r, grid, summaries }) => {
                   const count = assignmentCountByRoleId.get(r.id) ?? 0;
                   const isExpanded = expandedRoleIds.has(r.id);
 
