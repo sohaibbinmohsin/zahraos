@@ -70,7 +70,7 @@ export function AuditTable({ rows }: { rows: AuditRow[] }) {
   }, [rows]);
 
   const availableModules = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(["Team & Governance", "Youth Republic"]);
     for (const r of normalizedRows) {
       if (r.resolvedModule) set.add(r.resolvedModule);
     }
