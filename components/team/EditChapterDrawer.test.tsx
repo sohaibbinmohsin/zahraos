@@ -607,7 +607,7 @@ describe("EditChapterDrawer", () => {
 
   it("gracefully falls back to initials when member avatar image fails to load in autocomplete dropdown", async () => {
     const user = userEvent.setup();
-    searchYouthRepublicMembers.mockResolvedValueOnce({
+    searchYouthRepublicMembers.mockResolvedValue({
       members: [
         {
           volunteerCode: "YR-2026-000888",
