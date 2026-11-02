@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { setPassword } from "@/lib/platformFunctions";
@@ -14,6 +14,7 @@ export function SetPasswordForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [isSameAsTemporary, setIsSameAsTemporary] = useState(false);
 
   // Supabase password requirements:
   // 1. Minimum 8 characters
@@ -27,6 +28,59 @@ export function SetPasswordForm() {
   const hasDigit = /[0-9]/.test(newPassword);
   const hasSymbol = /[^a-zA-Z0-9\s]/.test(newPassword);
   const isMatch = newPassword.length > 0 && newPassword === confirmPassword;
+  const isDifferentFromTemp = newPassword.length > 0 && !isSameAsTemporary;
+
+  useEffect(() => {
+    if (!newPassword) {
+      setIsSameAsTemporary(false);
+      return;
+    }
+
+    // 1. Instant check against sessionStorage if stored from login
+    try {
+      const storedTemp = sessionStorage.getItem("current_temp_password");
+      if (storedTemp && newPassword === storedTemp) {
+        setIsSameAsTemporary(true);
+        return;
+      }
+    } catch {
+      // Non-fatal
+    }
+
+    setIsSameAsTemporary(false);
+
+    // 2. Debounced verify against auth if user has typed >= 6 chars
+    if (newPassword.length < 6) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const supabase = getBrowserSupabaseClient();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userEmail = sessionData?.session?.user?.email;
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+        if (userEmail && url && anonKey) {
+          const { createClient } = await import("@supabase/supabase-js");
+          const tempClient = createClient(url, anonKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+          });
+          const { data: testAuth, error: testAuthError } = await tempClient.auth.signInWithPassword({
+            email: userEmail,
+            password: newPassword,
+          });
+          if (!testAuthError && testAuth?.session) {
+            setIsSameAsTemporary(true);
+          } else {
+            setIsSameAsTemporary(false);
+          }
+        }
+      } catch {
+        // Non-fatal
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [newPassword]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -71,6 +125,11 @@ export function SetPasswordForm() {
         return;
       }
 
+      if (isSameAsTemporary) {
+        setError("New password cannot be the same as your temporary password");
+        return;
+      }
+
       // Check if newPassword is the same as the user's current temporary password
       const userEmail = sessionData.session.user?.email;
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -95,6 +154,11 @@ export function SetPasswordForm() {
       }
 
       await setPassword({ newPassword }, sessionData.session.access_token);
+      try {
+        sessionStorage.removeItem("current_temp_password");
+      } catch {
+        // Non-fatal
+      }
       router.push("/");
       router.refresh();
     } catch (err) {
@@ -183,8 +247,8 @@ export function SetPasswordForm() {
           <span className={isMatch ? "text-[#1B5E20] font-bold" : "text-[#8A8E99]"}>✓</span>
           <span>Passwords match</span>
         </li>
-        <li className="flex items-center gap-2 text-[#8A8E99]">
-          <span>✓</span>
+        <li className={`flex items-center gap-2 transition ${isDifferentFromTemp ? "text-[#14161B] font-medium" : ""}`}>
+          <span className={isDifferentFromTemp ? "text-[#1B5E20] font-bold" : "text-[#8A8E99]"}>✓</span>
           <span>Must be different from temporary password</span>
         </li>
       </ul>
