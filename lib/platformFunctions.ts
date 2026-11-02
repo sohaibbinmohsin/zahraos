@@ -21,8 +21,10 @@ async function callFunction<TResponse>(
     name === "delete-custom-role";
 
   const isPlatformAuthAction = name === "set-password";
+  const isPlatformAuditAction = name === "list-audit-logs";
 
-  const isPlatformLocalAction = isPlatformChapterAction || isPlatformRoleAction || isPlatformAuthAction;
+  const isPlatformLocalAction =
+    isPlatformChapterAction || isPlatformRoleAction || isPlatformAuthAction || isPlatformAuditAction;
 
   const isVitestMock = typeof process !== "undefined" && process.env.NODE_ENV === "test";
 
@@ -432,4 +434,15 @@ export async function requestPublicAssetUpload(
     throw new Error(data?.error ?? "request_failed");
   }
   return data as RequestPublicAssetUploadResponse;
+}
+
+export interface ListAuditLogsPayload {
+  organizationId: string;
+}
+
+export async function listAuditLogs(
+  payload: ListAuditLogsPayload,
+  accessToken: string,
+): Promise<{ rows: any[] }> {
+  return callFunction<{ rows: any[] }>("list-audit-logs", payload, accessToken);
 }

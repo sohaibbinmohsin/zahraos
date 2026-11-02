@@ -11,15 +11,29 @@ export interface AuditRow {
   summary: string;
   ip: string | null;
   scopeLabel: string | null;
+  module?: string | null;
 }
 
-const ACTION_TYPES = ["Member Added", "Access Changed", "Member Removed", "Role Created", "Role Modified", "Chapter Created", "Chapter Updated"];
+export function formatAuditAction(action: string): string {
+  if (!action) return "";
+  const words = action.replace(/[_-]+/g, " ").trim().split(/\s+/);
+  return words
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(" ");
+}
 
-function badgeClass(action: string) {
-  if (action === "Member Removed") return "badge-neg";
-  if (action === "Role Created" || action === "Role Modified" || action === "Chapter Created" || action === "Chapter Updated") return "badge-custom";
-  if (action === "Member Added") return "badge-pend";
-  return "badge-pos";
+export function badgeClass(action: string): string {
+  const norm = formatAuditAction(action).toLowerCase();
+  if (norm.includes("remove") || norm.includes("delete") || norm.includes("reject") || norm.includes("deactivat")) {
+    return "badge-neg";
+  }
+  if (norm.includes("add") || norm.includes("invite") || norm.includes("pend") || norm.includes("draft") || norm.includes("adjust")) {
+    return "badge-pend";
+  }
+  if (norm.includes("create") || norm.includes("verify") || norm.includes("approv") || norm.includes("authoriz") || norm.includes("publish")) {
+    return "badge-pos";
+  }
+  return "badge-neu";
 }
 
 function csvCell(v: string) {
@@ -27,9 +41,17 @@ function csvCell(v: string) {
 }
 
 export function auditRowsToCsv(rows: AuditRow[]): string {
-  const header = "Timestamp,User,Action,Details,IP,Scope";
+  const header = "Timestamp,Module,User,Action,Details,IP,Scope";
   const lines = rows.map((r) =>
-    [r.createdAt, r.actorName, r.action, r.summary, r.ip ?? "", r.scopeLabel ?? ""].map(csvCell).join(","),
+    [
+      r.createdAt,
+      r.module ?? "Team & Governance",
+      r.actorName,
+      formatAuditAction(r.action),
+      r.summary,
+      r.ip ?? "",
+      r.scopeLabel ?? "",
+    ].map(csvCell).join(","),
   );
   return [header, ...lines].join("\n");
 }
@@ -37,29 +59,79 @@ export function auditRowsToCsv(rows: AuditRow[]): string {
 export function AuditTable({ rows }: { rows: AuditRow[] }) {
   const [search, setSearch] = useState("");
   const [actionFilter, setActionFilter] = useState("all");
+  const [moduleFilter, setModuleFilter] = useState("all");
 
-  const filtered = useMemo(() => rows.filter((r) => {
+  const normalizedRows = useMemo(() => {
+    return rows.map((r) => ({
+      ...r,
+      formattedAction: formatAuditAction(r.action),
+      resolvedModule: r.module ?? "Team & Governance",
+    }));
+  }, [rows]);
+
+  const availableModules = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of normalizedRows) {
+      if (r.resolvedModule) set.add(r.resolvedModule);
+    }
+    return Array.from(set).sort();
+  }, [normalizedRows]);
+
+  const availableActions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of normalizedRows) {
+      if (r.formattedAction) set.add(r.formattedAction);
+    }
+    return Array.from(set).sort();
+  }, [normalizedRows]);
+
+  const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    const matchSearch = !q
-      || r.actorName.toLowerCase().includes(q)
-      || r.action.toLowerCase().includes(q)
-      || r.summary.toLowerCase().includes(q)
-      || (r.scopeLabel ?? "").toLowerCase().includes(q);
-    const matchAction = actionFilter === "all" || r.action === actionFilter;
-    return matchSearch && matchAction;
-  }), [rows, search, actionFilter]);
+    return normalizedRows.filter((r) => {
+      const matchSearch =
+        !q ||
+        r.actorName.toLowerCase().includes(q) ||
+        r.formattedAction.toLowerCase().includes(q) ||
+        r.resolvedModule.toLowerCase().includes(q) ||
+        r.summary.toLowerCase().includes(q) ||
+        (r.scopeLabel ?? "").toLowerCase().includes(q);
+
+      const matchAction =
+        actionFilter === "all" || r.formattedAction === actionFilter;
+
+      const matchModule =
+        moduleFilter === "all" || r.resolvedModule === moduleFilter;
+
+      return matchSearch && matchAction && matchModule;
+    });
+  }, [normalizedRows, search, actionFilter, moduleFilter]);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <input aria-label="Search audit log" className="search-input" placeholder="Search audit log actor, entity, action..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        <input
+          aria-label="Search audit log"
+          className="search-input"
+          placeholder="Search audit log actor, entity, action, module..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <Select
+          aria-label="Module filter"
+          value={moduleFilter}
+          onChange={setModuleFilter}
+          options={[
+            { value: "all", label: "All Modules" },
+            ...availableModules.map((m) => ({ value: m, label: m })),
+          ]}
+        />
         <Select
           aria-label="Action type filter"
           value={actionFilter}
           onChange={setActionFilter}
           options={[
             { value: "all", label: "All Action Types" },
-            ...ACTION_TYPES.map((a) => ({ value: a, label: a })),
+            ...availableActions.map((a) => ({ value: a, label: a })),
           ]}
         />
       </div>
@@ -68,26 +140,61 @@ export function AuditTable({ rows }: { rows: AuditRow[] }) {
         <div className="table-responsive-wrapper">
           <table className="data-table">
             <thead>
-              <tr><th>Timestamp</th><th>User</th><th>Action</th><th>Entity &amp; Details</th><th>IP / Chapter</th></tr>
+              <tr>
+                <th>Timestamp</th>
+                <th>Module</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Entity &amp; Details</th>
+                <th>IP / Chapter</th>
+              </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: "center", padding: "2.5rem", color: "var(--ink-3)" }}>
-                  No audit records found matching search filters.
-                </td></tr>
-              ) : filtered.map((r) => (
-                <tr key={r.id}>
-                  <td className="mono" style={{ fontSize: "var(--text-xs)" }}>
-                    {new Date(r.createdAt).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
-                  </td>
-                  <td><b>{r.actorName}</b></td>
-                  <td><span className={`badge ${badgeClass(r.action)}`}>{r.action}</span></td>
-                  <td style={{ fontSize: "var(--text-sm)", color: "var(--ink)" }}>{r.summary}</td>
-                  <td className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)" }}>
-                    {r.ip ?? "—"}{r.scopeLabel ? ` · ${r.scopeLabel}` : ""}
+                <tr>
+                  <td colSpan={6} style={{ textAlign: "center", padding: "2.5rem", color: "var(--ink-3)" }}>
+                    No audit records found matching search filters.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filtered.map((r) => (
+                  <tr key={r.id}>
+                    <td className="mono" style={{ fontSize: "var(--text-xs)" }}>
+                      {new Date(r.createdAt).toLocaleString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </td>
+                    <td>
+                      <span
+                        className="badge badge-neu"
+                        style={{ textTransform: "none", letterSpacing: "normal", fontWeight: 500 }}
+                      >
+                        {r.resolvedModule}
+                      </span>
+                    </td>
+                    <td>
+                      <b>{r.actorName}</b>
+                    </td>
+                    <td>
+                      <span
+                        className={`badge ${badgeClass(r.formattedAction)}`}
+                        style={{ textTransform: "none", letterSpacing: "normal" }}
+                      >
+                        {r.formattedAction}
+                      </span>
+                    </td>
+                    <td style={{ fontSize: "var(--text-sm)", color: "var(--ink)" }}>{r.summary}</td>
+                    <td className="mono" style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)" }}>
+                      {r.ip ?? "—"}
+                      {r.scopeLabel ? ` · ${r.scopeLabel}` : ""}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

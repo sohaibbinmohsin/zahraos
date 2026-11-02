@@ -670,5 +670,123 @@ export async function POST(
     return NextResponse.json({ roleId });
   }
 
+  // Handle list-audit-logs
+  if (name === "list-audit-logs") {
+    const body = await request.json().catch(() => ({}));
+    const { organizationId } = body;
+    if (!organizationId) {
+      return NextResponse.json({ error: "organization_id_required" }, { status: 400 });
+    }
+
+    // 1. Fetch platform audit logs
+    const { data: platformLogs } = await supabaseAdmin
+      .from("admin_audit_log")
+      .select("id, created_at, actor_name, action, summary, ip, scope_label, entity_type")
+      .eq("organization_id", organizationId)
+      .order("created_at", { ascending: false })
+      .limit(300);
+
+    // 2. Fetch Youth Republic admin_action_log if configured
+    let yrLogs: any[] = [];
+    const yrUrl = process.env.YOUTH_REPUBLIC_SUPABASE_URL || "https://kbotpktgojpvkotigrjh.supabase.co";
+    const yrKey = process.env.YOUTH_REPUBLIC_SERVICE_ROLE_KEY;
+    if (yrKey) {
+      try {
+        const yrRes = await fetch(
+          `${yrUrl}/rest/v1/admin_action_log?organization_id=eq.${organizationId}&order=created_at.desc&limit=300`,
+          {
+            headers: {
+              apikey: yrKey,
+              Authorization: `Bearer ${yrKey}`,
+            },
+          }
+        );
+        if (yrRes.ok) {
+          yrLogs = await yrRes.json();
+        }
+      } catch {
+        // ignore network error
+      }
+    }
+
+    // Resolve staff names for Youth Republic actions
+    const staffIds = [...new Set((yrLogs ?? []).map((l: any) => l.staff_id).filter(Boolean))];
+    const staffMap = new Map<string, string>();
+    if (staffIds.length > 0) {
+      const { data: staffList } = await supabaseAdmin
+        .from("staff")
+        .select("id, full_name")
+        .in("id", staffIds);
+      for (const s of staffList ?? []) {
+        staffMap.set(s.id, s.full_name);
+      }
+    }
+
+    // Format YR logs to AuditRow shape
+    const formattedYrRows = (yrLogs ?? []).map((l: any) => {
+      let summary = `Youth Republic operation on ${l.target_type ?? "resource"}`;
+      const meta = l.metadata;
+      if (l.action === "opportunity_created") {
+        summary = meta?.name ? `Created opportunity '${meta.name}'` : "Created opportunity drive";
+      } else if (l.action === "opportunity_updated") {
+        summary = meta?.name ? `Updated opportunity '${meta.name}'` : "Updated opportunity drive";
+      } else if (l.action === "opportunity_deleted") {
+        summary = meta?.name ? `Deleted opportunity '${meta.name}'` : "Deleted opportunity drive";
+      } else if (l.action === "application_decided") {
+        summary = meta?.decision ? `Volunteer application ${meta.decision}` : "Decided volunteer application";
+      } else if (l.action === "hours_verified") {
+        summary = meta?.hours ? `Verified ${meta.hours} volunteer hours` : "Verified volunteer activity hours";
+      } else if (l.action === "hours_adjusted") {
+        summary = meta?.verified ? `Adjusted hours from ${meta.submitted ?? 0} to ${meta.verified}` : "Adjusted volunteer activity hours";
+      } else if (l.action === "hours_rejected") {
+        summary = meta?.reason ? `Rejected hours (${meta.reason})` : "Rejected volunteer hours";
+      } else if (l.action === "bulk_hours_assigned") {
+        summary = meta?.hours_submitted ? `Bulk assigned ${meta.hours_submitted} hours` : "Bulk assigned volunteer hours";
+      } else if (l.action === "volunteer_verified") {
+        summary = "Verified volunteer identity document";
+      } else if (l.action === "participant_enrolled") {
+        summary = "Enrolled volunteer in opportunity drive";
+      } else if (l.action === "participation_status_updated") {
+        summary = meta?.status ? `Updated participation status to ${meta.status}` : "Updated participation status";
+      }
+
+      return {
+        id: l.id,
+        createdAt: l.created_at,
+        actorName: (l.staff_id ? staffMap.get(l.staff_id) : null) ?? "Admin",
+        action: l.action,
+        summary,
+        ip: null,
+        scopeLabel: meta?.city ?? null,
+        module: "Youth Republic",
+      };
+    });
+
+    const formattedPlatformRows = (platformLogs ?? []).map((r: any) => {
+      let mod = "Team & Governance";
+      if (["opportunity", "activity_hours", "application", "volunteer"].includes(r.entity_type)) {
+        mod = "Youth Republic";
+      } else if (["fleet", "zakat", "maseeha"].includes(r.entity_type)) {
+        mod = "Maseeha";
+      }
+      return {
+        id: r.id,
+        createdAt: r.created_at,
+        actorName: r.actor_name,
+        action: r.action,
+        summary: r.summary,
+        ip: r.ip,
+        scopeLabel: r.scope_label,
+        module: mod,
+      };
+    });
+
+    const allRows = [...formattedPlatformRows, ...formattedYrRows].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    return NextResponse.json({ rows: allRows });
+  }
+
   return NextResponse.json({ error: "not_found" }, { status: 404 });
 }
