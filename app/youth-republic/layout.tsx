@@ -161,6 +161,7 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
               <Link
                 key={tab.href}
                 href={tab.href}
+                prefetch={false}
                 aria-label={tab.label}
                 onClick={onTabClick}
                 className={`module-tab ${isActive ? "active" : ""}`}
