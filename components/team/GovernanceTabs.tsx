@@ -95,6 +95,7 @@ export function GovernanceTabs() {
             <Link
               key={tab.href}
               href={tab.href}
+              prefetch={false}
               onClick={onTabClick}
               className={`module-tab ${isActive ? "active" : ""}`}
             >

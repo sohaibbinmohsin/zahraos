@@ -626,6 +626,7 @@ function AppShellContent({
   const isOrgAdminOrAbove = useIsOrgAdminOrAbove();
   const selectedOrgId = useSelectedOrg();
   const accessToken = useShellAccessToken();
+  const shellStaffToken = useShellStaffToken();
   const claims = useStaffClaims();
 
   // UI states
@@ -672,7 +673,7 @@ function AppShellContent({
 
     async function loadBadges() {
       try {
-        const staffToken = await fetchStaffToken(accessToken!);
+        const staffToken = shellStaffToken || (await fetchStaffToken(accessToken!));
         if (cancelled) return;
 
         const appsPromise = perms.canViewApplications
@@ -771,7 +772,46 @@ function AppShellContent({
     return () => {
       cancelled = true;
     };
-  }, [selectedOrgId, accessToken, pathname, perms.canViewApplications, perms.canViewHours, perms.canManageTeam, claims?.staffId]);
+  }, [selectedOrgId, accessToken, shellStaffToken, perms.canViewApplications, perms.canViewHours, perms.canManageTeam, claims?.staffId]);
+
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  useEffect(() => {
+    setIsNavigating(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    function handleAnchorClick(e: MouseEvent) {
+      const target = e.target as HTMLElement | null;
+      const anchor = target?.closest("a");
+      if (!anchor) return;
+      const href = anchor.getAttribute("href");
+      if (
+        href &&
+        href.startsWith("/") &&
+        !href.startsWith("//") &&
+        !anchor.getAttribute("target") &&
+        !anchor.hasAttribute("download") &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.shiftKey &&
+        !e.altKey &&
+        e.button === 0
+      ) {
+        try {
+          const url = new URL(href, window.location.href);
+          if (url.pathname !== window.location.pathname) {
+            setIsNavigating(true);
+          }
+        } catch {
+          // ignore malformed URLs
+        }
+      }
+    }
+
+    document.addEventListener("click", handleAnchorClick, { capture: true });
+    return () => document.removeEventListener("click", handleAnchorClick, { capture: true });
+  }, []);
 
   useEffect(() => {
     function handleClickOutside() {
@@ -792,6 +832,11 @@ function AppShellContent({
 
   return (
     <>
+      {isNavigating && (
+        <div className="nav-progress-bar" role="progressbar" aria-label="Loading page">
+          <div className="nav-progress-indicator" />
+        </div>
+      )}
       <div className={`app-shell ${isMaseehaModule ? "theme-saving9" : ""}`}>
         <div
           className={`sidebar-backdrop ${mobileSidebarOpen ? "open" : ""}`}
@@ -962,6 +1007,7 @@ function AppShellContent({
 
                   <Link
                     href="/maseeha/dashboard"
+                    prefetch={false}
                     aria-label="Dashboard"
                     className={`sidebar-nav-item ${pathname === "/maseeha" || pathname === "/maseeha/dashboard" ? "active" : ""}`}
                     onClick={() => setMobileSidebarOpen(false)}
@@ -977,6 +1023,7 @@ function AppShellContent({
 
                   <Link
                     href="/maseeha/cases"
+                    prefetch={false}
                     aria-label="Emergency Cases"
                     className={`sidebar-nav-item ${pathname?.startsWith("/maseeha/cases") ? "active" : ""}`}
                     onClick={() => setMobileSidebarOpen(false)}
@@ -993,6 +1040,7 @@ function AppShellContent({
 
                   <Link
                     href="/maseeha/zakat"
+                    prefetch={false}
                     aria-label="Zakat Relief Audit"
                     className={`sidebar-nav-item ${pathname?.startsWith("/maseeha/zakat") ? "active" : ""}`}
                     onClick={() => setMobileSidebarOpen(false)}
@@ -1008,6 +1056,7 @@ function AppShellContent({
 
                   <Link
                     href="/maseeha/fleet"
+                    prefetch={false}
                     aria-label="Ambulance Fleet"
                     className={`sidebar-nav-item ${pathname?.startsWith("/maseeha/fleet") ? "active" : ""}`}
                     onClick={() => setMobileSidebarOpen(false)}
@@ -1023,6 +1072,7 @@ function AppShellContent({
 
                   <Link
                     href="/maseeha/supplies"
+                    prefetch={false}
                     aria-label="Medical Supplies"
                     className={`sidebar-nav-item ${pathname?.startsWith("/maseeha/supplies") ? "active" : ""}`}
                     onClick={() => setMobileSidebarOpen(false)}
@@ -1044,6 +1094,7 @@ function AppShellContent({
                   {perms.canAccessDashboard && (
                     <Link
                       href="/youth-republic/dashboard"
+                      prefetch={false}
                       aria-label="Dashboard"
                       className={`sidebar-nav-item ${pathname?.includes("/dashboard") ? "active" : ""}`}
                       onClick={() => setMobileSidebarOpen(false)}
@@ -1061,6 +1112,7 @@ function AppShellContent({
                   {perms.canViewDrives && (
                     <Link
                       href="/youth-republic/drives"
+                      prefetch={false}
                       aria-label="Drives"
                       className={`sidebar-nav-item ${pathname?.includes("/drives") ? "active" : ""}`}
                       onClick={() => setMobileSidebarOpen(false)}
@@ -1076,6 +1128,7 @@ function AppShellContent({
                   {perms.canViewApplications && (
                     <Link
                       href="/youth-republic/applications"
+                      prefetch={false}
                       aria-label="Applications"
                       className={`sidebar-nav-item ${pathname?.includes("/applications") ? "active" : ""}`}
                       onClick={() => setMobileSidebarOpen(false)}
@@ -1094,6 +1147,7 @@ function AppShellContent({
                   {perms.canViewHours && (
                     <Link
                       href="/youth-republic/hours"
+                      prefetch={false}
                       aria-label="Hours"
                       className={`sidebar-nav-item ${pathname?.includes("/hours") ? "active" : ""}`}
                       onClick={() => setMobileSidebarOpen(false)}
@@ -1112,6 +1166,7 @@ function AppShellContent({
                   {perms.canViewVolunteers && (
                     <Link
                       href="/youth-republic/volunteers"
+                      prefetch={false}
                       aria-label="Volunteers"
                       className={`sidebar-nav-item ${pathname?.includes("/volunteers") ? "active" : ""}`}
                       onClick={() => setMobileSidebarOpen(false)}
@@ -1134,6 +1189,7 @@ function AppShellContent({
                   <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
                   <Link
                     href="/team/organization"
+                    prefetch={false}
                     aria-label="Organization"
                     className={`sidebar-nav-item ${pathname === "/team/organization" || pathname === "/organization" ? "active" : ""}`}
                     onClick={() => setMobileSidebarOpen(false)}
@@ -1147,6 +1203,7 @@ function AppShellContent({
                   {(perms.canViewInquiries || isMaseehaModule) && (
                     <Link
                       href="/team/organization/inquiries"
+                      prefetch={false}
                       aria-label="Partner Inquiries"
                       className={`sidebar-nav-item ${pathname?.startsWith("/team/organization/inquiries") || pathname?.startsWith("/organization/inquiries") ? "active" : ""}`}
                       onClick={() => setMobileSidebarOpen(false)}
@@ -1159,7 +1216,7 @@ function AppShellContent({
                   )}
                   {(perms.canManageTeam || isOrgAdminOrAbove || isMaseehaModule) && (
                     <>
-                      <Link href="/team/members" aria-label="Team Members"
+                      <Link href="/team/members" prefetch={false} aria-label="Team Members"
                         className={`sidebar-nav-item ${pathname === "/team/members" ? "active" : ""}`}
                         onClick={() => setMobileSidebarOpen(false)}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
@@ -1171,7 +1228,7 @@ function AppShellContent({
                           <span className="side-badge" id="side-badge-team">{activeTeamCount ?? 6}</span>
                         )}
                       </Link>
-                      <Link href="/team/roles" aria-label="Roles & Permissions"
+                      <Link href="/team/roles" prefetch={false} aria-label="Roles & Permissions"
                         className={`sidebar-nav-item ${pathname === "/team/roles" ? "active" : ""}`}
                         onClick={() => setMobileSidebarOpen(false)}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
@@ -1179,7 +1236,7 @@ function AppShellContent({
                         </svg>
                         <span className="nav-label">Roles &amp; Permissions</span>
                       </Link>
-                      <Link href="/team/audit" aria-label="Audit Log"
+                      <Link href="/team/audit" prefetch={false} aria-label="Audit Log"
                         className={`sidebar-nav-item ${pathname === "/team/audit" ? "active" : ""}`}
                         onClick={() => setMobileSidebarOpen(false)}>
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
@@ -1210,6 +1267,7 @@ function AppShellContent({
                   <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
                   <Link
                     href="/organizations"
+                    prefetch={false}
                     aria-label="Organizations"
                     className={`sidebar-nav-item ${pathname === "/organizations" ? "active" : ""}`}
                     onClick={() => setMobileSidebarOpen(false)}
