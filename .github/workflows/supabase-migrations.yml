@@ -6,11 +6,13 @@ on:
       - main
     paths:
       - 'supabase/migrations/**'
+      - '.github/workflows/supabase-migrations.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'supabase/migrations/**'
+      - '.github/workflows/supabase-migrations.yml'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -67,12 +69,14 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           if [ -n "$SUPABASE_DB_URL" ]; then
-            echo "Applying migrations via direct database connection URL..."
-            supabase db push --db-url "$SUPABASE_DB_URL" --include-all
+            echo "Applying migrations via SUPABASE_DB_URL..."
+            # --remote must be --remote=<url>. A following argument is not the value.
+            # --yes is required: hosted pushes prompt, and Actions has no terminal.
+            supabase db push --remote="$SUPABASE_DB_URL" --include-all --yes
           elif [ -n "$SUPABASE_ACCESS_TOKEN" ] && [ -n "$SUPABASE_DB_PASSWORD" ]; then
             echo "Applying migrations via Supabase project link..."
             supabase link --project-ref "$SUPABASE_PROJECT_ID"
-            supabase db push --password "$SUPABASE_DB_PASSWORD" --include-all
+            supabase db push --password "$SUPABASE_DB_PASSWORD" --include-all --yes
           else
             echo "::error::Missing database credentials in GitHub Secrets. Please configure either SUPABASE_DB_URL or both SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD in repository secrets."
             exit 1
@@ -101,12 +105,12 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           if [ -n "$SUPABASE_DB_URL" ]; then
-            echo "Running dry-run migration check via direct DB URL..."
-            supabase db push --db-url "$SUPABASE_DB_URL" --dry-run
+            echo "Running dry-run migration check via SUPABASE_DB_URL..."
+            supabase db push --remote="$SUPABASE_DB_URL" --dry-run --yes
           elif [ -n "$SUPABASE_ACCESS_TOKEN" ] && [ -n "$SUPABASE_DB_PASSWORD" ]; then
             echo "Running dry-run migration check via Supabase project link..."
             supabase link --project-ref "$SUPABASE_PROJECT_ID"
-            supabase db push --password "$SUPABASE_DB_PASSWORD" --dry-run
+            supabase db push --password "$SUPABASE_DB_PASSWORD" --dry-run --yes
           else
             echo "::error::Missing database credentials in GitHub Secrets."
             exit 1
