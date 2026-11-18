@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ApplicationListRow, DecideApplicationPayload } from "@/lib/youthRepublicFunctions";
+import { applicationAnswerRows, attachmentFieldLabel } from "@/lib/applicationAnswers";
 
 type Decision = DecideApplicationPayload["decision"];
 
@@ -55,8 +56,7 @@ export function ApplicationReviewDrawer({
 
   const isPending = PENDING_STATUSES.includes(application.status);
 
-  const answersObj = (application.answers ?? {}) as Record<string, unknown>;
-  const answerEntries = Object.entries(answersObj);
+  const answerRows = applicationAnswerRows(application.answers, application.formSnapshot);
 
   return (
     <>
@@ -150,27 +150,17 @@ export function ApplicationReviewDrawer({
               Candidate Submitted Responses
             </div>
 
-            {answerEntries.length > 0 ? (
-              answerEntries.map(([questionKey, answerVal], idx) => {
-                const formattedKey = questionKey.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-                const displayVal =
-                  Array.isArray(answerVal)
-                    ? answerVal.join(", ")
-                    : typeof answerVal === "object" && answerVal !== null
-                    ? JSON.stringify(answerVal)
-                    : String(answerVal ?? "—");
-
-                return (
-                  <div key={idx} className="p-3.5 rounded-lg bg-white border border-[var(--line)] shadow-sm space-y-1">
-                    <div className="text-xs font-semibold text-[var(--ink-3)]">
-                      Q{idx + 1}: {formattedKey}
-                    </div>
-                    <div className="text-sm font-medium text-[var(--ink)] bg-[var(--bg-page)] p-2.5 rounded border border-[var(--line-subtle)]">
-                      {displayVal}
-                    </div>
+            {answerRows.length > 0 ? (
+              answerRows.map((row, idx) => (
+                <div key={row.key} className="p-3.5 rounded-lg bg-white border border-[var(--line)] shadow-sm space-y-1">
+                  <div className="text-xs font-semibold text-[var(--ink-3)]">
+                    Q{idx + 1}: {row.label}
                   </div>
-                );
-              })
+                  <div className="text-sm font-medium text-[var(--ink)] bg-[var(--bg-page)] p-2.5 rounded border border-[var(--line-subtle)]">
+                    {row.value}
+                  </div>
+                </div>
+              ))
             ) : (
               <div className="p-4 rounded-lg bg-white border border-[var(--line)] text-center text-xs text-[var(--ink-3)]">
                 Standard volunteer application responses filed with profile.
@@ -184,9 +174,9 @@ export function ApplicationReviewDrawer({
                   Verified Attachments ({Object.keys(application.attachmentIdsByField).length})
                 </div>
                 <div className="space-y-1.5">
-                  {Object.entries(application.attachmentIdsByField).map(([fieldName, fileIds], idx) => (
-                    <div key={idx} className="flex items-center justify-between p-2 rounded bg-[var(--bg-page)] border border-[var(--line-subtle)] text-xs">
-                      <span className="font-medium text-[var(--ink)]">📎 {fieldName.replace(/_/g, " ")}</span>
+                  {Object.entries(application.attachmentIdsByField).map(([fieldId, fileIds]) => (
+                    <div key={fieldId} className="flex items-center justify-between p-2 rounded bg-[var(--bg-page)] border border-[var(--line-subtle)] text-xs">
+                      <span className="font-medium text-[var(--ink)]">📎 {attachmentFieldLabel(fieldId, application.formSnapshot)}</span>
                       <span className="font-mono text-xs text-[var(--ink-3)]">{fileIds.length} document(s)</span>
                     </div>
                   ))}

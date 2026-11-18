@@ -74,7 +74,7 @@ describe("CoverImageUpload", () => {
     );
   });
 
-  it("disables the upload zone when opportunityId is undefined", () => {
+  it("lets a new drive pick a cover before it has been saved", () => {
     render(
       <CoverImageUpload
         opportunityId={undefined}
@@ -86,7 +86,48 @@ describe("CoverImageUpload", () => {
       />,
     );
     const input = document.querySelector("input[type='file']") as HTMLInputElement | null;
-    expect(input?.disabled).toBe(true);
+    expect(input?.disabled).toBe(false);
+    expect(screen.queryByText(/save the drive first/i)).not.toBeInTheDocument();
+  });
+
+  it("uploads a cover for an unsaved drive without calling updateOpportunity", async () => {
+    const { updateOpportunity } = await import("@/lib/youthRepublicFunctions");
+    const onUploaded = vi.fn();
+    HTMLCanvasElement.prototype.getContext = vi.fn(() => ({ drawImage: vi.fn() })) as never;
+    HTMLCanvasElement.prototype.toBlob = vi.fn((callback: BlobCallback) => {
+      callback(new Blob(["webp"], { type: "image/webp" }));
+    }) as never;
+
+    render(
+      <CoverImageUpload
+        opportunityId={undefined}
+        organizationId="org-1"
+        staffToken="tok"
+        currentCoverUrl={null}
+        onUploaded={onUploaded}
+        onRemoved={vi.fn()}
+      />,
+    );
+    const input = screen.getByTestId("cover-file-input") as HTMLInputElement;
+    const file = new File(["data"], "cover.jpg", { type: "image/jpeg" });
+    Object.defineProperty(input, "files", { value: [file] });
+    fireEvent.change(input);
+    const img = await waitFor(() => {
+      const node = document.querySelector("img");
+      if (!node) throw new Error("crop image missing");
+      return node;
+    });
+    Object.defineProperty(img, "naturalWidth", { value: 1280 });
+    Object.defineProperty(img, "naturalHeight", { value: 720 });
+    fireEvent.load(img);
+    const cropButton = await screen.findByRole("button", { name: /crop & upload/i });
+    expect(cropButton).toBeEnabled();
+    fireEvent.click(cropButton);
+
+    await waitFor(() => expect(onUploaded).toHaveBeenCalledWith(
+      "https://assets.yr.org/opportunity_covers/staff-1/uuid.webp",
+    ));
+    expect(updateOpportunity).not.toHaveBeenCalled();
   });
 
   it("crop modal opens when a valid file is selected", async () => {

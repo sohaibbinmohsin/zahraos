@@ -711,6 +711,46 @@ describe("AppShell", () => {
 
     expect(screen.getByText("Hours Verification")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Hours" })).toBeInTheDocument();
+    expect(document.querySelector(".sidebar-module-divider")).not.toBeInTheDocument();
+    expect(document.querySelector(".sidebar-nav .nav-group-label")).not.toHaveClass("nav-group-follow");
+  });
+
+  it("keeps the divider when a custom role has both a Youth Republic group and governance", async () => {
+    vi.mocked(getBrowserSupabaseClient).mockReturnValue(
+      mockSupabase({
+        staffRow: { full_name: "Hours And Inquiries", platform_owner: false },
+        orgTierRows: [],
+        organizations: [{ id: "org-1", name: "Rizq" }],
+      }) as never,
+    );
+    vi.mocked(fetchStaffToken).mockResolvedValue(
+      encodeFakeToken({
+        actor_type: "staff",
+        staff_id: "s15",
+        platform_owner: false,
+        org_roles: [{ organization_id: "org-1" }],
+        module_access: [
+          {
+            organization_id: "org-1",
+            module: "youth-republic",
+            permissions: ["hours:read", "inquiries:read"],
+          },
+        ],
+      }),
+    );
+
+    render(
+      <AppShell>
+        <p>mixed content</p>
+      </AppShell>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Hours And Inquiries")).toBeInTheDocument());
+    const groups = [...document.querySelectorAll(".sidebar-nav .nav-group-label")];
+    expect(groups.map((el) => el.textContent)).toEqual(["Youth Republic", "Team & Governance"]);
+    expect(groups[0]).not.toHaveClass("nav-group-follow");
+    expect(groups[1]).toHaveClass("nav-group-follow");
+    expect(document.querySelector(".sidebar-module-divider")).toBeInTheDocument();
   });
 
   it("shows Partner Inquiries link when canViewInquiries is true, and hides when false", async () => {
@@ -748,6 +788,9 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Partner Inquiries" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Team Members" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Organization" })).not.toBeInTheDocument();
+    // The first group sits under the logo. No leading divider or follow margin.
+    expect(document.querySelector(".sidebar-module-divider")).not.toBeInTheDocument();
+    expect(screen.getByText("Team & Governance")).not.toHaveClass("nav-group-follow");
 
     unmount();
 

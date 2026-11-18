@@ -291,6 +291,7 @@ export interface CreateOpportunityPayload {
   capacity?: number | null;
   /** e.g. "draft" to create the opportunity hidden from the noticeboard. */
   statusOverride?: string;
+  coverImageUrl?: string | null;
 }
 export function createOpportunity(payload: CreateOpportunityPayload, staffToken: string) {
   return callYouthRepublicFunction<{ opportunityId: string }>("create-opportunity", payload, staffToken);

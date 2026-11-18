@@ -11,6 +11,37 @@ const OUTPUT_WIDTH = 1280;
 const OUTPUT_HEIGHT = 720;
 const CROP_ASPECT = OUTPUT_WIDTH / OUTPUT_HEIGHT; // 16/9
 
+async function uploadCoverBlob(blob: Blob, staffToken: string): Promise<string> {
+  try {
+    const { uploadUrl, publicUrl } = await requestPublicAssetUpload(
+      { domain: "opportunity_cover", contentType: "image/webp" },
+      staffToken,
+    );
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": "image/webp" },
+      body: blob,
+    });
+    if (!putRes.ok) throw new Error("Upload to storage failed.");
+    return publicUrl;
+  } catch (directError) {
+    // Direct browser PUT fails when R2 CORS does not list the admin origin.
+    const response = await fetch("/api/uploads/opportunity-cover", {
+      method: "POST",
+      headers: {
+        "Content-Type": "image/webp",
+        Authorization: `Bearer ${staffToken}`,
+      },
+      body: blob,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || typeof payload.publicUrl !== "string") {
+      throw directError instanceof Error ? directError : new Error(payload.error || "Upload failed.");
+    }
+    return payload.publicUrl;
+  }
+}
+
 export interface CoverImageUploadProps {
   opportunityId: string | undefined;
   organizationId: string;
@@ -85,8 +116,6 @@ export function CoverImageUpload({
   // ---- crop + upload ----
   const handleCropComplete = useCallback(
     async (croppedBlob: Blob) => {
-      if (!opportunityId) return;
-
       if (croppedBlob.size > MAX_OUTPUT_BYTES) {
         setError("Image could not be compressed enough — try a simpler photo.");
         setCropState(null);
@@ -96,20 +125,13 @@ export function CoverImageUpload({
       setIsUploading(true);
       setError(null);
       try {
-        const { uploadUrl, publicUrl } = await requestPublicAssetUpload(
-          { domain: "opportunity_cover", contentType: "image/webp" },
-          staffToken,
-        );
-        const putRes = await fetch(uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": "image/webp" },
-          body: croppedBlob,
-        });
-        if (!putRes.ok) throw new Error("Upload to storage failed.");
-        await updateOpportunity(
-          { opportunityId, organizationId, coverImageUrl: publicUrl },
-          staffToken,
-        );
+        const publicUrl = await uploadCoverBlob(croppedBlob, staffToken);
+        if (opportunityId) {
+          await updateOpportunity(
+            { opportunityId, organizationId, coverImageUrl: publicUrl },
+            staffToken,
+          );
+        }
         setPreviewUrl(publicUrl);
         setCropState(null);
         onUploaded(publicUrl);
@@ -124,7 +146,11 @@ export function CoverImageUpload({
 
   // ---- remove ----
   const handleRemove = useCallback(async () => {
-    if (!opportunityId) return;
+    if (!opportunityId) {
+      setPreviewUrl(null);
+      onRemoved();
+      return;
+    }
     setIsRemoving(true);
     setError(null);
     try {
@@ -141,7 +167,7 @@ export function CoverImageUpload({
     }
   }, [opportunityId, organizationId, staffToken, onRemoved]);
 
-  const isDisabled = !opportunityId;
+  const isDisabled = !staffToken;
 
   return (
     <div className="cover-image-upload">
@@ -184,7 +210,6 @@ export function CoverImageUpload({
               <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><polyline points="21 15 16 10 5 21" />
             </svg>
             <span>Upload cover (optional)</span>
-            {isDisabled && <span style={{ fontSize: "0.78rem", opacity: 0.6 }}>Save the drive first</span>}
           </div>
         )}
       </div>
@@ -327,7 +352,10 @@ function CoverCropModal({ src, isUploading, onClose, onCropComplete, onSelectNew
     // First attempt at 82% quality
     canvas.toBlob(
       (blob1) => {
-        if (!blob1) return;
+        if (!blob1) {
+          setModalError("This browser couldn't prepare the image. Try a JPEG or PNG.");
+          return;
+        }
         if (blob1.size <= MAX_OUTPUT_BYTES) {
           onCropComplete(blob1);
           return;
