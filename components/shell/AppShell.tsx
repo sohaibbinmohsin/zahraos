@@ -829,6 +829,17 @@ function AppShellContent({
     perms.canViewApplications ||
     perms.canViewHours ||
     perms.canViewVolunteers;
+  const showGovernanceNav =
+    perms.canManageTeam ||
+    perms.canViewOrganization ||
+    perms.canViewInquiries ||
+    isOrgAdminOrAbove ||
+    isMaseehaModule;
+  // A divider and extra top margin only belong between groups. Custom roles
+  // whose first visible group is governance or organizations should sit under
+  // the logo the same way Youth Republic does for a full admin.
+  const hasNavBeforeGovernance = isMaseehaModule || hasAnyYouthRepublicNav;
+  const hasNavBeforeOrganizations = hasNavBeforeGovernance || showGovernanceNav;
 
   return (
     <>
@@ -1183,10 +1194,12 @@ function AppShellContent({
                 </>
               )}
 
-              {(perms.canManageTeam || perms.canViewOrganization || perms.canViewInquiries || isOrgAdminOrAbove || isMaseehaModule) && (
+              {showGovernanceNav && (
                 <>
-                  <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
-                  <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
+                  {hasNavBeforeGovernance && (
+                    <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
+                  )}
+                  <div className={`nav-group-label${hasNavBeforeGovernance ? " nav-group-follow" : ""}`}>Team & Governance</div>
                   {(perms.canViewOrganization || perms.canManageTeam || isOrgAdminOrAbove || isMaseehaModule) && (
                     <Link
                       href="/team/organization"
@@ -1266,7 +1279,9 @@ function AppShellContent({
 
               {showOrganizationsNav && (
                 <>
-                  <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
+                  {hasNavBeforeOrganizations && (
+                    <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
+                  )}
                   <Link
                     href="/organizations"
                     prefetch={false}

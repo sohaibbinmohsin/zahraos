@@ -578,6 +578,20 @@ h1, h2, h3, h4, h5, h6 {
   display: block;
 }
 
+.nav-group-label.nav-group-follow {
+  margin-top: .75rem;
+}
+
+/* Custom views can start on any group. Never leave a leading divider or the
+   follow-on margin above the first item. */
+.sidebar-nav > .sidebar-module-divider:first-child {
+  display: none;
+}
+
+.sidebar-nav > .nav-group-label:first-child {
+  margin-top: 0;
+}
+
 .app-sidebar.collapsed .nav-group-label {
   max-height: 0;
   padding-top: 0;

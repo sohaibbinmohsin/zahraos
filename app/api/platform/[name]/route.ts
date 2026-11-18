@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { decodeStaffTokenClaims } from "@/lib/staffToken";
 import { gridToPermissionKeys } from "@/lib/capabilityMap";
+import { resolveInquiryAccess } from "@/lib/partnerInquiryAccess";
 
 async function checkIsSuperAdmin(
   supabaseAdmin: any,
@@ -153,6 +154,57 @@ export async function POST(
     }
 
     return NextResponse.json({ staffId: callerStaffId ?? user.id });
+  }
+
+  // Partner inquiries are read with the service role after a permission check.
+  // Browser RLS still hides rows from custom roles until migration 0020 is applied.
+  if (name === "list-partner-inquiries" || name === "update-partner-inquiry") {
+    const body = await request.json().catch(() => ({}));
+    const organizationId = body.organizationId;
+    if (!organizationId || typeof organizationId !== "string") {
+      return NextResponse.json({ error: "organization_id_required" }, { status: 400 });
+    }
+
+    const access = await resolveInquiryAccess(
+      supabaseAdmin,
+      callerStaffId,
+      organizationId,
+      callerPlatformOwner,
+    );
+
+    if (name === "list-partner-inquiries") {
+      if (access === "none") {
+        return NextResponse.json({ error: "forbidden" }, { status: 403 });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("partner_inquiries")
+        .select("id, organization_id, chapter_id, name, email, phone, partner_organization, category, message, status, created_at, updated_at")
+        .eq("organization_id", organizationId)
+        .order("created_at", { ascending: false });
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+      return NextResponse.json({ inquiries: data ?? [] });
+    }
+
+    if (access !== "write") {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 });
+    }
+    const inquiryId = body.inquiryId;
+    const status = body.status;
+    const allowedStatuses = ["new", "in_review", "contacted", "archived"];
+    if (typeof inquiryId !== "string" || !inquiryId || !allowedStatuses.includes(status)) {
+      return NextResponse.json({ error: "invalid_inquiry_update" }, { status: 400 });
+    }
+    const { error } = await supabaseAdmin
+      .from("partner_inquiries")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", inquiryId)
+      .eq("organization_id", organizationId);
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
   }
 
   // Handle list-chapters

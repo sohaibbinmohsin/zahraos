@@ -467,8 +467,21 @@ export function CreateOpportunityForm({
           // Create as a draft in one atomic call so a half-created opportunity
           // never leaks to the volunteer noticeboard.
           ...(isDraft ? { statusOverride: "draft" } : {}),
+          ...(coverImageUrl ? { coverImageUrl } : {}),
         };
-        await createOpportunity(payload, staffToken);
+        const created = await createOpportunity(payload, staffToken);
+        // Older create-opportunity builds ignore coverImageUrl. Persist it with
+        // the update that already stores cover_image_url.
+        if (coverImageUrl && created?.opportunityId) {
+          await updateOpportunity(
+            {
+              opportunityId: created.opportunityId,
+              organizationId,
+              coverImageUrl,
+            },
+            staffToken,
+          );
+        }
         showToast(isDraft ? "Drive draft saved." : "Drive published to Noticeboard.");
       }
       onCreated();
