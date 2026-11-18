@@ -283,18 +283,36 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
 
       const { data: assignmentRows } = await supabase
         .from("staff_role_assignments")
-        .select("id, staff_id, role_id, scope_kind, chapter_id, scope_label")
+        .select("id, staff_id, role_id, scope_kind, chapter_id, scope_label, roles(name)")
         .eq("organization_id", organizationId)
         .eq("module_id", modId);
+
+      // Tier fallback when role join is blocked/missing but staff_org_roles is present.
+      const { data: orgTierRows } = await supabase
+        .from("staff_org_roles")
+        .select("staff_id, org_tier")
+        .eq("organization_id", organizationId);
+      const tierByStaff = new Map(
+        (orgTierRows ?? []).map((r) => [r.staff_id as string, r.org_tier as string]),
+      );
+
       const assignmentsByStaff = new Map<string, MemberAssignment[]>();
       for (const a of assignmentRows ?? []) {
         const list = assignmentsByStaff.get(a.staff_id as string) ?? [];
         const matchedRole = roleById.get(a.role_id as string);
+        const embeddedRoles = a.roles as { name?: string } | { name?: string }[] | null | undefined;
+        const embeddedName = Array.isArray(embeddedRoles) ? embeddedRoles[0]?.name : embeddedRoles?.name;
+        const tier = tierByStaff.get(a.staff_id as string);
         const roleName = matchedRole?.name
+          ?? embeddedName
           ?? (a.role_id === "system-org-admin" || a.role_id === "org-admin" || a.role_id?.toLowerCase() === "org admin"
             ? "Org Admin"
             : a.role_id === "system-super-admin" || a.role_id === "super-admin" || a.role_id?.toLowerCase() === "super admin"
             ? "Super Admin"
+            : tier === "super_admin"
+            ? "Super Admin"
+            : tier === "admin"
+            ? "Org Admin"
             : "Unknown role");
         list.push({
           id: a.id as string,
