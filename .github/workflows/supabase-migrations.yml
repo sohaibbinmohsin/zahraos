@@ -31,11 +31,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
-
       - name: Verify Migration Files Integrity
         run: |
           echo "=== Verifying Migration Files ==="
@@ -62,6 +57,7 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
+          github-token: ${{ github.token }}
 
       - name: Deploy Migrations
         env:
@@ -95,6 +91,7 @@ jobs:
         uses: supabase/setup-cli@v1
         with:
           version: latest
+          github-token: ${{ github.token }}
 
       - name: Dry Run Deploy
         env:
