@@ -68,14 +68,21 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
+          # 0016-0018 are already in the production schema but missing from
+          # supabase_migrations.schema_migrations. Record them without running
+          # their SQL, then push. Only 0019 and 0020 still need to execute.
+          # --remote must be --remote=<url>. A following argument is not the value.
+          # --yes is required: hosted changes prompt, and Actions has no terminal.
           if [ -n "$SUPABASE_DB_URL" ]; then
-            echo "Applying migrations via SUPABASE_DB_URL..."
-            # --remote must be --remote=<url>. A following argument is not the value.
-            # --yes is required: hosted pushes prompt, and Actions has no terminal.
+            echo "Recording migrations already present in production..."
+            supabase migration repair --status applied --remote="$SUPABASE_DB_URL" --yes 0016 0017 0018
+            echo "Applying remaining migrations via SUPABASE_DB_URL..."
             supabase db push --remote="$SUPABASE_DB_URL" --include-all --yes
           elif [ -n "$SUPABASE_ACCESS_TOKEN" ] && [ -n "$SUPABASE_DB_PASSWORD" ]; then
-            echo "Applying migrations via Supabase project link..."
+            echo "Recording migrations already present in production..."
             supabase link --project-ref "$SUPABASE_PROJECT_ID"
+            supabase migration repair --status applied --password "$SUPABASE_DB_PASSWORD" --yes 0016 0017 0018
+            echo "Applying remaining migrations via Supabase project link..."
             supabase db push --password "$SUPABASE_DB_PASSWORD" --include-all --yes
           else
             echo "::error::Missing database credentials in GitHub Secrets. Please configure either SUPABASE_DB_URL or both SUPABASE_ACCESS_TOKEN and SUPABASE_DB_PASSWORD in repository secrets."
