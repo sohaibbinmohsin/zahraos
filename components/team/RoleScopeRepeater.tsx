@@ -6,6 +6,20 @@ import type { RoleAssignmentInput } from "@/lib/platformFunctions";
 
 const ORG_WIDE_LABEL = "National / All Chapters";
 
+/** Chapter / national scope only applies to Youth Republic operational permissions. */
+const YOUTH_REPUBLIC_RESOURCES = new Set([
+  "opportunities",
+  "noticeboard",
+  "applications",
+  "hours",
+  "volunteers",
+]);
+
+export function roleSupportsChapterScope(permissionKeys: string[] | undefined): boolean {
+  if (!permissionKeys) return true;
+  return permissionKeys.some((key) => YOUTH_REPUBLIC_RESOURCES.has(key.split(":")[0] ?? ""));
+}
+
 export interface RoleScopeRow {
   key: string;
   roleId: string;
@@ -140,7 +154,7 @@ export function RoleScopeRepeater({
   addLabel,
 }: {
   rows: RoleScopeRow[];
-  roles: { id: string; name: string; isSystem: boolean }[];
+  roles: { id: string; name: string; isSystem: boolean; permissionKeys?: string[] }[];
   chapters: { id: string; name: string }[];
   onChange: (rows: RoleScopeRow[]) => void;
   addLabel: string;
@@ -153,19 +167,32 @@ export function RoleScopeRepeater({
     [roles]
   );
 
+  const showsChapterScope = useCallback(
+    (roleId: string): boolean => {
+      if (isSuperAdminRole(roleId)) return false;
+      const role = roles.find((r) => r.id === roleId);
+      return roleSupportsChapterScope(role?.permissionKeys);
+    },
+    [roles, isSuperAdminRole]
+  );
+
   function update(idx: number, patch: Partial<RoleScopeRow>) {
     onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   }
 
+  function lockOrgWide(roleId: string) {
+    return {
+      roleId,
+      scopeKind: "org_wide" as const,
+      chapterIds: [] as string[],
+      chapterId: null,
+      scopeLabel: ORG_WIDE_LABEL,
+    };
+  }
+
   function handleRoleChange(idx: number, roleId: string) {
-    if (isSuperAdminRole(roleId)) {
-      update(idx, {
-        roleId,
-        scopeKind: "org_wide",
-        chapterIds: [],
-        chapterId: null,
-        scopeLabel: ORG_WIDE_LABEL,
-      });
+    if (!showsChapterScope(roleId)) {
+      update(idx, lockOrgWide(roleId));
     } else {
       update(idx, { roleId });
     }
@@ -223,7 +250,7 @@ export function RoleScopeRepeater({
     let modified = false;
     const nextRows = rows.map((r) => {
       if (
-        isSuperAdminRole(r.roleId) &&
+        !showsChapterScope(r.roleId) &&
         (r.scopeKind !== "org_wide" ||
           (r.chapterIds && r.chapterIds.length > 0) ||
           r.chapterId !== null ||
@@ -243,12 +270,13 @@ export function RoleScopeRepeater({
     if (modified) {
       onChange(nextRows);
     }
-  }, [rows, isSuperAdminRole, onChange]);
+  }, [rows, showsChapterScope, onChange]);
 
   return (
     <div className="role-repeater-box">
       {rows.map((row, idx) => {
         const isSuperAdmin = isSuperAdminRole(row.roleId);
+        const showScope = showsChapterScope(row.roleId);
         const currentChapterIds = row.chapterIds ?? (row.chapterId ? [row.chapterId] : []);
         const availableChapters = chapters.filter((c) => !currentChapterIds.includes(c.id));
 
@@ -291,10 +319,14 @@ export function RoleScopeRepeater({
               ) : null}
             </div>
 
-            {/* Scope Selection */}
+            {/* Scope Selection — Youth Republic roles only. Super Admin is always national. */}
             {isSuperAdmin ? (
               <div>
                 <span className="badge badge-pos">National / All Chapters (Full Platform Access)</span>
+              </div>
+            ) : !showScope ? (
+              <div>
+                <span className="badge">Organization-wide</span>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>

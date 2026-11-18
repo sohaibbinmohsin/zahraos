@@ -1,19 +1,11 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { actorName, writeAuditLog } from "../_shared/auditLog.ts";
+import { assertCallerIsOrgAdminOrAbove } from "../_shared/orgAdminAuthz.ts";
 
 export interface CreateChapterInput {
   organizationId: string;
   name: string;
   city?: string | null;
-}
-
-async function assertCallerIsOrgAdmin(
-  supabase: SupabaseClient, callerStaffId: string, callerPlatformOwner: boolean, organizationId: string,
-): Promise<void> {
-  if (callerPlatformOwner) return;
-  const { data } = await supabase.from("staff_org_roles").select("org_tier")
-    .eq("staff_id", callerStaffId).eq("organization_id", organizationId).single();
-  if (!data || !["admin", "super_admin"].includes(data.org_tier)) throw new Error("forbidden");
 }
 
 export async function createChapter(
@@ -22,7 +14,7 @@ export async function createChapter(
   callerPlatformOwner: boolean,
   input: CreateChapterInput,
 ): Promise<{ chapterId: string }> {
-  await assertCallerIsOrgAdmin(supabase, callerStaffId, callerPlatformOwner, input.organizationId);
+  await assertCallerIsOrgAdminOrAbove(supabase, callerStaffId, callerPlatformOwner, input.organizationId);
   if (!input.name?.trim()) throw new Error("missing_name");
 
   const { data: chapter, error } = await supabase.from("chapters").insert({

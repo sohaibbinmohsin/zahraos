@@ -1,5 +1,6 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { actorName, writeAuditLog } from "../_shared/auditLog.ts";
+import { assertCallerIsOrgAdminOrAbove } from "../_shared/orgAdminAuthz.ts";
 
 export interface RoleAssignmentInput {
   roleId: string;
@@ -21,15 +22,6 @@ export interface InviteStaffMemberInput {
   enforce2fa?: boolean;
 }
 
-async function assertCallerIsOrgAdmin(
-  supabase: SupabaseClient, callerStaffId: string, callerPlatformOwner: boolean, organizationId: string,
-): Promise<void> {
-  if (callerPlatformOwner) return;
-  const { data } = await supabase.from("staff_org_roles").select("org_tier")
-    .eq("staff_id", callerStaffId).eq("organization_id", organizationId).single();
-  if (!data || !["admin", "super_admin"].includes(data.org_tier)) throw new Error("forbidden");
-}
-
 // A short, readable one-time password the admin hands to the new member.
 // Meets Supabase complexity (lower + upper + digit + symbol, >= 8 chars); the
 // member is forced to replace it on first login (staff.must_change_password).
@@ -48,7 +40,7 @@ export async function inviteStaffMember(
   callerPlatformOwner: boolean,
   input: InviteStaffMemberInput,
 ): Promise<{ staffId: string; invitationId: string; temporaryPassword: string }> {
-  await assertCallerIsOrgAdmin(supabase, callerStaffId, callerPlatformOwner, input.organizationId);
+  await assertCallerIsOrgAdminOrAbove(supabase, callerStaffId, callerPlatformOwner, input.organizationId);
 
   if (!input.fullName?.trim() || !input.email?.trim()) throw new Error("missing_fields");
   if (!input.roles?.length) throw new Error("no_roles");

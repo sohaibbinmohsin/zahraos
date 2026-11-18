@@ -10,6 +10,8 @@ interface InquiriesListProps {
   organizationId: string;
   onStatusChange: (id: string, status: InquiryStatus) => Promise<void>;
   loading?: boolean;
+  /** When false, status is read-only (inquiries:read without inquiries:write). */
+  canManageInquiries?: boolean;
 }
 
 const STATUS_OPTIONS: SelectOption[] = [
@@ -71,7 +73,13 @@ export function InquiriesTableSkeleton({ rows = 5 }: { rows?: number }) {
   );
 }
 
-export function InquiriesList({ inquiries, organizationId, onStatusChange, loading }: InquiriesListProps) {
+export function InquiriesList({
+  inquiries,
+  organizationId,
+  onStatusChange,
+  loading,
+  canManageInquiries = true,
+}: InquiriesListProps) {
   const [selectedInquiry, setSelectedInquiry] = useState<PartnerInquiry | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
 
@@ -157,13 +165,19 @@ export function InquiriesList({ inquiries, organizationId, onStatusChange, loadi
                   </div>
                 </td>
                 <td className="py-3 px-4">
-                  <Select
-                    aria-label={`Status for ${item.name}`}
-                    value={item.status}
-                    onChange={(val) => onStatusChange(item.id, val as InquiryStatus)}
-                    options={STATUS_OPTIONS}
-                    className="w-36"
-                  />
+                  {canManageInquiries ? (
+                    <Select
+                      aria-label={`Status for ${item.name}`}
+                      value={item.status}
+                      onChange={(val) => onStatusChange(item.id, val as InquiryStatus)}
+                      options={STATUS_OPTIONS}
+                      className="w-36"
+                    />
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-neutral-100 text-neutral-700 capitalize">
+                      {STATUS_OPTIONS.find((o) => o.value === item.status)?.label ?? item.status}
+                    </span>
+                  )}
                 </td>
                 <td className="py-3 px-4 text-right">
                   <button

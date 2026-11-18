@@ -93,4 +93,26 @@ describe("TeamAccessProvider", () => {
     expect(screen.getByTestId("members")).toHaveTextContent("Fatima Noor:Org Admin@chapter:c1");
     expect(screen.getByTestId("roles")).toHaveTextContent("Org Admin:true");
   });
+
+  it("falls back to staff_org_roles tier when role id is unreadable", async () => {
+    from.mockImplementation((table: string) => {
+      if (table === "modules") return tableStub([{ id: "mod-1", key: "youth-republic" }]);
+      if (table === "roles") return tableStub([]);
+      if (table === "staff_role_assignments") return tableStub([
+        { id: "a3", staff_id: "s3", role_id: "orphan-role", scope_kind: "org_wide", chapter_id: null, scope_label: "National / All Chapters" },
+      ]);
+      if (table === "staff_org_roles") return tableStub([
+        { staff_id: "s3", org_tier: "admin" },
+      ]);
+      if (table === "staff") return tableStub([
+        { id: "s3", full_name: "Maryam Azhar", email: "maryam@x.org", status: "active", deactivated_at: null, expires_at: null },
+      ]);
+      if (table === "staff_invitations") return tableStub([]);
+      return tableStub([]);
+    });
+
+    render(<TeamAccessProvider><Probe /></TeamAccessProvider>);
+    await waitFor(() => expect(screen.queryByText("loading")).not.toBeInTheDocument());
+    expect(screen.getByTestId("members")).toHaveTextContent("Maryam Azhar:Org Admin@org_wide:null");
+  });
 });

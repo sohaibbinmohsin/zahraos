@@ -1,4 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
+import { assertCallerIsOrgAdminOrAbove } from "../_shared/orgAdminAuthz.ts";
 
 export interface UpdateOrganizationInput {
   organizationId: string;
@@ -15,11 +16,12 @@ export async function updateOrganization(
   callerPlatformOwner: boolean,
   input: UpdateOrganizationInput,
 ): Promise<{ enabledModuleKeys: string[] }> {
-  if (!callerPlatformOwner) {
-    const { data } = await supabase.from("staff_org_roles").select("org_tier")
-      .eq("staff_id", callerStaffId).eq("organization_id", input.organizationId).single();
-    if (!data || !["admin", "super_admin"].includes(data.org_tier)) throw new Error("forbidden");
-  }
+  await assertCallerIsOrgAdminOrAbove(
+    supabase,
+    callerStaffId,
+    callerPlatformOwner,
+    input.organizationId,
+  );
 
   const patch: Record<string, unknown> = { name: input.name };
   if (input.brandColor !== undefined) patch.brand_color = input.brandColor;
