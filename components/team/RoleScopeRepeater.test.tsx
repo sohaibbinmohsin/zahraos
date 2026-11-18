@@ -6,6 +6,7 @@ import {
   makeRoleScopeRow,
   rowsToAssignmentPayload,
   groupAssignmentsToRows,
+  roleSupportsChapterScope,
   type RoleScopeRow,
 } from "./RoleScopeRepeater";
 
@@ -417,6 +418,57 @@ describe("RoleScopeRepeater", () => {
       chapterIds: [],
       scopeLabel: "National / All Chapters",
     });
+  });
+
+  it("hides national/chapter scope for roles without Youth Republic permissions", async () => {
+    const user = userEvent.setup();
+    const inquiriesRole = {
+      id: "r-inq",
+      name: "Partner Inquiries Reader",
+      isSystem: false,
+      permissionKeys: ["inquiries:read"],
+    };
+    const rows: RoleScopeRow[] = [
+      {
+        key: "k1",
+        roleId: "r-inq",
+        scopeKind: "chapter",
+        chapterIds: ["c1"],
+        scopeLabel: "Lahore Chapter",
+      },
+    ];
+    const onChange = vi.fn();
+    render(
+      <RoleScopeRepeater
+        rows={rows}
+        roles={[...roles, inquiriesRole]}
+        chapters={chapters}
+        onChange={onChange}
+        addLabel="+ Add Role"
+      />,
+    );
+
+    expect(screen.queryByLabelText("Specific Chapters")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("All Chapters")).not.toBeInTheDocument();
+    expect(screen.getByText("Organization-wide")).toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        roleId: "r-inq",
+        scopeKind: "org_wide",
+        chapterIds: [],
+        scopeLabel: "National / All Chapters",
+      }),
+    ]);
+
+    expect(roleSupportsChapterScope(["inquiries:read"])).toBe(false);
+    expect(roleSupportsChapterScope(["opportunities:write", "inquiries:read"])).toBe(true);
+    expect(roleSupportsChapterScope(undefined)).toBe(true);
+
+    await user.click(screen.getByRole("combobox", { name: "Role" }));
+    await user.click(screen.getByRole("option", { name: "Operations Lead" }));
+    expect(onChange).toHaveBeenLastCalledWith([
+      expect.objectContaining({ roleId: "r1" }),
+    ]);
   });
 
   it("handles rowsToAssignmentPayload with empty chapterIds", () => {

@@ -130,8 +130,9 @@ export default function InquiriesPage() {
   return (
     <AccessDeniedGate
       allowed={canViewInquiries || isSaving9Demo}
-      title="Partner Inquiries access required"
-      description="Your role does not include permission to view partner inquiries for this organization."
+      sectionName="Partner Inquiries"
+      fallbackRoute="/youth-republic/dashboard"
+      fallbackLabel="Dashboard"
     >
       <div className="flex flex-col gap-6">
         <div className="page-header" style={{ marginBottom: 0 }}>

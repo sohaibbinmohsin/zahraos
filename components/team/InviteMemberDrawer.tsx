@@ -151,10 +151,10 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
               </div>
 
               <div className="form-group">
-                <label className="form-label">Assigned Roles &amp; Chapter Scopes *</label>
+                <label className="form-label">Assigned Roles *</label>
                 <RoleScopeRepeater
                   rows={rows}
-                  roles={roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem }))}
+                  roles={roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem, permissionKeys: r.permissionKeys }))}
                   chapters={chapters.map((c) => ({ id: c.id, name: c.name }))}
                   onChange={setRows}
                   addLabel="+ Add Another Role"

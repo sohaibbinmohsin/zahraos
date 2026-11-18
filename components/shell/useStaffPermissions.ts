@@ -35,7 +35,8 @@ export interface StaffPermissions {
   canCreateChapters: boolean;
   canEditChapter: (chapterId: string) => boolean;
   canViewInquiries: boolean;
-  canManageInquiries: boolean;
+  /** inquiries:write. Optional so existing permission fixtures stay valid. */
+  canManageInquiries?: boolean;
   canManageRoles?: boolean;
 
   // Chapter Scope Helpers
