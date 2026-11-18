@@ -714,11 +714,11 @@ describe("AppShell", () => {
   });
 
   it("shows Partner Inquiries link when canViewInquiries is true, and hides when false", async () => {
-    // 1. Staff with team:write and inquiries:read (or org admin) -> canViewInquiries is true
+    // 1. Custom role with only inquiries:read -> Partner Inquiries in sidebar (no team:write needed)
     vi.mocked(getBrowserSupabaseClient).mockReturnValue(
       mockSupabase({
-        staffRow: { full_name: "National Admin", platform_owner: false },
-        orgTierRows: [{ organization_id: "org-1", org_tier: "enterprise" }],
+        staffRow: { full_name: "Inquiries Reader", platform_owner: false },
+        orgTierRows: [],
         organizations: [{ id: "org-1", name: "Rizq" }],
       }) as never,
     );
@@ -727,12 +727,12 @@ describe("AppShell", () => {
         actor_type: "staff",
         staff_id: "s13",
         platform_owner: false,
-        org_roles: [{ organization_id: "org-1", role_name: "admin" }],
+        org_roles: [{ organization_id: "org-1" }],
         module_access: [
           {
             organization_id: "org-1",
             module: "youth-republic",
-            permissions: ["team:write", "inquiries:read"],
+            permissions: ["inquiries:read"],
           },
         ],
       }),
@@ -740,12 +740,14 @@ describe("AppShell", () => {
 
     const { unmount } = render(
       <AppShell>
-        <p>admin content</p>
+        <p>reader content</p>
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("National Admin")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("Inquiries Reader")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Partner Inquiries" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Team Members" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Organization" })).not.toBeInTheDocument();
 
     unmount();
 

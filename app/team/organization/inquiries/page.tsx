@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSelectedOrg } from '@/components/shell/AppShell';
 import { useToast } from '@/components/shell/ToastContext';
+import { AccessDeniedGate } from '@/components/shell/AccessDeniedGate';
+import { useStaffPermissions } from '@/components/shell/useStaffPermissions';
 import { InquiriesList } from '@/components/inquiries/InquiriesList';
 import { fetchOrgInquiries, updateInquiryStatus } from '@/lib/inquiryService';
 import type { PartnerInquiry, InquiryStatus } from '@/lib/inquiryTypes';
@@ -52,6 +54,7 @@ const SAVING9_INQUIRIES: PartnerInquiry[] = [
 export default function InquiriesPage() {
   const selectedOrgId = useSelectedOrg();
   const { showToast } = useToast();
+  const { canViewInquiries, canManageInquiries } = useStaffPermissions();
   const [inquiries, setInquiries] = useState<PartnerInquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +94,10 @@ export default function InquiriesPage() {
   }, [selectedOrgId, isSaving9Demo]);
 
   async function handleStatusChange(inquiryId: string, status: InquiryStatus) {
+    if (!canManageInquiries) {
+      showToast('You have read-only access to partner inquiries.');
+      return;
+    }
     if (isSaving9Demo) {
       setInquiries((prev) =>
         prev.map((item) => (item.id === inquiryId ? { ...item, status } : item))
@@ -121,28 +128,35 @@ export default function InquiriesPage() {
   const effectiveOrgId = selectedOrgId || (isSaving9Demo ? "org-saving9" : "");
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="page-header" style={{ marginBottom: 0 }}>
-        <div>
-          <h1 className="page-title">Partner Inquiries</h1>
-          <div className="page-subtitle">
-            Review and manage incoming partnership inquiries submitted through the website.
+    <AccessDeniedGate
+      allowed={canViewInquiries || isSaving9Demo}
+      title="Partner Inquiries access required"
+      description="Your role does not include permission to view partner inquiries for this organization."
+    >
+      <div className="flex flex-col gap-6">
+        <div className="page-header" style={{ marginBottom: 0 }}>
+          <div>
+            <h1 className="page-title">Partner Inquiries</h1>
+            <div className="page-subtitle">
+              Review and manage incoming partnership inquiries submitted through the website.
+            </div>
           </div>
         </div>
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
+            {error}
+          </div>
+        )}
+
+        <InquiriesList
+          inquiries={inquiries}
+          organizationId={effectiveOrgId}
+          onStatusChange={handleStatusChange}
+          loading={loading}
+          canManageInquiries={canManageInquiries || isSaving9Demo}
+        />
       </div>
-
-      {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-700 rounded-xl text-sm">
-          {error}
-        </div>
-      )}
-
-      <InquiriesList
-        inquiries={inquiries}
-        organizationId={effectiveOrgId}
-        onStatusChange={handleStatusChange}
-        loading={loading}
-      />
-    </div>
+    </AccessDeniedGate>
   );
 }

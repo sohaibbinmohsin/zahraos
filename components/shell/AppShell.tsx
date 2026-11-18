@@ -1183,23 +1183,25 @@ function AppShellContent({
                 </>
               )}
 
-              {(perms.canManageTeam || perms.canViewOrganization || isOrgAdminOrAbove || isMaseehaModule) && (
+              {(perms.canManageTeam || perms.canViewOrganization || perms.canViewInquiries || isOrgAdminOrAbove || isMaseehaModule) && (
                 <>
                   <div className="sidebar-module-divider" role="separator" aria-hidden="true" />
                   <div className="nav-group-label" style={{ marginTop: ".75rem" }}>Team & Governance</div>
-                  <Link
-                    href="/team/organization"
-                    prefetch={false}
-                    aria-label="Organization"
-                    className={`sidebar-nav-item ${pathname === "/team/organization" || pathname === "/organization" ? "active" : ""}`}
-                    onClick={() => setMobileSidebarOpen(false)}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
-                      <path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" />
-                      <path d="M9 9v.01" /><path d="M9 12v.01" /><path d="M9 15v.01" /><path d="M9 18v.01" />
-                    </svg>
-                    <span className="nav-label">Organization</span>
-                  </Link>
+                  {(perms.canViewOrganization || perms.canManageTeam || isOrgAdminOrAbove || isMaseehaModule) && (
+                    <Link
+                      href="/team/organization"
+                      prefetch={false}
+                      aria-label="Organization"
+                      className={`sidebar-nav-item ${pathname === "/team/organization" || pathname === "/organization" ? "active" : ""}`}
+                      onClick={() => setMobileSidebarOpen(false)}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="icon-svg flex-shrink-0" aria-hidden="true">
+                        <path d="M3 21h18" /><path d="M5 21V7l8-4v18" /><path d="M19 21V11l-6-4" />
+                        <path d="M9 9v.01" /><path d="M9 12v.01" /><path d="M9 15v.01" /><path d="M9 18v.01" />
+                      </svg>
+                      <span className="nav-label">Organization</span>
+                    </Link>
+                  )}
                   {(perms.canViewInquiries || isMaseehaModule) && (
                     <Link
                       href="/team/organization/inquiries"

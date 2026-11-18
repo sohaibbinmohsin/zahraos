@@ -35,6 +35,7 @@ export interface StaffPermissions {
   canCreateChapters: boolean;
   canEditChapter: (chapterId: string) => boolean;
   canViewInquiries: boolean;
+  canManageInquiries: boolean;
   canManageRoles?: boolean;
 
   // Chapter Scope Helpers
@@ -46,7 +47,7 @@ export interface StaffPermissions {
 export function useStaffPermissions(): StaffPermissions {
   const claims = useStaffClaims();
   const selectedOrgId = useSelectedOrg();
-  useOrgTier(); // consumed from AppShell context
+  const orgTier = useOrgTier();
   const isOrgAdminOrAbove = useIsOrgAdminOrAbove();
 
   const isPlatformOwner = Boolean(claims?.platformOwner);
@@ -152,8 +153,11 @@ export function useStaffPermissions(): StaffPermissions {
     (chapterId: string) => hasChapterPermission("chapters:write", chapterId),
     [hasChapterPermission]
   );
-  const canViewInquiries = !isChapterScoped && (isAdmin || hasPerm("inquiries:read"));
-  const orgTier = useOrgTier();
+  // Partner inquiries are org-level: grant when the inquiries permission itself
+  // is org-wide (or admin), even if other permissions are chapter-scoped.
+  const canViewInquiries =
+    hasChapterPermission("inquiries:read") || hasChapterPermission("inquiries:write");
+  const canManageInquiries = hasChapterPermission("inquiries:write");
   const canManageRoles = Boolean(
     isPlatformOwner ||
     orgTier === "super_admin" ||
@@ -177,6 +181,7 @@ export function useStaffPermissions(): StaffPermissions {
       canCreateChapters,
       canEditChapter,
       canViewInquiries,
+      canManageInquiries,
       canManageRoles,
       isChapterScoped,
       scopedChapterIds,
@@ -198,6 +203,7 @@ export function useStaffPermissions(): StaffPermissions {
       canCreateChapters,
       canEditChapter,
       canViewInquiries,
+      canManageInquiries,
       canManageRoles,
       isChapterScoped,
       scopedChapterIds,

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCenterActiveTab } from "@/components/shell/useCenterActiveTab";
+import { useIsOrgAdminOrAbove } from "@/components/shell/AppShell";
+import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
 
 const TABS = [
   {
@@ -14,6 +16,8 @@ const TABS = [
         <path d="M9 9v.01" /><path d="M9 12v.01" /><path d="M9 15v.01" /><path d="M9 18v.01" />
       </svg>
     ),
+    visible: (p: { canViewOrganization: boolean; canManageTeam: boolean; canViewInquiries: boolean; isAdmin: boolean }) =>
+      p.canViewOrganization || p.canManageTeam || p.isAdmin,
   },
   {
     href: "/team/organization/inquiries",
@@ -23,6 +27,8 @@ const TABS = [
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     ),
+    visible: (p: { canViewOrganization: boolean; canManageTeam: boolean; canViewInquiries: boolean; isAdmin: boolean }) =>
+      p.canViewInquiries || p.isAdmin,
   },
   {
     href: "/team/members",
@@ -35,6 +41,8 @@ const TABS = [
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
+    visible: (p: { canViewOrganization: boolean; canManageTeam: boolean; canViewInquiries: boolean; isAdmin: boolean }) =>
+      p.canManageTeam || p.isAdmin,
   },
   {
     href: "/team/roles",
@@ -44,6 +52,8 @@ const TABS = [
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
       </svg>
     ),
+    visible: (p: { canViewOrganization: boolean; canManageTeam: boolean; canViewInquiries: boolean; isAdmin: boolean }) =>
+      p.canManageTeam || p.isAdmin,
   },
   {
     href: "/team/audit",
@@ -57,6 +67,8 @@ const TABS = [
         <polyline points="10 9 9 9 8 9" />
       </svg>
     ),
+    visible: (p: { canViewOrganization: boolean; canManageTeam: boolean; canViewInquiries: boolean; isAdmin: boolean }) =>
+      p.canManageTeam || p.isAdmin,
   },
   {
     href: "#",
@@ -69,17 +81,28 @@ const TABS = [
         <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
       </svg>
     ),
+    visible: (p: { canViewOrganization: boolean; canManageTeam: boolean; canViewInquiries: boolean; isAdmin: boolean }) =>
+      p.canManageTeam || p.isAdmin,
   },
 ];
 
 export function GovernanceTabs() {
   const pathname = usePathname() ?? "";
   const { wrapRef, onTabClick } = useCenterActiveTab(pathname);
+  const perms = useStaffPermissions();
+  const isAdmin = useIsOrgAdminOrAbove();
+  const visibility = {
+    canViewOrganization: perms.canViewOrganization,
+    canManageTeam: perms.canManageTeam,
+    canViewInquiries: perms.canViewInquiries,
+    isAdmin,
+  };
+  const visibleTabs = TABS.filter((tab) => tab.visible(visibility));
 
   return (
     <nav className="module-nav-bar">
       <div className="module-nav-wrap" ref={wrapRef}>
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive =
             pathname === tab.href ||
             (tab.href === "/team/organization" && (pathname === "/organization" || pathname === "/team/organization")) ||

@@ -291,8 +291,8 @@ describe("useStaffPermissions", () => {
       expect(result.current.canEditChapter("")).toBe(false);
     });
 
-    it("verifies canViewInquiries is restricted to org-wide admins and staff with inquiries:read", () => {
-      // 1. Org-wide with inquiries:read -> true
+    it("verifies canViewInquiries for custom roles with org-wide inquiries:read", () => {
+      // 1. Org-wide with inquiries:read only (Partner Inquiries Reader) -> true
       vi.mocked(appShell.useStaffClaims).mockReturnValue(
         mockClaims({
           moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["inquiries:read"] }],
@@ -300,8 +300,9 @@ describe("useStaffPermissions", () => {
       );
       const { result: orgWideResult } = renderHook(() => useStaffPermissions());
       expect(orgWideResult.current.canViewInquiries).toBe(true);
+      expect(orgWideResult.current.canManageInquiries).toBe(false);
 
-      // 2. Chapter-scoped staff even with inquiries:read -> false
+      // 2. Chapter-scoped inquiries:read -> false (inquiries are org-level)
       vi.mocked(appShell.useStaffClaims).mockReturnValue(
         mockClaims({
           moduleAccess: [
@@ -317,7 +318,24 @@ describe("useStaffPermissions", () => {
       const { result: scopedResult } = renderHook(() => useStaffPermissions());
       expect(scopedResult.current.canViewInquiries).toBe(false);
 
-      // 3. Org-wide staff without inquiries:read -> false
+      // 3. Other perms chapter-scoped, but inquiries:read org-wide -> true
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [
+            {
+              organizationId: "org-1",
+              module: "youth-republic",
+              permissions: ["opportunities:write", "inquiries:read"],
+              chapterScopes: { "opportunities:write": ["lhr"] },
+            },
+          ],
+        })
+      );
+      const { result: mixedResult } = renderHook(() => useStaffPermissions());
+      expect(mixedResult.current.canViewInquiries).toBe(true);
+      expect(mixedResult.current.isChapterScoped).toBe(true);
+
+      // 4. Org-wide staff without inquiries:read -> false
       vi.mocked(appShell.useStaffClaims).mockReturnValue(
         mockClaims({
           moduleAccess: [{ organizationId: "org-1", module: "youth-republic", permissions: ["hours:read"] }],
