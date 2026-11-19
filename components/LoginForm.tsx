@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export function LoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -30,8 +28,10 @@ export function LoginForm() {
       } catch {
         // Non-fatal
       }
-      router.push("/youth-republic/dashboard");
-      router.refresh();
+      // A full document load lets the server choose the page before anything
+      // paints. A client navigation keeps the signed-out shell, which shows
+      // a blank Youth Republic screen and only then corrects itself.
+      window.location.assign("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "login_failed");
       setLoading(false);

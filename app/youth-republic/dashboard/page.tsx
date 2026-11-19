@@ -108,8 +108,6 @@ export default function YouthRepublicDashboardPage() {
       <AccessDeniedGate
         allowed={perms.canAccessDashboard}
         sectionName="Dashboard"
-        fallbackRoute="/youth-republic"
-        fallbackLabel="Youth Republic"
       >
         <div className="panel p-8 text-center">
           <p className="text-[var(--ink-2)] font-medium">Select an organization to see its Youth Republic operations dashboard.</p>
@@ -123,8 +121,6 @@ export default function YouthRepublicDashboardPage() {
       <AccessDeniedGate
         allowed={perms.canAccessDashboard}
         sectionName="Dashboard"
-        fallbackRoute="/youth-republic"
-        fallbackLabel="Youth Republic"
       >
         <DashboardSkeleton />
       </AccessDeniedGate>
@@ -156,8 +152,6 @@ export default function YouthRepublicDashboardPage() {
     <AccessDeniedGate
       allowed={perms.canAccessDashboard}
       sectionName="Dashboard"
-      fallbackRoute="/youth-republic"
-      fallbackLabel="Youth Republic"
     >
       <div className="space-y-6">
       <div className="page-header">

@@ -392,8 +392,6 @@ export default function YouthRepublicApplicationsPage() {
     <AccessDeniedGate
       allowed={perms.canViewApplications}
       sectionName="Applications"
-      fallbackRoute="/youth-republic"
-      fallbackLabel="Youth Republic"
     >
       <Suspense fallback={<ListPageSkeleton columns={5} rows={8} filterBar={false} toolbarItems={3} />}>
         <ApplicationsContent />

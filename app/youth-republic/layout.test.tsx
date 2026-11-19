@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import YouthRepublicModuleLayout from "./layout";
+import { YouthRepublicModuleFrame } from "./ModuleFrame";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
@@ -73,9 +73,9 @@ describe("YouthRepublicModuleLayout", () => {
 
   it("renders a tab for each of the 5 admin screens plus the page content", async () => {
     render(
-      <YouthRepublicModuleLayout>
+      <YouthRepublicModuleFrame>
         <p>screen content</p>
-      </YouthRepublicModuleLayout>,
+      </YouthRepublicModuleFrame>,
     );
 
     expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
@@ -89,9 +89,9 @@ describe("YouthRepublicModuleLayout", () => {
 
   it("does not render a badge for Opportunities, but renders pending badges for Applications and Hours", async () => {
     render(
-      <YouthRepublicModuleLayout>
+      <YouthRepublicModuleFrame>
         <p>screen content</p>
-      </YouthRepublicModuleLayout>,
+      </YouthRepublicModuleFrame>,
     );
 
     const oppsLink = screen.getByRole("link", { name: "Drives" });
@@ -108,27 +108,6 @@ describe("YouthRepublicModuleLayout", () => {
     expect(oppsLink.querySelector(".count-badge")).toBeNull();
   });
 
-  it("filters tabs based on permissions so unauthorized tabs do not render", async () => {
-    vi.mocked(useStaffPermissions).mockReturnValue({
-      ...allPerms,
-      canAccessDashboard: false,
-      canViewHours: false,
-      canViewVolunteers: false,
-    });
-
-    render(
-      <YouthRepublicModuleLayout>
-        <p>screen content</p>
-      </YouthRepublicModuleLayout>,
-    );
-
-    expect(screen.queryByRole("link", { name: "Dashboard" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Hours" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Volunteers" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Drives" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Applications" })).toBeInTheDocument();
-  });
-
   it("does not fetch badges for sections the user is not authorized to view", async () => {
     vi.mocked(useStaffPermissions).mockReturnValue({
       ...allPerms,
@@ -137,9 +116,9 @@ describe("YouthRepublicModuleLayout", () => {
     });
 
     render(
-      <YouthRepublicModuleLayout>
+      <YouthRepublicModuleFrame>
         <p>screen content</p>
-      </YouthRepublicModuleLayout>,
+      </YouthRepublicModuleFrame>,
     );
 
     await waitFor(() => {

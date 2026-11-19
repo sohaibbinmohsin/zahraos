@@ -16,6 +16,7 @@ import { MODULE_REGISTRY } from "@/registry/modules";
 import { isDisplayableLogo } from "@/lib/orgLogo";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { deriveRoleTitleFromPermissions } from "@/lib/capabilityMap";
+import { firstAllowedDestination, isNamedOrgAdmin } from "@/lib/landingPath";
 import { useStaffPermissions } from "./useStaffPermissions";
 import { OrgSwitcher } from "./OrgSwitcher";
 import { ToastProvider } from "./ToastContext";
@@ -513,7 +514,7 @@ export function AppShell({
     orgTier === "admin" ||
     orgTier === "super_admin" ||
     platformOwner ||
-    userRoles.some((r) => ["super admin", "admin", "org admin", "organization admin"].includes(r.toLowerCase()));
+    isNamedOrgAdmin(userRoles);
 
   const showOrganizationsNav = Boolean(claims) && platformOwner && !isMaseehaModule;
 
@@ -870,7 +871,10 @@ function AppShellContent({
                   if (sidebarCollapsed) {
                     setSidebarCollapsed(false);
                   } else {
-                    router.push(isMaseehaModule ? "/maseeha/dashboard" : "/youth-republic/dashboard");
+                    const home = isMaseehaModule
+                      ? "/maseeha/dashboard"
+                      : firstAllowedDestination(perms)?.href;
+                    if (home) router.push(home);
                     setMobileSidebarOpen(false);
                   }
                 }}
@@ -1356,13 +1360,27 @@ function AppShellContent({
 
                 <div
                   className="brand-name-lockup"
-                  onClick={() => router.push(isGovernanceArea ? "/team/members" : (isMaseehaModule ? "/maseeha/dashboard" : "/youth-republic/dashboard"))}
+                  onClick={() => {
+                    const home = isMaseehaModule
+                      ? "/maseeha/dashboard"
+                      : firstAllowedDestination(perms)?.href;
+                    if (home) router.push(home);
+                  }}
                 >
                   <span className="brand-title">
-                    {isGovernanceArea
-                      ? "Team & Governance"
-                      : isMaseehaModule
-                        ? "Maseeha"
+                    {isMaseehaModule
+                      ? "Maseeha"
+                      : isGovernanceArea ||
+                          (status !== "loading" &&
+                            pathname.startsWith("/youth-republic") &&
+                            !(
+                              perms.canAccessDashboard ||
+                              perms.canViewDrives ||
+                              perms.canViewApplications ||
+                              perms.canViewHours ||
+                              perms.canViewVolunteers
+                            ))
+                        ? "Team & Governance"
                         : "Youth Republic"}
                   </span>
                 </div>

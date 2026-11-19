@@ -3,10 +3,9 @@ import { resolveInitialShell } from "@/lib/shellData.server";
 import { landingPathFor } from "@/lib/shellData";
 
 /**
- * `/` is never a real page — it forwards an authenticated user to their
- * Youth Republic dashboard, or to the Organization page when that module
- * isn't enabled for their active org. Only a staff account with no org or
- * module access at all falls through to the message below.
+ * `/` is never a real page. It forwards an authenticated person to the
+ * first page they can open. Someone with no page at all sees the message
+ * below.
  */
 export default async function Home() {
   const { shell, selectedOrgId } = await resolveInitialShell();

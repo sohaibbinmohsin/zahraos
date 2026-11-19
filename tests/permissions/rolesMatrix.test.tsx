@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderWithSwr } from "@/tests/renderWithSwr";
 import { useStaffPermissions, type StaffPermissions } from "@/components/shell/useStaffPermissions";
 import { AppShell } from "@/components/shell/AppShell";
-import YouthRepublicModuleLayout from "@/app/youth-republic/layout";
+import { YouthRepublicModuleFrame } from "@/app/youth-republic/ModuleFrame";
 import YouthRepublicOpportunitiesPage from "@/app/youth-republic/drives/page";
 import YouthRepublicApplicationsPage from "@/app/youth-republic/applications/page";
 import YouthRepublicHoursPage from "@/app/youth-republic/hours/page";
@@ -29,7 +29,7 @@ const { routerPush, routerRefresh } = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: routerPush, refresh: routerRefresh }),
+  useRouter: () => ({ push: routerPush, replace: vi.fn(), refresh: routerRefresh }),
   usePathname: () => "/youth-republic/dashboard",
   useSearchParams: () => new URLSearchParams(),
 }));
@@ -994,9 +994,9 @@ describe("Comprehensive Roles & Permissions Automated Test Matrix", () => {
         setupRoleEnvironment(role);
 
         renderWithSwr(
-          <YouthRepublicModuleLayout>
+          <YouthRepublicModuleFrame>
             <div data-testid="layout-child">Module Content</div>
-          </YouthRepublicModuleLayout>
+          </YouthRepublicModuleFrame>
         );
 
         await waitFor(() => {

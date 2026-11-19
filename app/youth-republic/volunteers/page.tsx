@@ -62,8 +62,6 @@ export default function YouthRepublicVolunteersPage() {
       <AccessDeniedGate
         allowed={perms.canViewVolunteers}
         sectionName="Volunteers"
-        fallbackRoute="/youth-republic"
-        fallbackLabel="Youth Republic"
       >
         <div className="panel p-8 text-center">
           <p className="text-[var(--ink-2)] font-medium">Select an organization to see its volunteers directory.</p>
@@ -77,8 +75,6 @@ export default function YouthRepublicVolunteersPage() {
       <AccessDeniedGate
         allowed={perms.canViewVolunteers}
         sectionName="Volunteers"
-        fallbackRoute="/youth-republic"
-        fallbackLabel="Youth Republic"
       >
         <ListPageSkeleton columns={5} rows={6} filterBar={false} toolbarItems={1} />
       </AccessDeniedGate>
@@ -89,8 +85,6 @@ export default function YouthRepublicVolunteersPage() {
     <AccessDeniedGate
       allowed={perms.canViewVolunteers}
       sectionName="Volunteers"
-      fallbackRoute="/youth-republic"
-      fallbackLabel="Youth Republic"
     >
       <div className="space-y-6">
         {/* Page Header — search lives inline with the title */}

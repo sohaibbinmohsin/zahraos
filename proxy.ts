@@ -13,7 +13,9 @@ export async function proxy(request: NextRequest) {
     hostname.includes("saving9") ||
     request.nextUrl.searchParams.get("tenant") === "saving9";
 
-  const response = NextResponse.next({ request });
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
   if (isSaving9Host) {
     response.cookies.set("saving9_demo", "1", { path: "/" });
   } else if (request.cookies.has("saving9_demo")) {
