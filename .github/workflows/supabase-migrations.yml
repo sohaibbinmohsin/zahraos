@@ -176,8 +176,9 @@ jobs:
             fi
             echo "Deploying ${name}"
             supabase functions deploy "$name" \
-              --project-ref "$SUPABASE_PROJECT_ID" \
-              --import-map supabase/deno.jsonc
+              --import-map supabase/deno.jsonc \
+              --yes \
+              --remote="$SUPABASE_PROJECT_ID"
             deployed=$((deployed + 1))
           done
           if [ "$deployed" -eq 0 ]; then
