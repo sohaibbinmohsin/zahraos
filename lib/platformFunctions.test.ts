@@ -13,8 +13,6 @@ import {
   listChapterTeamMembers,
   requestPublicAssetUpload,
 } from "./platformFunctions";
-import { RESTRICTED_GRID } from "./capabilityMap";
-
 const FUNCTIONS_URL = "http://localhost:54321/functions/v1";
 
 beforeEach(() => {
@@ -95,7 +93,7 @@ describe("assignStaffOrgRole", () => {
 });
 
 describe("createCustomRole", () => {
-  it("posts to create-custom-role with the capability grid", async () => {
+  it("posts to create-custom-role with permission keys", async () => {
     mockOk({ roleId: "role-2" });
     const result = await createCustomRole(
       {
@@ -103,7 +101,7 @@ describe("createCustomRole", () => {
         moduleId: "mod-1",
         name: "Hours Verifier",
         description: "Verifies hours",
-        capabilities: { ...RESTRICTED_GRID, hours: "granted" },
+        permissionKeys: ["hours:read", "hours:update"],
       },
       "session-token",
     );

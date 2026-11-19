@@ -1,7 +1,6 @@
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { createClient } from "@supabase/supabase-js";
 import { createCustomRole } from "./handler.ts";
-import { permissionKeysToGrid } from "../_shared/capabilityMap.ts";
 
 function testClient() {
   return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -25,12 +24,12 @@ async function setup() {
   return { supabase, orgId: org!.id as string, moduleId: mod!.id as string, adminId: admin!.id as string };
 }
 
-Deno.test("createCustomRole stores the capability grid as role_permissions rows", async () => {
+Deno.test("createCustomRole stores permission keys as role_permissions rows", async () => {
   const { supabase, orgId, moduleId, adminId } = await setup();
   const result = await createCustomRole(supabase, adminId, false, {
     organizationId: orgId, moduleId, name: "Regional Logistics Lead",
     description: "Coordinates warehouse inventory and regional dispatch.",
-    capabilities: { drive: "granted", publish: "restricted", triage: "restricted", hours: "granted", team: "restricted" },
+    permissionKeys: ["opportunities:read", "opportunities:write", "opportunities:update"],
   });
 
   const { data: role } = await supabase.from("roles")
@@ -44,8 +43,7 @@ Deno.test("createCustomRole stores the capability grid as role_permissions rows"
     const perm = p.permissions as unknown as { resource: string; action: string };
     return `${perm.resource}:${perm.action}`;
   }).sort();
-  assertEquals(keys, ["hours:read", "hours:update", "opportunities:write"]);
-  assertEquals(permissionKeysToGrid(keys).hours, "granted");
+  assertEquals(keys, ["opportunities:read", "opportunities:update", "opportunities:write"]);
 });
 
 Deno.test("createCustomRole rejects a non-admin caller", async () => {
@@ -58,7 +56,7 @@ Deno.test("createCustomRole rejects a non-admin caller", async () => {
   await assertRejects(
     () => createCustomRole(supabase, outsider!.id, false, {
       organizationId: orgId, moduleId, name: "X", description: "",
-      capabilities: { drive: "restricted", publish: "restricted", triage: "restricted", hours: "restricted", team: "restricted" },
+      permissionKeys: [],
     }),
     Error, "forbidden",
   );

@@ -1,5 +1,4 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { type CapabilityGrid, gridToPermissionKeys } from "../_shared/capabilityMap.ts";
 import { actorName, writeAuditLog } from "../_shared/auditLog.ts";
 
 export interface CreateCustomRoleInput {
@@ -7,7 +6,14 @@ export interface CreateCustomRoleInput {
   moduleId: string;
   name: string;
   description: string;
-  capabilities: CapabilityGrid;
+  permissionKeys: string[];
+}
+
+function requirePermissionKeys(keys: unknown): string[] {
+  if (!Array.isArray(keys) || keys.some((key) => typeof key !== "string")) {
+    throw new Error("permission_keys_required");
+  }
+  return keys as string[];
 }
 
 async function assertCallerIsSuperAdmin(
@@ -70,7 +76,7 @@ export async function createCustomRole(
   if (!orgModule) throw new Error("module_not_enabled");
 
   const permissionIds = await permissionIdsForKeys(
-    supabase, input.moduleId, gridToPermissionKeys(input.capabilities),
+    supabase, input.moduleId, requirePermissionKeys(input.permissionKeys),
   );
 
   const { data: role, error: roleError } = await supabase.from("roles")

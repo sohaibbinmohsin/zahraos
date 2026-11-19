@@ -21,7 +21,7 @@ function moduleBadge(summary: RoleModuleSummary) {
   } else if (summary.level === "limited") {
     badgeClass = "badge-warn";
     label = "Limited";
-  } else if (summary.level === "read_only") {
+  } else if (summary.level === "view") {
     badgeClass = "badge-neu";
     label = "Read Only";
   }
@@ -89,7 +89,7 @@ export function RolesTable({
         r.name.toLowerCase().includes(q) ||
         (r.description ?? "").toLowerCase().includes(q) ||
         summaries.some(
-          (s) => s.level !== "restricted" && s.title.toLowerCase().includes(q),
+          (s) => s.level !== "off" && s.title.toLowerCase().includes(q),
         );
 
       const matchType =
@@ -100,7 +100,7 @@ export function RolesTable({
       const matchModule =
         moduleFilter === "all" ||
         summaries.some(
-          (s) => s.moduleKey === moduleFilter && s.level !== "restricted",
+          (s) => s.moduleKey === moduleFilter && s.level !== "off",
         );
 
       return matchSearch && matchType && matchModule;

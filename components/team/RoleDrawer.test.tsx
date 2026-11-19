@@ -42,7 +42,9 @@ describe("RoleDrawer", () => {
     await waitFor(() => expect(createRole).toHaveBeenCalledTimes(1));
     const [payload] = createRole.mock.calls[0];
     expect(payload).toMatchObject({ organizationId: "org-1", moduleId: "mod-1", name: "Warehouse Lead" });
-    expect(payload.capabilities).toMatchObject({ drive: "granted", hours: "read_only" });
+    expect(payload.permissionKeys).toEqual(
+      expect.arrayContaining(["opportunities:read", "opportunities:write", "hours:read"]),
+    );
     expect(onClose).toHaveBeenCalled();
   });
 
@@ -73,7 +75,9 @@ describe("RoleDrawer", () => {
     await user.click(screen.getByRole("button", { name: /Save Role/i }));
     await waitFor(() => expect(updateRole).toHaveBeenCalledTimes(1));
     expect(updateRole.mock.calls[0][0]).toMatchObject({ roleId: "r2" });
-    expect(updateRole.mock.calls[0][0].capabilities.publish).toBe("granted");
+    expect(updateRole.mock.calls[0][0].permissionKeys).toEqual(
+      expect.arrayContaining(["noticeboard:read", "noticeboard:write"]),
+    );
   });
 
   it("applies a system template to update capability grid", async () => {

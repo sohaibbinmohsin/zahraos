@@ -3,24 +3,24 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect } from "vitest";
 import { RoleServiceInspector } from "./RoleServiceInspector";
 import {
-  RESTRICTED_GRID,
+  OFF_GRID,
   type CapabilityGrid,
 } from "@/lib/capabilityMap";
 
 describe("RoleServiceInspector", () => {
   const chapterLeadGrid: CapabilityGrid = {
-    ...RESTRICTED_GRID,
+    ...OFF_GRID,
     drive: "granted",
     publish: "granted",
     triage: "granted",
     hours: "granted",
-    volunteers: "restricted",
+    volunteers: "off",
     org_governance: "granted",
-    members: "restricted",
-    roles: "restricted",
-    audit: "restricted",
-    inquiries: "restricted",
-    team: "restricted",
+    members: "off",
+    roles: "off",
+    audit: "off",
+    inquiries: "off",
+    team: "off",
   };
 
   it("renders policy summary header with role name and governed modules", () => {
@@ -108,11 +108,11 @@ describe("RoleServiceInspector", () => {
 
   it("renders Read Only badge for Auditor role", () => {
     const auditorGrid: CapabilityGrid = {
-      ...RESTRICTED_GRID,
-      triage: "read_only",
-      hours: "read_only",
-      volunteers: "read_only",
-      audit: "read_only",
+      ...OFF_GRID,
+      triage: "view",
+      hours: "view",
+      volunteers: "view",
+      audit: "view",
     };
 
     render(<RoleServiceInspector grid={auditorGrid} roleName="Auditor" />);
@@ -122,12 +122,12 @@ describe("RoleServiceInspector", () => {
     expect(readOnlyBadges[0]).toHaveClass("badge", "badge-neu");
   });
 
-  it("renders Restricted badge for fully restricted role", () => {
-    render(<RoleServiceInspector grid={RESTRICTED_GRID} roleName="Guest" />);
+  it("renders Restricted badge for fully off role", () => {
+    render(<RoleServiceInspector grid={OFF_GRID} roleName="Guest" />);
 
-    const restrictedBadges = screen.getAllByText("Restricted");
-    expect(restrictedBadges.length).toBeGreaterThan(0);
-    expect(restrictedBadges[0]).toHaveClass("badge", "badge-neg");
+    const offBadges = screen.getAllByText("Restricted");
+    expect(offBadges.length).toBeGreaterThan(0);
+    expect(offBadges[0]).toHaveClass("badge", "badge-neg");
   });
 
   it("accepts readOnly prop gracefully", () => {

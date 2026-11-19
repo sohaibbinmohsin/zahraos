@@ -17,9 +17,9 @@ function serviceBadge(level: ModuleAccessLevel) {
       return <span className="badge badge-pos">Full Access</span>;
     case "limited":
       return <span className="badge badge-warn">Limited</span>;
-    case "read_only":
+    case "view":
       return <span className="badge badge-neu">Read Only</span>;
-    case "restricted":
+    case "off":
       return <span className="badge badge-neg">Restricted</span>;
   }
 }
@@ -28,9 +28,9 @@ function capabilityBadge(level: CapabilityLevel) {
   switch (level) {
     case "granted":
       return <span className="badge badge-pos">Granted</span>;
-    case "read_only":
+    case "view":
       return <span className="badge badge-neu">Read Only</span>;
-    case "restricted":
+    case "off":
       return <span className="badge badge-neg">Restricted</span>;
   }
 }
@@ -39,7 +39,7 @@ function formatRatio(summary: RoleModuleSummary): string {
   const parts: string[] = [];
   if (summary.grantedCount > 0) parts.push(`${summary.grantedCount} Granted`);
   if (summary.readOnlyCount > 0) parts.push(`${summary.readOnlyCount} Read Only`);
-  if (summary.restrictedCount > 0) parts.push(`${summary.restrictedCount} Restricted`);
+  if (summary.offCount > 0) parts.push(`${summary.offCount} Restricted`);
   if (parts.length === 0) return "0 Granted";
   return parts.join(" · ");
 }
@@ -183,7 +183,7 @@ export function RoleServiceInspector({
                     {capabilities.map((cap) => {
                       const meta = CAPABILITY_META[cap];
                       const title = meta?.column ?? cap;
-                      const level: CapabilityLevel = grid[cap] ?? "restricted";
+                      const level: CapabilityLevel = grid[cap] ?? "off";
 
                       return (
                         <div

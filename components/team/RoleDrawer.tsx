@@ -5,14 +5,15 @@ import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { createCustomRole, updateCustomRole } from "@/lib/platformFunctions";
 import {
-  MODULE_CAPABILITIES, CAPABILITY_META, RESTRICTED_GRID, permissionKeysToGrid, gridToPermissionKeys,
+  MODULE_CAPABILITIES, CAPABILITY_META, OFF_GRID, permissionKeysToGrid,
   type CapabilityGrid, type CapabilityKey, type CapabilityLevel,
 } from "@/lib/capabilityMap";
+import { drawerCatalogs, permissionKeysFromDrawerGrid } from "@/registry/moduleCatalog";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Select } from "@/components/ui/Select";
 
 const LEVEL_LABEL: Record<CapabilityLevel, string> = {
-  granted: "Granted", read_only: "Read Only", restricted: "Restricted",
+  granted: "Granted", view: "Read Only", off: "Restricted",
 };
 
 export interface RoleTemplate {
@@ -26,16 +27,16 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Super Admin",
     description: "Full platform control and unconstrained administrative privileges across all operational modules.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
       hours: "granted",
-      volunteers: "read_only",
+      volunteers: "view",
       org_governance: "granted",
       members: "granted",
       roles: "granted",
-      audit: "read_only",
+      audit: "view",
       inquiries: "granted",
       team: "granted",
     },
@@ -44,17 +45,17 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Org Admin",
     description: "Full operational permissions and organization-wide team governance.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
       hours: "granted",
-      volunteers: "read_only",
+      volunteers: "view",
       org_governance: "granted",
       members: "granted",
-      roles: "read_only",
-      audit: "read_only",
-      inquiries: "read_only",
+      roles: "view",
+      audit: "view",
+      inquiries: "view",
       team: "granted",
     },
   },
@@ -62,25 +63,25 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Chapter Admin",
     description: "Full chapter-level operational permissions and local chapter roster governance.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
       hours: "granted",
-      volunteers: "read_only",
+      volunteers: "view",
       org_governance: "granted",
       members: "granted",
-      roles: "restricted",
-      audit: "read_only",
-      inquiries: "restricted",
-      team: "restricted",
+      roles: "off",
+      audit: "view",
+      inquiries: "off",
+      team: "off",
     },
   },
   {
     name: "Chapter Lead",
     description: "Oversees local chapter operations, drive execution, applicant selection, hours verification, and chapter roster governance.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
@@ -92,7 +93,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "City Lead",
     description: "Oversees multi-chapter regional operations, drive execution, applicant selection, hours verification, and chapter roster governance.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
@@ -104,72 +105,72 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Operations Lead",
     description: "Oversees local chapter operations, drive execution, applicant selection, and field shift oversight.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
       hours: "granted",
-      volunteers: "restricted",
-      org_governance: "restricted",
-      members: "restricted",
-      roles: "restricted",
-      audit: "restricted",
-      inquiries: "restricted",
-      team: "restricted",
+      volunteers: "off",
+      org_governance: "off",
+      members: "off",
+      roles: "off",
+      audit: "off",
+      inquiries: "off",
+      team: "off",
     },
   },
   {
     name: "Drive Coordinator",
     description: "Manages on-ground drive shifts, volunteer gate attendance, and direct shift hours logging.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
-      publish: "restricted",
+      publish: "off",
       triage: "granted",
       hours: "granted",
-      volunteers: "restricted",
-      org_governance: "restricted",
-      members: "restricted",
-      roles: "restricted",
-      audit: "restricted",
-      inquiries: "restricted",
-      team: "restricted",
+      volunteers: "off",
+      org_governance: "off",
+      members: "off",
+      roles: "off",
+      audit: "off",
+      inquiries: "off",
+      team: "off",
     },
   },
   {
     name: "Application Reviewer",
     description: "Screens and shortlists volunteer applicants, assesses question responses, and assigns candidate statuses.",
     capabilities: {
-      ...RESTRICTED_GRID,
-      drive: "restricted",
-      publish: "restricted",
+      ...OFF_GRID,
+      drive: "off",
+      publish: "off",
       triage: "granted",
-      hours: "restricted",
-      volunteers: "restricted",
-      org_governance: "restricted",
-      members: "restricted",
-      roles: "restricted",
-      audit: "restricted",
-      inquiries: "restricted",
-      team: "restricted",
+      hours: "off",
+      volunteers: "off",
+      org_governance: "off",
+      members: "off",
+      roles: "off",
+      audit: "off",
+      inquiries: "off",
+      team: "off",
     },
   },
   {
     name: "Auditor",
     description: "Read-only compliance officer auditing hours logs, certifications, and operational activity records.",
     capabilities: {
-      ...RESTRICTED_GRID,
-      drive: "restricted",
-      publish: "restricted",
-      triage: "read_only",
-      hours: "read_only",
-      volunteers: "read_only",
-      org_governance: "restricted",
-      members: "restricted",
-      roles: "restricted",
-      audit: "read_only",
-      inquiries: "restricted",
-      team: "restricted",
+      ...OFF_GRID,
+      drive: "off",
+      publish: "off",
+      triage: "view",
+      hours: "view",
+      volunteers: "view",
+      org_governance: "off",
+      members: "off",
+      roles: "off",
+      audit: "view",
+      inquiries: "off",
+      team: "off",
     },
   },
 ];
@@ -189,7 +190,7 @@ export const SERVICES = [
   },
 ] as const;
 
-export type ServicePreset = "full" | "read_only" | "restricted";
+export type ServicePreset = "full" | "view" | "off";
 
 export function getServiceStatus(
   serviceCaps: readonly CapabilityKey[],
@@ -197,17 +198,17 @@ export function getServiceStatus(
 ): "Full Access" | "Limited" | "Read Only" | "Restricted" {
   let grantedCount = 0;
   let readOnlyCount = 0;
-  let restrictedCount = 0;
+  let offCount = 0;
 
   for (const cap of serviceCaps) {
-    const level = grid[cap] ?? "restricted";
+    const level = grid[cap] ?? "off";
     if (level === "granted") grantedCount++;
-    else if (level === "read_only") readOnlyCount++;
-    else restrictedCount++;
+    else if (level === "view") readOnlyCount++;
+    else offCount++;
   }
 
   const totalCount = serviceCaps.length;
-  if (totalCount === 0 || restrictedCount === totalCount) {
+  if (totalCount === 0 || offCount === totalCount) {
     return "Restricted";
   }
 
@@ -219,11 +220,11 @@ export function getServiceStatus(
     grantableCaps.every((cap) => grid[cap] === "granted");
 
   const isStrictFull =
-    restrictedCount === 0 &&
+    offCount === 0 &&
     totalCount > 0 &&
     serviceCaps.every((cap) => {
       const meta = CAPABILITY_META[cap];
-      const maxLevel = meta?.levels?.includes("granted") ? "granted" : "read_only";
+      const maxLevel = meta?.levels?.includes("granted") ? "granted" : "view";
       return grid[cap] === maxLevel;
     });
 
@@ -271,7 +272,7 @@ export function RoleDrawer({
           name: tmpl.name,
           description: tmpl.description,
           isSystem: true,
-          permissionKeys: gridToPermissionKeys(tmpl.capabilities),
+          permissionKeys: permissionKeysFromDrawerGrid(drawerCatalogs, tmpl.capabilities),
         };
       })()
     : null;
@@ -279,7 +280,7 @@ export function RoleDrawer({
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [grid, setGrid] = useState<CapabilityGrid>(RESTRICTED_GRID);
+  const [grid, setGrid] = useState<CapabilityGrid>(OFF_GRID);
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [busy, setBusy] = useState(false);
   const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({});
@@ -300,14 +301,14 @@ export function RoleDrawer({
       for (const cap of serviceCaps) {
         const meta = CAPABILITY_META[cap];
         if (preset === "full") {
-          next[cap] = meta.levels.includes("granted") ? "granted" : "read_only";
-        } else if (preset === "read_only") {
-          next[cap] = meta.levels.includes("read_only") ? "read_only" : "restricted";
+          next[cap] = meta.levels.includes("granted") ? "granted" : "view";
+        } else if (preset === "view") {
+          next[cap] = meta.levels.includes("view") ? "view" : "off";
         } else {
-          next[cap] = "restricted";
+          next[cap] = "off";
         }
         if (cap === "members") {
-          next.team = next.members === "granted" ? "granted" : "restricted";
+          next.team = next.members === "granted" ? "granted" : "off";
         }
       }
       return next;
@@ -318,7 +319,7 @@ export function RoleDrawer({
     if (!request) return;
     if (request.mode === "create") {
       setName(""); setDescription(""); setSelectedTemplate("");
-      setGrid({ ...RESTRICTED_GRID, drive: "granted", publish: "restricted", triage: "granted", hours: "restricted", team: "restricted" });
+      setGrid({ ...OFF_GRID, drive: "granted", publish: "off", triage: "granted", hours: "off", team: "off" });
       setExpandedServices({ "youth-republic": true, "team-governance": true });
     } else if (source) {
       const g = permissionKeysToGrid(source.permissionKeys);
@@ -388,11 +389,22 @@ export function RoleDrawer({
     setBusy(true);
     try {
       if (request?.mode === "edit" && source) {
-        await updateCustomRole({ roleId: source.id, name: name.trim(), description, capabilities: grid }, accessToken);
+        await updateCustomRole({
+          roleId: source.id,
+          name: name.trim(),
+          description,
+          permissionKeys: permissionKeysFromDrawerGrid(drawerCatalogs, grid),
+        }, accessToken);
         showToast(`Role "${name.trim()}" updated successfully.`);
       } else {
         if (!organizationId || !moduleId) return;
-        await createCustomRole({ organizationId, moduleId, name: name.trim(), description, capabilities: grid }, accessToken);
+        await createCustomRole({
+          organizationId,
+          moduleId,
+          name: name.trim(),
+          description,
+          permissionKeys: permissionKeysFromDrawerGrid(drawerCatalogs, grid),
+        }, accessToken);
         showToast(`Created new custom role "${name.trim()}".`);
       }
       await refresh();
@@ -566,7 +578,7 @@ export function RoleDrawer({
                                 data-testid={`preset-readonly-${service.key}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  applyServicePreset(service.capabilities, "read_only");
+                                  applyServicePreset(service.capabilities, "view");
                                 }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
@@ -576,10 +588,10 @@ export function RoleDrawer({
                                 type="button"
                                 className="btn btn-secondary btn-xs"
                                 aria-label={`${service.title}: Restricted`}
-                                data-testid={`preset-restricted-${service.key}`}
+                                data-testid={`preset-off-${service.key}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  applyServicePreset(service.capabilities, "restricted");
+                                  applyServicePreset(service.capabilities, "off");
                                 }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
@@ -608,7 +620,7 @@ export function RoleDrawer({
                                     className={`badge ${
                                       grid[cap] === "granted"
                                         ? "badge-pos"
-                                        : grid[cap] === "read_only"
+                                        : grid[cap] === "view"
                                         ? "badge-neu"
                                         : "badge-neg"
                                     }`}
@@ -623,7 +635,7 @@ export function RoleDrawer({
                                     onChange={(val) => {
                                       const nextGrid = { ...grid, [cap]: val as CapabilityLevel };
                                       if (cap === "members") {
-                                        nextGrid.team = val === "granted" ? "granted" : "restricted";
+                                        nextGrid.team = val === "granted" ? "granted" : "off";
                                       }
                                       setGrid(nextGrid);
                                     }}
