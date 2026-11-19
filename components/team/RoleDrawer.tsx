@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { createCustomRole, updateCustomRole } from "@/lib/platformFunctions";
@@ -267,7 +267,7 @@ export function RoleDrawer({
     setSwitchesByCatalog(switchesByCatalogFromKeys(loadedCatalogs, permissionKeys));
   }
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!request || !catalogs) return;
 
     if (request.mode === "create") {

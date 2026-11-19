@@ -64,13 +64,19 @@ describe("RoleDrawer", () => {
     });
   }
 
+  async function waitForYouthRepublicServiceBadge(label: string) {
+    await waitFor(() => {
+      expect(screen.getByTestId("service-badge-youth-republic")).toHaveTextContent(label);
+    });
+  }
+
   it("shows Chapter Lead system specification with one switch per area", async () => {
     const user = userEvent.setup();
     render(<RoleDrawer request={{ mode: "view", roleId: "chapter-lead-id" }} onClose={vi.fn()} />);
 
     await waitForCatalogs();
+    await waitForYouthRepublicServiceBadge("Limited");
     expect(screen.getByText("System Role Specification")).toBeInTheDocument();
-    expect(screen.getByTestId("service-badge-youth-republic")).toHaveTextContent("Limited");
 
     await user.click(screen.getByRole("button", { name: /Toggle Youth Republic/i }));
     expect(screen.getByText("Drives")).toBeInTheDocument();
