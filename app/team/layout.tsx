@@ -9,19 +9,10 @@ import { TeamHeaderContext, type TeamHeaderAction } from "@/components/team/team
 import { GovernanceTabs } from "@/components/team/GovernanceTabs";
 import { ListPageSkeleton } from "@/components/ui/skeletons";
 
-const HEADINGS: Record<string, { title: string; subtitle: string }> = {
-  "/team/members": {
-    title: "Team Members Directory",
-    subtitle: "Manage administrative team members, multi-role assignments, and chapter operational scopes.",
-  },
-  "/team/roles": {
-    title: "Roles & Permissions Matrix",
-    subtitle: "Configure granular capability privileges and operational access boundaries for system and custom roles.",
-  },
-  "/team/audit": {
-    title: "Security & Operational Audit Log",
-    subtitle: "Complete immutable chronological record of team administrative operations, role modifications, and security events.",
-  },
+const HEADINGS: Record<string, string> = {
+  "/team/members": "Team Members Directory",
+  "/team/roles": "Roles & Permissions Matrix",
+  "/team/audit": "Security & Operational Audit Log",
 };
 
 export default function TeamLayout({ children }: { children: React.ReactNode }) {
@@ -70,8 +61,7 @@ export default function TeamLayout({ children }: { children: React.ReactNode }) 
             <div className="space-y-6">
               <div className="page-header">
                 <div>
-                  <h1 className="page-title">{heading.title}</h1>
-                  <div className="page-subtitle">{heading.subtitle}</div>
+                  <h1 className="page-title">{heading}</h1>
                 </div>
                 {action && (
                   <div className="page-toolbar">

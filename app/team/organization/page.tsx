@@ -164,7 +164,6 @@ export default function OrganizationPage() {
       <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
           <h1 className="page-title">Organization</h1>
-          <div className="page-subtitle">Your organization&apos;s public profile and its chapters.</div>
         </div>
       </div>
 

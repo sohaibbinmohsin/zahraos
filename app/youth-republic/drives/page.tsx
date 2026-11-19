@@ -386,9 +386,6 @@ export default function YouthRepublicDrivesPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Drives Noticeboard</h1>
-          <div className="page-subtitle">
-            Manage active drives, customize multi-field application forms, and track volunteer capacity.
-          </div>
         </div>
         <div className="page-toolbar flex items-center gap-3">
           <Select
@@ -457,7 +454,7 @@ export default function YouthRepublicDrivesPage() {
                   </div>
 
                   <div className="opp-title">
-                    <span>{opp.name}</span>
+                    <span className="opp-title-text">{opp.name}</span>
                     {running && (
                       <span
                         className="live-pill"
@@ -483,7 +480,6 @@ export default function YouthRepublicDrivesPage() {
                       </span>
                     )}
                   </div>
-                  {opp.description && <div className="opp-lead">{opp.description}</div>}
 
                   <div className="opp-meta-row">
                     <div className="opp-meta-item">

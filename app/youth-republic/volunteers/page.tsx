@@ -97,9 +97,6 @@ export default function YouthRepublicVolunteersPage() {
         <div className="page-header">
           <div>
             <h1 className="page-title">Volunteers Directory</h1>
-            <div className="page-subtitle">
-              Search student volunteers, verify CNIC credentials, and inspect verified service portfolios across Pakistan.
-            </div>
           </div>
           <div className="page-toolbar">
             <label htmlFor="volunteerSearch" className="sr-only">Search</label>

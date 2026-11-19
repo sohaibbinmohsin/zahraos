@@ -75,7 +75,7 @@ describe("ChaptersPanel", () => {
     expect(screen.getByText("Lahore Chapter")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Add Chapter/i }));
     await user.type(screen.getByLabelText(/Chapter name/i), "Multan Chapter");
-    await user.type(screen.getByLabelText(/City/i), "Multan");
+    await user.type(screen.getByRole("textbox", { name: /^city$/i }), "Multan");
     await user.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(createCh).toHaveBeenCalledWith(
       { organizationId: "org-1", name: "Multan Chapter", city: "Multan" }, "access-token",
@@ -192,6 +192,35 @@ describe("ChaptersPanel", () => {
     expect(rows[1]).toHaveTextContent("Edit");
     expect(rows[2]).toHaveTextContent("Alpha Chapter");
     expect(rows[2]).toHaveTextContent("View Details");
+  });
+
+  it("filters chapters by name, city, and status", async () => {
+    const user = userEvent.setup();
+    renderPanel(vi.fn(), [
+      { id: "c1", name: "Rizq Air University Chapter", city: "Islamabad", status: "active" },
+      { id: "c2", name: "Rizq BAHRIA H11 Chapter", city: "Islamabad", status: "active" },
+      { id: "c3", name: "Rizq LUMS Society", city: "Lahore", status: "inactive" },
+    ]);
+
+    expect(screen.queryByText(/Sub-divisions of the organization/i)).not.toBeInTheDocument();
+
+    await user.type(screen.getByRole("searchbox", { name: /search chapters by name/i }), "bahria");
+    expect(screen.getByText("Rizq BAHRIA H11 Chapter")).toBeInTheDocument();
+    expect(screen.queryByText("Rizq Air University Chapter")).not.toBeInTheDocument();
+    expect(screen.queryByText("Rizq LUMS Society")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByRole("searchbox", { name: /search chapters by name/i }));
+    await user.click(screen.getByRole("combobox", { name: /filter chapters by city/i }));
+    await user.click(screen.getByRole("option", { name: "Lahore" }));
+    expect(screen.getByText("Rizq LUMS Society")).toBeInTheDocument();
+    expect(screen.queryByText("Rizq Air University Chapter")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("combobox", { name: /filter chapters by city/i }));
+    await user.click(screen.getByRole("option", { name: "All cities" }));
+    await user.click(screen.getByRole("combobox", { name: /filter chapters by status/i }));
+    await user.click(screen.getByRole("option", { name: "Inactive" }));
+    expect(screen.getByText("Rizq LUMS Society")).toBeInTheDocument();
+    expect(screen.queryByText("Rizq BAHRIA H11 Chapter")).not.toBeInTheDocument();
   });
 });
 

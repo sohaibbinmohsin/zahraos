@@ -51,9 +51,6 @@ export default function MedicalSuppliesPage() {
           <h1 className="page-title text-2xl md:text-3xl font-bold tracking-tight text-[var(--ink)]">
             Medical Consumables &amp; Supplies
           </h1>
-          <p className="page-subtitle text-sm text-[var(--ink-2)] mt-0.5">
-            Real-time pre-hospital trauma stock levels, oxygen cylinder replenishment, and hub depot inventory.
-          </p>
         </div>
 
         <div className="page-toolbar flex items-center gap-2.5">

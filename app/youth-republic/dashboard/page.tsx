@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import {
@@ -12,9 +11,7 @@ import {
   type ApplicationListRow,
   type ActivityListRow,
 } from "@/lib/youthRepublicFunctions";
-import { listChapters, type ChapterRow } from "@/lib/platformFunctions";
-import { useSelectedOrg, useShellStaffToken, useShellAccessToken } from "@/components/shell/AppShell";
-import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
+import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { useToast } from "@/components/shell/ToastContext";
 import { DashboardSkeleton } from "@/components/ui/skeletons";
 import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
@@ -49,52 +46,8 @@ function timeAgo(iso: string): string {
 export default function YouthRepublicDashboardPage() {
   const organizationId = useSelectedOrg();
   const staffToken = useShellStaffToken();
-  const shellAccessToken = useShellAccessToken();
   const perms = useStaffPermissions();
   const { showToast } = useToast();
-
-  const token = shellAccessToken || staffToken;
-
-  const { data: chapters } = useSWR(
-    perms.isChapterScoped && organizationId && token
-      ? ["chapters", organizationId]
-      : null,
-    async () => {
-      try {
-        const res = await listChapters({ organizationId: organizationId! }, token!);
-        return res.chapters ?? [];
-      } catch {
-        try {
-          const supabase = getBrowserSupabaseClient();
-          if (typeof supabase?.from === "function") {
-            const { data } = await supabase
-              .from("chapters")
-              .select("id, name")
-              .eq("organization_id", organizationId!);
-            return (data as ChapterRow[]) ?? [];
-          }
-        } catch {
-          // ignore
-        }
-        return [];
-      }
-    }
-  );
-
-  const chapterSubtitle = useMemo(() => {
-    if (!perms.isChapterScoped) {
-      return "Organization-wide operations & telemetry across all chapters.";
-    }
-    const scopedIds = perms.scopedChapterIds;
-    if (!scopedIds || scopedIds.length === 0) {
-      return "Live operations & shift telemetry for Assigned Chapter";
-    }
-    const names = scopedIds
-      .map((id) => chapters?.find((c) => c.id === id)?.name || id)
-      .filter(Boolean);
-    const resolvedName = names.length > 0 ? names.join(", ") : "Assigned Chapter";
-    return `Live operations & shift telemetry for ${resolvedName}`;
-  }, [perms.isChapterScoped, perms.scopedChapterIds, chapters]);
 
   const {
     data,
@@ -210,7 +163,6 @@ export default function YouthRepublicDashboardPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Operations Command Center</h1>
-          <div className="page-subtitle">{chapterSubtitle}</div>
         </div>
         <div className="page-toolbar">
           <button

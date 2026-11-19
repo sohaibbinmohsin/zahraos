@@ -230,9 +230,6 @@ export default function EmergencyCasesPage() {
           <h1 className="page-title text-2xl md:text-3xl font-bold tracking-tight text-[var(--ink)]">
             Emergency Cases Ledger
           </h1>
-          <p className="page-subtitle text-sm text-[var(--ink-2)] mt-0.5">
-            Full clinical audit trail of all rural emergency runs, patient vitals, telemetry milestones, and pre-hospital care.
-          </p>
         </div>
 
         <div className="page-toolbar flex items-center gap-2.5">

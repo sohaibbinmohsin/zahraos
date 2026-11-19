@@ -183,9 +183,6 @@ export default function YouthRepublicHoursPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Hours Verification &amp; Accreditation</h1>
-          <div className="page-subtitle">
-            Review submitted volunteer logs, adjust shift accreditation, and issue certified student service hours.
-          </div>
         </div>
         <div className="page-toolbar">
           <input
