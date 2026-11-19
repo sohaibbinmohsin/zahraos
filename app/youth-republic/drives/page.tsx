@@ -480,7 +480,6 @@ export default function YouthRepublicDrivesPage() {
                       </span>
                     )}
                   </div>
-                  {opp.description && <div className="opp-lead">{opp.description}</div>}
 
                   <div className="opp-meta-row">
                     <div className="opp-meta-item">

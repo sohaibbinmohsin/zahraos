@@ -1603,9 +1603,9 @@ h1, h2, h3, h4, h5, h6 {
   gap: .75rem;
   position: relative;
   box-shadow: var(--shadow-sm);
-  /* One height for every card. Tall enough for a full 80-character title
-     (four lines) plus a two-line description, so nothing is sliced off. */
-  height: 320px;
+  /* One height for every card. Sized for badges, a full 80-character
+     title, location, dates, capacity, and actions. No description. */
+  height: 264px;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -1637,21 +1637,6 @@ h1, h2, h3, h4, h5, h6 {
   flex-shrink: 0;
   overflow: visible;
   overflow-wrap: break-word;
-}
-
-.opp-lead {
-  font-size: var(--text-xs);
-  color: var(--ink-2);
-  margin-top: .25rem;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  overflow-wrap: break-word;
-  /* Keep the clamped box intact so the ellipsis is visible. */
-  flex-shrink: 0;
 }
 
 .opp-meta-row {
