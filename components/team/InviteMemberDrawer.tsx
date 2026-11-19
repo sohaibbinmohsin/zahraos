@@ -5,6 +5,8 @@ import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { inviteStaffMember, RequestTimeoutError } from "@/lib/platformFunctions";
 import { RoleScopeRepeater, makeRoleScopeRow, rowsToAssignmentPayload, type RoleScopeRow } from "./RoleScopeRepeater";
+import { useModuleCatalogs } from "./useModuleCatalogs";
+import { rolesWithTemplatePlace } from "./rolesWithTemplatePlace";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 
 interface CreatedMember {
@@ -15,6 +17,8 @@ interface CreatedMember {
 
 export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { organizationId, accessToken, roles, chapters, refresh } = useTeamAccess();
+  const { catalogs } = useModuleCatalogs(organizationId, accessToken, open);
+  const scopeRepeaterRoles = rolesWithTemplatePlace(roles, catalogs);
   const { showToast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -157,7 +161,7 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
                 <label className="form-label">Assigned Roles *</label>
                 <RoleScopeRepeater
                   rows={rows}
-                  roles={roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem, permissionKeys: r.permissionKeys }))}
+                  roles={scopeRepeaterRoles}
                   chapters={chapters.map((c) => ({ id: c.id, name: c.name, city: c.city }))}
                   onChange={setRows}
                   addLabel="+ Add Another Role"

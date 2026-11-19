@@ -7,6 +7,8 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { issueStaffTemporaryPassword, removeStaffMember, updateStaffAccess } from "@/lib/platformFunctions";
 import { effectivePermissionTags } from "@/lib/capabilityMap";
 import { RoleScopeRepeater, rowsToAssignmentPayload, groupAssignmentsToRows, type RoleScopeRow } from "./RoleScopeRepeater";
+import { useModuleCatalogs } from "./useModuleCatalogs";
+import { rolesWithTemplatePlace } from "./rolesWithTemplatePlace";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Select } from "@/components/ui/Select";
 
@@ -19,6 +21,8 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
   const { showToast } = useToast();
   const confirm = useConfirm();
   const member = members.find((m) => m.id === memberId) ?? null;
+  const { catalogs } = useModuleCatalogs(organizationId, accessToken, member !== null);
+  const scopeRepeaterRoles = rolesWithTemplatePlace(roles, catalogs);
   const [rows, setRows] = useState<RoleScopeRow[]>([]);
   const [status, setStatus] = useState<"active" | "invited" | "deactivated">("active");
   const [expiresAt, setExpiresAt] = useState("");
@@ -192,7 +196,7 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
                 <label className="form-label">Assigned Roles</label>
                 <RoleScopeRepeater
                   rows={rows}
-                  roles={roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem, permissionKeys: r.permissionKeys }))}
+                  roles={scopeRepeaterRoles}
                   chapters={chapters.map((c) => ({ id: c.id, name: c.name, city: c.city }))}
                   onChange={setRows}
                   addLabel="+ Add Role"

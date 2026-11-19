@@ -9,8 +9,9 @@ export interface MemberAssignment {
   id: string;
   roleId: string;
   roleName: string;
-  scopeKind: "org_wide" | "chapter";
+  scopeKind: "org_wide" | "chapter" | "city";
   chapterId: string | null;
+  city?: string | null;
   scopeLabel: string;
 }
 export interface TeamMember {
@@ -283,7 +284,7 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
 
       const { data: assignmentRows } = await supabase
         .from("staff_role_assignments")
-        .select("id, staff_id, role_id, scope_kind, chapter_id, scope_label, roles(name)")
+        .select("id, staff_id, role_id, scope_kind, chapter_id, city, scope_label, roles(name)")
         .eq("organization_id", organizationId)
         .eq("module_id", modId);
 
@@ -318,8 +319,9 @@ export function TeamAccessProvider({ children }: { children: React.ReactNode }) 
           id: a.id as string,
           roleId: a.role_id as string,
           roleName,
-          scopeKind: a.scope_kind as "org_wide" | "chapter",
+          scopeKind: a.scope_kind as "org_wide" | "chapter" | "city",
           chapterId: (a.chapter_id as string) ?? null,
+          city: (a.city as string) ?? null,
           scopeLabel: a.scope_label as string,
         });
         assignmentsByStaff.set(a.staff_id as string, list);

@@ -346,9 +346,9 @@ Deno.test("mintStaffToken resolves a city lead to active chapters in that city",
   const { data: lahore2 } = await supabase.from("chapters").insert({
     organization_id: org!.id, name: `Lahore-B-${crypto.randomUUID()}`, city: "Lahore", status: "active",
   }).select("id").single();
-  await supabase.from("chapters").insert({
+  const { data: karachiChapter } = await supabase.from("chapters").insert({
     organization_id: org!.id, name: `Karachi-${crypto.randomUUID()}`, city: "Karachi", status: "active",
-  });
+  }).select("id").single();
 
   const email = `city-lead-${crypto.randomUUID()}@example.com`;
   const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
@@ -374,6 +374,7 @@ Deno.test("mintStaffToken resolves a city lead to active chapters in that city",
   assertEquals(oppReadScope.includes(lahore1!.id), true);
   assertEquals(oppReadScope.includes(lahore2!.id), true);
   assertEquals(oppReadScope.length, 2);
+  assertEquals(oppReadScope.includes(karachiChapter!.id), false);
 });
 
 Deno.test("mintStaffToken emits empty chapter_scopes when city matches no chapter", async () => {
