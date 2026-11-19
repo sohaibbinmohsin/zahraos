@@ -266,61 +266,11 @@ describe("YouthRepublicDashboardPage", () => {
     });
   });
 
-  describe("contextual chapter telemetry subtitle", () => {
-    it("renders organization-wide telemetry subtitle when user is not chapter-scoped", async () => {
-      vi.mocked(useStaffPermissions).mockReturnValue({
-        ...allPerms,
-        isChapterScoped: false,
-        scopedChapterIds: null,
-      });
+  it("does not render a page subheadline under the dashboard title", async () => {
+    renderWithSwr(<YouthRepublicDashboardPage />);
 
-      renderWithSwr(<YouthRepublicDashboardPage />);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText("Organization-wide operations & telemetry across all chapters.")
-        ).toBeInTheDocument();
-      });
-    });
-
-    it("renders chapter-scoped telemetry subtitle resolving chapter name via listChapters", async () => {
-      vi.mocked(useStaffPermissions).mockReturnValue({
-        ...allPerms,
-        isChapterScoped: true,
-        scopedChapterIds: ["lhr"],
-      });
-      vi.mocked(platformFunctions.listChapters).mockResolvedValue({
-        chapters: [
-          { id: "lhr", name: "Lahore Chapter", status: "active", city: "Lahore" },
-        ],
-      });
-
-      renderWithSwr(<YouthRepublicDashboardPage />);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText("Live operations & shift telemetry for Lahore Chapter")
-        ).toBeInTheDocument();
-      });
-    });
-
-    it("renders chapter-scoped telemetry subtitle falling back to assigned chapter ID/name when not found in chapters list", async () => {
-      vi.mocked(useStaffPermissions).mockReturnValue({
-        ...allPerms,
-        isChapterScoped: true,
-        scopedChapterIds: ["Karachi Chapter"],
-      });
-      vi.mocked(platformFunctions.listChapters).mockResolvedValue({
-        chapters: [],
-      });
-
-      renderWithSwr(<YouthRepublicDashboardPage />);
-
-      await waitFor(() => {
-        expect(
-          screen.getByText("Live operations & shift telemetry for Karachi Chapter")
-        ).toBeInTheDocument();
-      });
-    });
+    expect(await screen.findByRole("heading", { name: "Operations Command Center" })).toBeInTheDocument();
+    expect(screen.queryByText(/operations & telemetry/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Live operations/i)).not.toBeInTheDocument();
   });
 });

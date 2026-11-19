@@ -386,9 +386,6 @@ export default function YouthRepublicDrivesPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Drives Noticeboard</h1>
-          <div className="page-subtitle">
-            Manage active drives, customize multi-field application forms, and track volunteer capacity.
-          </div>
         </div>
         <div className="page-toolbar flex items-center gap-3">
           <Select

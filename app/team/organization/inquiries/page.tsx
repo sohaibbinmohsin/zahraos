@@ -138,9 +138,6 @@ export default function InquiriesPage() {
         <div className="page-header" style={{ marginBottom: 0 }}>
           <div>
             <h1 className="page-title">Partner Inquiries</h1>
-            <div className="page-subtitle">
-              Review and manage incoming partnership inquiries submitted through the website.
-            </div>
           </div>
         </div>
 

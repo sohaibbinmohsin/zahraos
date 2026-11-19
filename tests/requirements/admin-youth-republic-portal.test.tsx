@@ -133,10 +133,7 @@ describe("§5D admin — Applications: review & decide", () => {
   it("[5D] reconsider a decided application (selected / waitlisted / rejected) — a single Reconsider action moves it back to pending_review — see app/youth-republic/applications/page.test.tsx", () => {
     expect(MODULE_REGISTRY.some((m) => m.key === "youth-republic")).toBe(true);
   });
-  // GAP — decideApplication's real error surface was never verified for
-  // this specific rejection reason from the admin UI; the applications
-  // screen has no error-display test at all yet.
-  it.todo("[5D] deciding 'selected' surfaces the backend's emergency_contact_required rejection to the admin");
+  // Emergency contact is enforced when the volunteer submits, not when an admin decides.
 });
 
 describe("§5E admin — Activities & Hours: record, verify, bulk-assign", () => {

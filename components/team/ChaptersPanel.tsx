@@ -5,6 +5,7 @@ import { useToast } from "@/components/shell/ToastContext";
 import { createChapter, updateChapter, type ChapterRow } from "@/lib/platformFunctions";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Card } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Select";
 import { useStaffPermissions } from "@/components/shell/useStaffPermissions";
 import { EditChapterDrawer } from "./EditChapterDrawer";
 
@@ -24,6 +25,9 @@ export function ChaptersPanel({
   const [busy, setBusy] = useState<"add" | string | null>(null);
   const [editingChapter, setEditingChapter] = useState<ChapterRow | null>(null);
   const [isDrawerReadOnly, setIsDrawerReadOnly] = useState(false);
+  const [nameQuery, setNameQuery] = useState("");
+  const [cityFilter, setCityFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const sortedChapters = useMemo(() => {
     return [...chapters].sort((a, b) => {
@@ -35,6 +39,22 @@ export function ChaptersPanel({
       return a.name.localeCompare(b.name);
     });
   }, [chapters, perms]);
+
+  const cityOptions = useMemo(() => {
+    const cities = [...new Set(chapters.map((c) => c.city?.trim()).filter((c): c is string => Boolean(c)))];
+    cities.sort((a, b) => a.localeCompare(b));
+    return [{ value: "all", label: "All cities" }, ...cities.map((city) => ({ value: city, label: city }))];
+  }, [chapters]);
+
+  const visibleChapters = useMemo(() => {
+    const q = nameQuery.trim().toLowerCase();
+    return sortedChapters.filter((c) => {
+      if (q && !c.name.toLowerCase().includes(q)) return false;
+      if (cityFilter !== "all" && (c.city ?? "") !== cityFilter) return false;
+      if (statusFilter !== "all" && c.status !== statusFilter) return false;
+      return true;
+    });
+  }, [sortedChapters, nameQuery, cityFilter, statusFilter]);
 
   function closeForm() {
     setShowForm(false);
@@ -72,15 +92,39 @@ export function ChaptersPanel({
       <div className="flex items-start justify-between gap-3" style={{ marginBottom: ".75rem" }}>
         <div>
           <h2 className="panel-title">Chapters</h2>
-          <p style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", marginTop: ".35rem" }}>
-            Sub-divisions of the organization. Assigning a role a chapter scope limits that admin to the chapter&apos;s opportunities.
-          </p>
         </div>
         {perms.canCreateChapters && !showForm && (
           <button type="button" className="btn btn-primary btn-sm flex-shrink-0" onClick={() => setShowForm(true)}>
             Add Chapter
           </button>
         )}
+      </div>
+
+      <div className="page-toolbar" style={{ marginBottom: ".85rem" }}>
+        <input
+          type="search"
+          className="search-input"
+          aria-label="Search chapters by name"
+          placeholder="Search chapter name..."
+          value={nameQuery}
+          onChange={(e) => setNameQuery(e.target.value)}
+        />
+        <Select
+          aria-label="Filter chapters by city"
+          value={cityFilter}
+          onChange={setCityFilter}
+          options={cityOptions}
+        />
+        <Select
+          aria-label="Filter chapters by status"
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: "all", label: "All statuses" },
+            { value: "active", label: "Active" },
+            { value: "inactive", label: "Inactive" },
+          ]}
+        />
       </div>
 
       {perms.canCreateChapters && showForm && (
@@ -106,7 +150,9 @@ export function ChaptersPanel({
           <tbody>
             {chapters.length === 0 ? (
               <tr><td colSpan={4} style={{ textAlign: "center", padding: "1.5rem", color: "var(--ink-3)" }}>No chapters yet.</td></tr>
-            ) : sortedChapters.map((c) => {
+            ) : visibleChapters.length === 0 ? (
+              <tr><td colSpan={4} style={{ textAlign: "center", padding: "1.5rem", color: "var(--ink-3)" }}>No chapters match these filters.</td></tr>
+            ) : visibleChapters.map((c) => {
               const canEdit = perms.canEditChapter(c.id);
               const canDeactivate = canEdit && !perms.isChapterScoped;
               return (

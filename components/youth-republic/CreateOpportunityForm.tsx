@@ -537,7 +537,6 @@ export function CreateOpportunityForm({
           <h1 className="page-title">
             {initialOpportunity?.id ? "Edit Drive" : "Create New Drive"}
           </h1>
-          <div className="page-subtitle">Full specifications &amp; built-in application form builder</div>
         </div>
         <div className="page-toolbar">
           {initialOpportunity?.id && (

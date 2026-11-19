@@ -191,9 +191,6 @@ function ApplicationsContent() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Volunteer Applications</h1>
-          <div className="page-subtitle">
-            Candidate Triage Queue, dynamic questionnaire responses &amp; batch decisioning across drives.
-          </div>
         </div>
         <div className="page-toolbar">
           <input

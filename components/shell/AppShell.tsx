@@ -508,7 +508,6 @@ export function AppShell({
     return uniqueRoles;
   }, [platformOwner, orgTier, selectedOrgId, assignedRolesByOrg, claims]);
 
-  const primaryRole = userRoles[0];
   const isOrgAdminOrAbove =
     isMaseehaModule ||
     orgTier === "admin" ||
@@ -519,7 +518,6 @@ export function AppShell({
   const showOrganizationsNav = Boolean(claims) && platformOwner && !isMaseehaModule;
 
   const displayName = fullName || (isMaseehaModule ? "Saving 9 Admin" : null);
-  const displayRole = primaryRole || (isMaseehaModule ? "Chapter Supervisor" : "Staff");
 
   const initials = displayName
     ? displayName
@@ -553,7 +551,6 @@ export function AppShell({
           brandColor={brandColor}
           brandInitials={brandInitials}
           displayName={displayName}
-          displayRole={displayRole}
           initials={initials}
           email={email}
           userRoles={userRoles}
@@ -583,7 +580,6 @@ interface AppShellContentProps {
   brandColor: string;
   brandInitials: string;
   displayName: string | null;
-  displayRole: string;
   initials: string;
   email: string | null;
   userRoles: string[];
@@ -608,7 +604,6 @@ function AppShellContent({
   brandColor,
   brandInitials,
   displayName,
-  displayRole,
   initials,
   email,
   userRoles,
@@ -1404,9 +1399,6 @@ function AppShellContent({
                   <div className="avatar">{initials}</div>
                   <div className="user-text-info">
                     {displayName && <div style={{ fontWeight: 600, lineHeight: 1.1 }}>{displayName}</div>}
-                    <div style={{ fontSize: "var(--text-2xs)", color: "var(--ink-2)", fontWeight: 500 }}>
-                      {displayRole}
-                    </div>
                   </div>
                 </div>
 

@@ -8,6 +8,19 @@ type Decision = DecideApplicationPayload["decision"];
 
 const PENDING_STATUSES = ["pending_review", "submitted", "under_review"];
 
+function identityClearance(
+  status: string | null | undefined,
+  idDocType: string | null | undefined,
+): { label: string; badge: string } {
+  const doc =
+    idDocType === "b_form" ? "B-Form" :
+    idDocType === "passport" ? "Passport" :
+    "CNIC";
+  if (status === "active") return { label: `${doc} Verified`, badge: "badge-pos" };
+  if (status === "inactive") return { label: `${doc} Inactive`, badge: "badge-neu" };
+  return { label: `${doc} Not Verified`, badge: "badge-pend" };
+}
+
 const DECISION_META: Record<Decision, { label: string; loadingLabel: string; variant: string }> = {
   selected: { label: "Select", loadingLabel: "Selecting…", variant: "btn-primary" },
   waitlisted: { label: "Waitlist", loadingLabel: "Waitlisting…", variant: "btn-secondary" },
@@ -55,6 +68,7 @@ export function ApplicationReviewDrawer({
   }
 
   const isPending = PENDING_STATUSES.includes(application.status);
+  const clearance = identityClearance(application.volunteerStatus, application.idDocType);
 
   const answerRows = applicationAnswerRows(application.answers, application.formSnapshot);
 
@@ -126,8 +140,8 @@ export function ApplicationReviewDrawer({
 
             <div className="mt-3 pt-3 border-t border-[var(--line-subtle)] flex flex-wrap gap-4 text-xs text-[var(--ink-2)]">
               <div>
-                <span className="text-[var(--ink-3)] block text-[10px] font-semibold">Applied Timestamp</span>
-                <span className="font-mono">
+                <span className="text-[var(--ink-3)] block text-[var(--text-2xs)] font-semibold">Applied Timestamp</span>
+                <span>
                   {new Date(application.appliedAt).toLocaleDateString("en-PK", {
                     day: "2-digit",
                     month: "short",
@@ -138,8 +152,8 @@ export function ApplicationReviewDrawer({
                 </span>
               </div>
               <div>
-                <span className="text-[var(--ink-3)] block text-[10px] font-semibold">Security Clearance</span>
-                <span className="font-semibold text-emerald-700">CNIC Verified</span>
+                <span className="text-[var(--ink-3)] block text-[var(--text-2xs)] font-semibold">Security Clearance</span>
+                <span className={`badge ${clearance.badge}`}>{clearance.label}</span>
               </div>
             </div>
           </div>

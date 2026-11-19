@@ -31,9 +31,6 @@ export default function MaseehaDashboardPage() {
           <h1 className="page-title text-2xl md:text-3xl font-bold tracking-tight text-[var(--ink)]">
             Operations Command Center
           </h1>
-          <p className="page-subtitle text-sm text-[var(--ink-2)] mt-0.5">
-            Pre-hospital ambulance dispatch, telemetry triage, and clinical oversight across Pind Begwal, Tumair, and Jheeng.
-          </p>
         </div>
 
         <div className="page-toolbar flex items-center gap-2.5">

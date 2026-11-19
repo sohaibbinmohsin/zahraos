@@ -49,6 +49,11 @@
   --shadow-pop: 3px 3px 0px #14161B;
   --maxw: 100%;
 
+  /* Loaded in app/layout.tsx. Body copy is Inter; titles are Plus Jakarta Sans. */
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
   /* Typography Scale */
   --text-2xs: 0.6875rem; /* 11px */
   --text-xs:  0.75rem;   /* 12px */
@@ -1601,7 +1606,9 @@ h1, h2, h3, h4, h5, h6 {
   gap: .75rem;
   position: relative;
   box-shadow: var(--shadow-sm);
-  height: 235px;
+  /* One height for every card. The title slot below is sized for the
+     80-character drive-name limit, so a full title is never clipped. */
+  height: 276px;
   box-sizing: border-box;
 }
 
@@ -1629,10 +1636,11 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--ink);
   line-height: 1.25;
   letter-spacing: .01em;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  /* Four lines covers an 80-character name (including a run of wide glyphs)
+     at the narrowest card width (320px). Do not clamp this. */
+  flex-shrink: 0;
+  min-height: calc(1.25em * 4);
+  overflow-wrap: anywhere;
   word-break: break-word;
 }
 
@@ -1642,9 +1650,10 @@ h1, h2, h3, h4, h5, h6 {
   margin-top: .25rem;
   line-height: 1.4;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-overflow: ellipsis;
   word-break: break-word;
 }
 
@@ -2080,6 +2089,9 @@ input[type="radio"] {
   flex-direction: column;
   transform: translateX(100%);
   transition: transform .25s cubic-bezier(.16,1,.3,1);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--ink);
 }
 
 .drawer.open { transform: translateX(0); }

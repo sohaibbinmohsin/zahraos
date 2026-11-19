@@ -58,6 +58,7 @@ describe("YouthRepublicApplicationsPage", () => {
         id: "app-1", volunteerId: "vol-1", volunteerName: "Aisha Khan", opportunityId: "opp-1",
         opportunityName: "Beach Cleanup", status: "submitted", appliedAt: "2026-01-01T00:00:00Z",
         applicantName: "Aisha Khan", applicantEmail: "aisha@example.com", applicantPhone: "0300-1234567",
+        volunteerStatus: "pending_verification", idDocType: "cnic",
         answers: {}, formSnapshot: null, attachmentIdsByField: {},
       }],
       total: 1,
@@ -233,6 +234,26 @@ describe("YouthRepublicApplicationsPage", () => {
       expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
       // Close button should be present
       expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+      expect(screen.getByText("CNIC Not Verified")).toBeInTheDocument();
+      expect(screen.queryByText("CNIC Verified")).not.toBeInTheDocument();
+    });
+
+    it("shows CNIC Verified only when the volunteer's identity status is active", async () => {
+      vi.mocked(youthRepublicFunctions.listApplications).mockResolvedValue({
+        applications: [{
+          id: "app-1", volunteerId: "vol-1", volunteerName: "Aisha Khan", opportunityId: "opp-1",
+          opportunityName: "Beach Cleanup", status: "submitted", appliedAt: "2026-01-01T00:00:00Z",
+          applicantName: "Aisha Khan", applicantEmail: "aisha@example.com", applicantPhone: "0300-1234567",
+          volunteerStatus: "active", idDocType: "cnic",
+          answers: {}, formSnapshot: null, attachmentIdsByField: {},
+        }],
+        total: 1,
+      });
+      const user = userEvent.setup();
+      renderWithSwr(<YouthRepublicApplicationsPage />);
+      expect(await screen.findByText("Aisha Khan")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Review Answers" }));
+      expect(await screen.findByText("CNIC Verified")).toBeInTheDocument();
     });
 
     it("renders volunteerCode and filters applications by volunteerCode search", async () => {

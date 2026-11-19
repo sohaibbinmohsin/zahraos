@@ -205,6 +205,10 @@ export interface ApplicationListRow {
   applicantName: string | null;
   applicantEmail: string | null;
   applicantPhone: string | null;
+  /** volunteers.status: pending_verification | active | inactive. Active means identity was verified. */
+  volunteerStatus?: string | null;
+  /** volunteers.id_doc_type: cnic | b_form | passport. */
+  idDocType?: string | null;
   answers: Record<string, unknown>;
   formSnapshot: unknown;
   attachmentIdsByField: Record<string, string[]>;

@@ -45,9 +45,6 @@ export default function FleetReadinessPage() {
           <h1 className="page-title text-2xl md:text-3xl font-bold tracking-tight text-[var(--ink)]">
             Ambulance Fleet &amp; Crew Readiness
           </h1>
-          <p className="page-subtitle text-sm text-[var(--ink-2)] mt-0.5">
-            Vehicle readiness telemetry, active crew roster, fuel/oxygen gauges, and hub dispatch stations.
-          </p>
         </div>
 
         <div className="page-toolbar flex items-center gap-2.5">
