@@ -79,6 +79,7 @@ describe("YouthRepublicApplicationsPage", () => {
       expect(youthRepublicFunctions.decideApplication).toHaveBeenCalledWith(
         { applicationId: "app-1", decision: "selected" },
         "staff-jwt",
+        { organizationId: "org-1" },
       );
     });
   });
@@ -120,6 +121,7 @@ describe("YouthRepublicApplicationsPage", () => {
       expect(youthRepublicFunctions.decideApplication).toHaveBeenCalledWith(
         { applicationId: "app-2", decision: "selected" },
         "staff-jwt",
+        { organizationId: "org-1" },
       );
     });
   });

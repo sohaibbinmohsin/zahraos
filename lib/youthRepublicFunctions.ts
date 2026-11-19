@@ -1,20 +1,71 @@
 import type { FormDefinition } from "./forms";
 
-async function callYouthRepublicFunction<TResponse>(name: string, body: unknown, staffToken: string): Promise<TResponse> {
+// Most Youth Republic reads finish well under 8s. decide-application is
+// slower: Select writes participation, refreshes the volunteer index, and
+// (until the youth-republic waitUntil fix) awaits a status email. Eight
+// seconds was aborting successful Selects and surfacing "Fetch is aborted"
+// even when the server had already committed (zahraos#52).
+const DEFAULT_TIMEOUT_MS = 8_000;
+const DECIDE_APPLICATION_TIMEOUT_MS = 60_000;
+const RECONCILE_PAUSE_MS = 500;
+
+const SLOW_MUTATIONS = new Set(["decide-application"]);
+
+export class YouthRepublicRequestTimeoutError extends Error {
+  constructor() {
+    super(
+      "The request timed out before the server finished. Refresh the page and check whether the change was saved.",
+    );
+    this.name = "YouthRepublicRequestTimeoutError";
+  }
+}
+
+export function isYouthRepublicAbortError(err: unknown): boolean {
+  if (err instanceof YouthRepublicRequestTimeoutError) return true;
+  if (err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError")) return true;
+  if (
+    err instanceof Error &&
+    /signal timed out|aborted due to timeout|The operation was aborted|Fetch is aborted|The user aborted a request/i.test(
+      err.message,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+function timeoutMsFor(name: string): number {
+  return SLOW_MUTATIONS.has(name) ? DECIDE_APPLICATION_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
+}
+
+async function callYouthRepublicFunction<TResponse>(
+  name: string,
+  body: unknown,
+  staffToken: string,
+  timeoutMs: number = timeoutMsFor(name),
+): Promise<TResponse> {
   const baseUrl = process.env.NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL;
   if (!baseUrl) {
     throw new Error("NEXT_PUBLIC_YOUTH_REPUBLIC_FUNCTIONS_URL is not set");
   }
 
-  const response = await fetch(`${baseUrl}/${name}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${staffToken}`,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(8000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}/${name}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${staffToken}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err) {
+    if (isYouthRepublicAbortError(err)) {
+      throw new YouthRepublicRequestTimeoutError();
+    }
+    throw err;
+  }
 
   const data = await response.json();
   if (!response.ok) {
@@ -388,9 +439,11 @@ export function getAttachment(payload: GetAttachmentPayload, staffToken: string)
   return callYouthRepublicFunction<{ url: string }>("get-attachment", payload, staffToken);
 }
 
-// No organizationId here — decideApplication derives it from the
-// application row itself server-side (the cross-tenant-trust fix from the
-// earlier review), so there's nothing for the client to pass or trust.
+// organizationId is not sent to the Edge Function — the handler derives the
+// org from the application row (cross-tenant-trust fix). The optional
+// `organizationId` on DecideApplicationOptions is client-only: after a
+// timeout/abort we re-list applications for that org to see whether the
+// server still committed the decision.
 export interface DecideApplicationPayload {
   applicationId: string;
   // "pending_review" is the "reconsider" path — moves a decided application
@@ -401,8 +454,80 @@ export interface DecideApplicationResponse {
   applicationId: string;
   participationId: string | null;
 }
-export function decideApplication(payload: DecideApplicationPayload, staffToken: string) {
-  return callYouthRepublicFunction<DecideApplicationResponse>("decide-application", payload, staffToken);
+export interface DecideApplicationOptions {
+  /** Used only to reconcile UI state after a client abort/timeout. */
+  organizationId?: string;
+}
+
+/**
+ * After the client aborts, the Edge Function often keeps running. Re-fetch
+ * applications filtered to the requested decision and treat a matching row as
+ * success so we do not show a hard failure (or invite a duplicate retry) when
+ * the write already landed.
+ */
+async function reconcileDecideAfterTimeout(
+  payload: DecideApplicationPayload,
+  staffToken: string,
+  organizationId: string,
+): Promise<DecideApplicationResponse | null> {
+  await new Promise((resolve) => setTimeout(resolve, RECONCILE_PAUSE_MS));
+
+  // Prefer a status-filtered list so a newly decided row is more likely to
+  // appear even when the org has many applications (list default is 25).
+  // Always check `status` on the row — do not trust the filter alone.
+  const filtered = await callYouthRepublicFunction<ListApplicationsResponse>(
+    "list-applications",
+    { organizationId, status: payload.decision, limit: 100 },
+    staffToken,
+    DEFAULT_TIMEOUT_MS,
+  );
+  const filteredMatch = filtered.applications.find((a) => a.id === payload.applicationId);
+  if (filteredMatch?.status === payload.decision) {
+    return { applicationId: payload.applicationId, participationId: null };
+  }
+
+  // Fallback: unfiltered page in case the status-filtered page missed the row
+  // (pagination) or the filter was a no-op.
+  const broad = await callYouthRepublicFunction<ListApplicationsResponse>(
+    "list-applications",
+    { organizationId, limit: 100 },
+    staffToken,
+    DEFAULT_TIMEOUT_MS,
+  );
+  const row = broad.applications.find((a) => a.id === payload.applicationId);
+  if (row?.status === payload.decision) {
+    return { applicationId: payload.applicationId, participationId: null };
+  }
+  return null;
+}
+
+export async function decideApplication(
+  payload: DecideApplicationPayload,
+  staffToken: string,
+  options?: DecideApplicationOptions,
+): Promise<DecideApplicationResponse> {
+  try {
+    return await callYouthRepublicFunction<DecideApplicationResponse>(
+      "decide-application",
+      payload,
+      staffToken,
+    );
+  } catch (err) {
+    if (!isYouthRepublicAbortError(err)) throw err;
+    if (!options?.organizationId) throw new YouthRepublicRequestTimeoutError();
+
+    try {
+      const reconciled = await reconcileDecideAfterTimeout(
+        payload,
+        staffToken,
+        options.organizationId,
+      );
+      if (reconciled) return reconciled;
+    } catch {
+      // Reconcile fetch failed — fall through to the timeout error.
+    }
+    throw new YouthRepublicRequestTimeoutError();
+  }
 }
 
 // decision is required — the handler has no separate "verify" vs "reject"
