@@ -72,7 +72,7 @@ export function ChaptersPanel({
       onChanged();
     } catch (err) {
       showToast(err instanceof Error && err.message === "chapter_name_taken"
-        ? "A chapter with that name already exists." : "Failed to add chapter.");
+        ? "A chapter with that name already exists." : "Failed to add chapter.", "error");
     } finally { setBusy(null); }
   }
 
@@ -83,7 +83,7 @@ export function ChaptersPanel({
       await updateChapter({ chapterId, status: current === "active" ? "inactive" : "active" }, accessToken);
       onChanged();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to update chapter.");
+      showToast(err instanceof Error ? err.message : "Failed to update chapter.", "error");
     } finally { setBusy(null); }
   }
 

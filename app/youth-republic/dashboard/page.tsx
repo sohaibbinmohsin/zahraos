@@ -95,7 +95,7 @@ export default function YouthRepublicDashboardPage() {
     },
     {
       onError: (err) =>
-        showToast(err instanceof Error ? `Dashboard load failed: ${err.message}` : "Dashboard load failed."),
+        showToast(err instanceof Error ? `Dashboard load failed: ${err.message}` : "Dashboard load failed.", "error"),
     },
   );
   const kpis = data?.kpis ?? null;

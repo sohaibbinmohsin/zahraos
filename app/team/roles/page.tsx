@@ -59,7 +59,7 @@ export default function TeamRolesPage() {
     } catch (err) {
       showToast(err instanceof Error && err.message === "role_in_use"
         ? `Cannot delete "${role.name}" — it is still assigned. Reassign those members first.`
-        : "Failed to delete role.");
+        : "Failed to delete role.", "error");
     } finally {
       setDeletingRoleId(null);
     }

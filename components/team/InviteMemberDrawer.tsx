@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
-import { inviteStaffMember } from "@/lib/platformFunctions";
+import { inviteStaffMember, RequestTimeoutError } from "@/lib/platformFunctions";
 import { RoleScopeRepeater, makeRoleScopeRow, rowsToAssignmentPayload, type RoleScopeRow } from "./RoleScopeRepeater";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 
@@ -37,7 +37,7 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
 
   async function submit() {
     if (!name.trim() || !email.trim()) {
-      showToast("Please enter the member's full name and work email.");
+      showToast("Please enter the member's full name and work email.", "error");
       return;
     }
     if (!organizationId || !accessToken) return;
@@ -55,7 +55,10 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
       setCreated({ name: name.trim(), email: email.trim(), temporaryPassword: res.temporaryPassword });
       showToast(`${name.trim()} added to the team.`);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to add team member.");
+      const message = err instanceof RequestTimeoutError
+        ? "Creating the member took too long to confirm. Refresh the team list. If they are there, open them and issue a new temporary password."
+        : err instanceof Error ? err.message : "Failed to add team member.";
+      showToast(message, "error");
     } finally {
       setBusy(false);
     }
@@ -73,7 +76,7 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      showToast("Couldn't copy — select the text manually.");
+      showToast("Couldn't copy — select the text manually.", "error");
     }
   }
 
@@ -116,7 +119,7 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
               </button>
 
               <p className="text-xs text-[var(--ink-2)]">
-                This password is shown once. If it&apos;s lost, remove the member and add them again.
+                This password is shown once. If it&apos;s lost, open the member and issue a new temporary password.
               </p>
             </div>
 

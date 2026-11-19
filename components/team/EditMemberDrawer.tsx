@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { useConfirm } from "@/components/ui/ConfirmDialog";
-import { removeStaffMember, updateStaffAccess } from "@/lib/platformFunctions";
+import { issueStaffTemporaryPassword, removeStaffMember, updateStaffAccess } from "@/lib/platformFunctions";
 import { effectivePermissionTags } from "@/lib/capabilityMap";
 import { RoleScopeRepeater, rowsToAssignmentPayload, groupAssignmentsToRows, type RoleScopeRow } from "./RoleScopeRepeater";
 import { LoadingButton } from "@/components/ui/LoadingButton";
@@ -22,13 +22,17 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
   const [rows, setRows] = useState<RoleScopeRow[]>([]);
   const [status, setStatus] = useState<"active" | "invited" | "deactivated">("active");
   const [expiresAt, setExpiresAt] = useState("");
-  const [busy, setBusy] = useState<"save" | "remove" | null>(null);
+  const [busy, setBusy] = useState<"save" | "remove" | "password" | null>(null);
+  const [issuedPassword, setIssuedPassword] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (member) {
       setRows(groupAssignmentsToRows(member.assignments, chapters));
       setStatus(member.status);
       setExpiresAt(member.expiresAt ? member.expiresAt.slice(0, 10) : "");
+      setIssuedPassword(null);
+      setCopied(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberId]);
@@ -52,7 +56,7 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
       showToast(`Saved access changes for ${member.fullName}.`);
       onClose();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to save changes.");
+      showToast(err instanceof Error ? err.message : "Failed to save changes.", "error");
     } finally {
       setBusy(null);
     }
@@ -74,9 +78,56 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
       showToast(`Removed ${member.fullName} from the team.`);
       onClose();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to remove member.");
+      showToast(err instanceof Error ? err.message : "Failed to remove member.", "error");
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function issuePassword() {
+    if (!member || !organizationId || !accessToken) return;
+    const ok = await confirm({
+      title: "Issue a new temporary password?",
+      message: `${member.fullName}'s current password will stop working. Share the new one with them. They set their own password the next time they sign in.`,
+      confirmLabel: "Issue password",
+    });
+    if (!ok) return;
+    setBusy("password");
+    try {
+      const res = await issueStaffTemporaryPassword({
+        staffId: member.id,
+        organizationId,
+      }, accessToken);
+      setIssuedPassword(res.temporaryPassword);
+      showToast(`New temporary password issued for ${member.fullName}.`);
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      const message = code === "member_deactivated"
+        ? "Restore this member before issuing a password."
+        : code === "member_has_no_sign_in"
+          ? "This member has no sign-in yet."
+          : code === "forbidden"
+            ? "You can't issue a password for this member."
+            : code || "Failed to issue a temporary password.";
+      showToast(message, "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copyPassword() {
+    if (!member || !issuedPassword) return;
+    const text =
+      `Rizq Admin — sign in\n` +
+      `Email: ${member.email}\n` +
+      `Temporary password: ${issuedPassword}\n` +
+      `You'll be asked to set your own password on first login.`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showToast("Couldn't copy — select the text manually.", "error");
     }
   }
 
@@ -104,6 +155,37 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
                   <div style={{ fontWeight: 600, fontSize: "var(--text-base)" }}>{member.fullName}</div>
                   <div style={{ fontSize: "var(--text-sm)", color: "var(--ink-2)" }}>{member.email}</div>
                 </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Sign-in password</label>
+                {issuedPassword ? (
+                  <div className="rounded-lg border border-[var(--line)] bg-white p-3 flex flex-col gap-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs font-semibold text-[var(--ink-3)]">Temporary password</span>
+                      <span className="font-mono text-sm font-bold text-[var(--ink)]">{issuedPassword}</span>
+                    </div>
+                    <button type="button" className="btn btn-secondary btn-xs" onClick={copyPassword}>
+                      {copied ? "Copied ✓" : "Copy sign-in details"}
+                    </button>
+                    <p className="text-xs text-[var(--ink-2)]">Shown once. They set their own password on next sign-in.</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <LoadingButton
+                      className="btn btn-secondary btn-xs"
+                      disabled={busy !== null}
+                      loading={busy === "password"}
+                      loadingText="Issuing…"
+                      onClick={issuePassword}
+                    >
+                      Issue new temporary password
+                    </LoadingButton>
+                    <p className="text-xs text-[var(--ink-2)]">
+                      Use this when the password from creating the member was never shown.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="form-group">
