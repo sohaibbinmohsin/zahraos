@@ -29,7 +29,7 @@ const { routerPush, routerRefresh } = vi.hoisted(() => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: routerPush, refresh: routerRefresh }),
+  useRouter: () => ({ push: routerPush, replace: vi.fn(), refresh: routerRefresh }),
   usePathname: () => "/youth-republic/dashboard",
   useSearchParams: () => new URLSearchParams(),
 }));

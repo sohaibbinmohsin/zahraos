@@ -155,7 +155,7 @@ describe("YouthRepublicHoursPage", () => {
     expect(screen.getByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
     expect(screen.getByText(/Hours/i)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Youth Republic/i })).toHaveAttribute("href", "/youth-republic");
+    expect(screen.getByRole("link", { name: "Go to Dashboard" })).toHaveAttribute("href", "/youth-republic/dashboard");
   });
 
   describe("action button permissions gating", () => {

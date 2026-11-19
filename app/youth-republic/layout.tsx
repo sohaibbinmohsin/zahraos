@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { firstAllowedDestination } from "@/lib/landingPath";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { useSelectedOrg, useShellStaffToken } from "@/components/shell/AppShell";
 import { useCenterActiveTab } from "@/components/shell/useCenterActiveTab";
@@ -87,6 +88,7 @@ const TAB_META: TabMetaItem[] = [
 
 export default function YouthRepublicModuleLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const organizationId = useSelectedOrg();
   const staffToken = useShellStaffToken();
   const perms = useStaffPermissions();
@@ -94,6 +96,15 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
   const { wrapRef, onTabClick } = useCenterActiveTab(pathname);
 
   const visibleTabs = TAB_META.filter((tab) => Boolean(perms[tab.permission]));
+  const currentTabAllowed = visibleTabs.some(
+    (tab) => pathname === tab.href || pathname?.startsWith(`${tab.href}/`),
+  );
+  const landingHref = firstAllowedDestination(perms)?.href ?? null;
+  const leaveModule = Boolean(pathname?.startsWith("/youth-republic") && !currentTabAllowed);
+
+  useEffect(() => {
+    if (leaveModule) router.replace(landingHref ?? "/");
+  }, [leaveModule, landingHref, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,6 +152,8 @@ export default function YouthRepublicModuleLayout({ children }: { children: Reac
       cancelled = true;
     };
   }, [organizationId, staffToken, perms.canViewApplications, perms.canViewHours]);
+
+  if (leaveModule) return null;
 
   function badgeFor(key: string | null): string | null {
     if (!key || !badges) return null;

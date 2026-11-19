@@ -130,8 +130,6 @@ export default function YouthRepublicHoursPage() {
       <AccessDeniedGate
         allowed={perms.canViewHours}
         sectionName="Hours"
-        fallbackRoute="/youth-republic"
-        fallbackLabel="Youth Republic"
       >
         <div className="panel p-8 text-center">
           <p className="text-[var(--ink-2)] font-medium">Select an organization to see its activity hours.</p>
@@ -145,8 +143,6 @@ export default function YouthRepublicHoursPage() {
       <AccessDeniedGate
         allowed={perms.canViewHours}
         sectionName="Hours"
-        fallbackRoute="/youth-republic"
-        fallbackLabel="Youth Republic"
       >
         <ListPageSkeleton columns={7} rows={6} filterBar={false} toolbarItems={4} />
       </AccessDeniedGate>
@@ -175,8 +171,6 @@ export default function YouthRepublicHoursPage() {
     <AccessDeniedGate
       allowed={perms.canViewHours}
       sectionName="Hours"
-      fallbackRoute="/youth-republic"
-      fallbackLabel="Youth Republic"
     >
       <div className="space-y-6">
       {/* Page Header */}

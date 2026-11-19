@@ -291,8 +291,6 @@ export default function YouthRepublicDrivesPage() {
       <AccessDeniedGate
         allowed={perms.canViewDrives}
         sectionName="Drives"
-        fallbackRoute="/youth-republic"
-        fallbackLabel="Youth Republic"
       >
         <div className="panel p-8 text-center">
           <p className="text-[var(--ink-2)] font-medium">Select an organization to see its drives.</p>
@@ -306,8 +304,6 @@ export default function YouthRepublicDrivesPage() {
       <AccessDeniedGate
         allowed={perms.canViewDrives}
         sectionName="Drives"
-        fallbackRoute="/youth-republic"
-        fallbackLabel="Youth Republic"
       >
         <div className="space-y-6">
           <button
@@ -379,8 +375,6 @@ export default function YouthRepublicDrivesPage() {
     <AccessDeniedGate
       allowed={perms.canViewDrives}
       sectionName="Drives"
-      fallbackRoute="/youth-republic"
-      fallbackLabel="Youth Republic"
     >
       <div className="space-y-6">
       <div className="page-header">

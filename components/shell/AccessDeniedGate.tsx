@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { useLandingDestination } from "./useLandingDestination";
 
 export interface AccessDeniedGateProps {
   allowed: boolean;
@@ -11,22 +12,29 @@ export interface AccessDeniedGateProps {
   children: ReactNode;
 }
 
+function linkLabel(label: string): string {
+  const lower = label.toLowerCase();
+  if (lower.startsWith("go to") || lower.startsWith("return") || lower.startsWith("back")) return label;
+  return `Go to ${label}`;
+}
+
 export function AccessDeniedGate({
   allowed,
   sectionName,
-  fallbackRoute = "/youth-republic",
-  fallbackLabel = "Youth Republic",
+  fallbackRoute,
+  fallbackLabel,
   children,
 }: AccessDeniedGateProps) {
+  const landing = useLandingDestination();
   if (allowed) {
     return <>{children}</>;
   }
 
-  const label =
-    fallbackLabel.toLowerCase().startsWith("return") ||
-    fallbackLabel.toLowerCase().startsWith("back")
-      ? fallbackLabel
-      : `Return to ${fallbackLabel}`;
+  const href = fallbackRoute ?? landing?.href;
+  const name = fallbackLabel ?? landing?.label;
+  const pathname = typeof window === "undefined" ? "" : window.location.pathname;
+  const loops = Boolean(href && (pathname === href || pathname.startsWith(`${href}/`)));
+  const showLink = Boolean(href && name && !loops);
 
   return (
     <div
@@ -67,11 +75,13 @@ export function AccessDeniedGate({
         </p>
       </div>
 
-      <div className="pt-2">
-        <Link href={fallbackRoute} className="btn btn-secondary inline-flex items-center gap-2">
-          {label}
-        </Link>
-      </div>
+      {showLink && href && name && (
+        <div className="pt-2">
+          <Link href={href} className="btn btn-secondary inline-flex items-center gap-2">
+            {linkLabel(name)}
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

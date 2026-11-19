@@ -30,7 +30,7 @@ export function LoginForm() {
       } catch {
         // Non-fatal
       }
-      router.push("/youth-republic/dashboard");
+      router.push("/");
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "login_failed");

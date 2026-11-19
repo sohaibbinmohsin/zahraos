@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "./staffToken";
 import { resolveOrgSwitcherOptions, pickInitialOrgId } from "./selectedOrg";
 import { deriveRoleTitleFromPermissions } from "./capabilityMap";
-import { MODULE_REGISTRY } from "@/registry/modules";
+import { firstAllowedDestination, isNamedOrgAdmin, type LandingAccess } from "./landingPath";
 
 export interface OrgBrand {
   logoUrl: string | null;
@@ -135,21 +135,52 @@ export async function loadShellData(
   };
 }
 
+function landingAccessForOrg(shell: ShellData, orgId: string): LandingAccess {
+  const tier = shell.orgTiers[orgId];
+  const isAdmin = Boolean(
+    shell.platformOwner ||
+    tier === "admin" ||
+    tier === "super_admin" ||
+    isNamedOrgAdmin(shell.assignedRolesByOrg[orgId] ?? []),
+  );
+  const rows = shell.claims.moduleAccess.filter((row) => row.organizationId === orgId);
+  const access = rows.find((row) => row.module === "youth-republic") ?? rows[0];
+  const permissions = access?.permissions ?? [];
+  const scopes = access?.chapterScopes;
+  const has = (key: string) => isAdmin || permissions.includes(key);
+  // Matches useStaffPermissions: a chapter-scoped inquiries grant does not open the org page.
+  const hasOrgWide = (key: string) => {
+    if (isAdmin) return true;
+    if (!permissions.includes(key)) return false;
+    const scoped = scopes?.[key];
+    return !scoped || scoped.length === 0;
+  };
+
+  const canViewDrives = has("opportunities:read") || has("opportunities:write");
+  const canViewApplications = has("applications:read") || has("applications:update");
+  const canViewHours = has("hours:read") || has("hours:update");
+  const canViewVolunteers = has("volunteers:read");
+  const canManageTeam = isAdmin || permissions.includes("team:write");
+
+  return {
+    canAccessDashboard: canViewDrives || canViewApplications || canViewHours || canViewVolunteers,
+    canViewDrives,
+    canViewApplications,
+    canViewHours,
+    canViewVolunteers,
+    canViewOrganization: isAdmin || canManageTeam || has("chapters:read") || has("chapters:write"),
+    canViewInquiries: hasOrgWide("inquiries:read") || hasOrgWide("inquiries:write"),
+    canManageTeam,
+  };
+}
+
 /**
- * Where `/` should send an authenticated user: the Youth Republic dashboard
- * when that module is enabled for their active org, otherwise the
- * Organization page under Team & Governance. `null` means "no landing" —
- * the staff has no org/module access at all, so `/` shows its own message.
+ * Where an authenticated person should land: the first page they can
+ * actually open. `null` means they have no page, so `/` shows its message.
  */
 export function landingPathFor(shell: ShellData | null, cookieOrgId: string | null): string | null {
   if (!shell || shell.availableOrgIds.length === 0) return null;
   const orgId = pickInitialOrgId(shell.availableOrgIds, cookieOrgId);
-  const hasYouthRepublic = shell.claims.moduleAccess.some(
-    (m) => m.organizationId === orgId && m.module === "youth-republic",
-  );
-  if (hasYouthRepublic) {
-    const yr = MODULE_REGISTRY.find((m) => m.key === "youth-republic");
-    return `${yr?.route ?? "/youth-republic"}/dashboard`;
-  }
-  return "/team/organization";
+  if (!orgId) return null;
+  return firstAllowedDestination(landingAccessForOrg(shell, orgId))?.href ?? null;
 }

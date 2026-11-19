@@ -39,9 +39,10 @@ describe("AccessDeniedGate", () => {
     const link = screen.getByRole("link", { name: /Youth Republic/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/youth-republic");
+    expect(link).toHaveTextContent("Go to Youth Republic");
   });
 
-  it("uses sensible defaults when fallbackRoute and sectionName are omitted", () => {
+  it("omits the link when there is no page this person can open", () => {
     render(
       <AccessDeniedGate allowed={false}>
         <div data-testid="protected-content">Protected Content</div>
@@ -51,10 +52,7 @@ describe("AccessDeniedGate", () => {
     expect(screen.queryByTestId("protected-content")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Access Denied/i })).toBeInTheDocument();
     expect(screen.getByText(/You do not have permission to view this section/i)).toBeInTheDocument();
-
-    const link = screen.getByRole("link");
-    expect(link).toHaveAttribute("href", "/youth-republic");
-    expect(link).toHaveTextContent(/Youth Republic/i);
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("renders custom fallback label correctly when provided", () => {
@@ -69,7 +67,7 @@ describe("AccessDeniedGate", () => {
       </AccessDeniedGate>
     );
 
-    const link = screen.getByRole("link", { name: /Dashboard/i });
+    const link = screen.getByRole("link", { name: /Go to Dashboard/i });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute("href", "/dashboard");
   });

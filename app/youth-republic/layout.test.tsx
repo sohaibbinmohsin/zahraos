@@ -6,8 +6,11 @@ import { fetchStaffToken } from "@/lib/staffToken";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { useStaffPermissions, type StaffPermissions } from "@/components/shell/useStaffPermissions";
 
+const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/youth-republic/dashboard",
+  useRouter: () => ({ replace }),
 }));
 vi.mock("@/components/shell/AppShell", () => ({
   useSelectedOrg: () => "org-1",
@@ -108,12 +111,17 @@ describe("YouthRepublicModuleLayout", () => {
     expect(oppsLink.querySelector(".count-badge")).toBeNull();
   });
 
-  it("filters tabs based on permissions so unauthorized tabs do not render", async () => {
+  it("leaves a Youth Republic URL the person cannot open and does not paint the module chrome", async () => {
     vi.mocked(useStaffPermissions).mockReturnValue({
       ...allPerms,
       canAccessDashboard: false,
+      canViewDrives: false,
+      canViewApplications: false,
       canViewHours: false,
       canViewVolunteers: false,
+      canViewOrganization: false,
+      canManageTeam: false,
+      canViewInquiries: true,
     });
 
     render(
@@ -122,11 +130,11 @@ describe("YouthRepublicModuleLayout", () => {
       </YouthRepublicModuleLayout>,
     );
 
-    expect(screen.queryByRole("link", { name: "Dashboard" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Hours" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Volunteers" })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Drives" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Applications" })).toBeInTheDocument();
+    expect(screen.queryByText("screen content")).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(replace).toHaveBeenCalledWith("/team/organization/inquiries");
+    });
   });
 
   it("does not fetch badges for sections the user is not authorized to view", async () => {

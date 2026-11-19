@@ -131,8 +131,6 @@ export default function InquiriesPage() {
     <AccessDeniedGate
       allowed={canViewInquiries || isSaving9Demo}
       sectionName="Partner Inquiries"
-      fallbackRoute="/youth-republic/dashboard"
-      fallbackLabel="Dashboard"
     >
       <div className="flex flex-col gap-6">
         <div className="page-header" style={{ marginBottom: 0 }}>
