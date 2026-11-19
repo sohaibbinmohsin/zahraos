@@ -46,6 +46,7 @@ describe("useStaffPermissions", () => {
 
     expect(result.current.canViewDrives).toBe(false);
     expect(result.current.canCreateDrives).toBe(false);
+    expect(result.current.canEditDrives).toBe(false);
     expect(result.current.canPublishDrives).toBe(false);
     expect(result.current.canViewApplications).toBe(false);
     expect(result.current.canTriageApplications).toBe(false);
@@ -74,6 +75,7 @@ describe("useStaffPermissions", () => {
 
     expect(result.current.canViewDrives).toBe(true);
     expect(result.current.canCreateDrives).toBe(true);
+    expect(result.current.canEditDrives).toBe(true);
     expect(result.current.canPublishDrives).toBe(true);
     expect(result.current.canViewApplications).toBe(true);
     expect(result.current.canTriageApplications).toBe(true);
@@ -101,7 +103,9 @@ describe("useStaffPermissions", () => {
             organizationId: "org-1",
             module: "youth-republic",
             permissions: [
+              "opportunities:read",
               "opportunities:write",
+              "opportunities:update",
               "noticeboard:write",
               "applications:update",
               "applications:read",
@@ -117,6 +121,7 @@ describe("useStaffPermissions", () => {
 
     expect(result.current.canViewDrives).toBe(true);
     expect(result.current.canCreateDrives).toBe(true);
+    expect(result.current.canEditDrives).toBe(true);
     expect(result.current.canPublishDrives).toBe(true);
     expect(result.current.canViewApplications).toBe(true);
     expect(result.current.canTriageApplications).toBe(true);
@@ -153,6 +158,7 @@ describe("useStaffPermissions", () => {
     expect(result.current.canAccessDashboard).toBe(true);
     expect(result.current.canViewDrives).toBe(false);
     expect(result.current.canCreateDrives).toBe(false);
+    expect(result.current.canEditDrives).toBe(false);
     expect(result.current.canPublishDrives).toBe(false);
     expect(result.current.canViewHours).toBe(false);
     expect(result.current.canApproveHours).toBe(false);
@@ -237,6 +243,56 @@ describe("useStaffPermissions", () => {
       );
       const { result } = renderHook(() => useStaffPermissions());
       expect(result.current.canAccessDashboard).toBe(false);
+    });
+  });
+
+  describe("Drives capability keys", () => {
+    it("write-only token can create but not view or edit drives", () => {
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [
+            {
+              organizationId: "org-1",
+              module: "youth-republic",
+              permissions: ["opportunities:write"],
+              chapterScopes: { "opportunities:write": ["lhr"] },
+            },
+          ],
+        })
+      );
+
+      const { result } = renderHook(() => useStaffPermissions());
+
+      expect(result.current.canViewDrives).toBe(false);
+      expect(result.current.canCreateDrives).toBe(true);
+      expect(result.current.canEditDrives).toBe(false);
+    });
+
+    it("read, write, and update tokens scoped to lhr grant full drives flags and chapter read scope", () => {
+      vi.mocked(appShell.useStaffClaims).mockReturnValue(
+        mockClaims({
+          moduleAccess: [
+            {
+              organizationId: "org-1",
+              module: "youth-republic",
+              permissions: ["opportunities:read", "opportunities:write", "opportunities:update"],
+              chapterScopes: {
+                "opportunities:read": ["lhr"],
+                "opportunities:write": ["lhr"],
+                "opportunities:update": ["lhr"],
+              },
+            },
+          ],
+        })
+      );
+
+      const { result } = renderHook(() => useStaffPermissions());
+
+      expect(result.current.canViewDrives).toBe(true);
+      expect(result.current.canCreateDrives).toBe(true);
+      expect(result.current.canEditDrives).toBe(true);
+      expect(result.current.hasChapterPermission("opportunities:read", "lhr")).toBe(true);
+      expect(result.current.hasChapterPermission("opportunities:read", "khi")).toBe(false);
     });
   });
 

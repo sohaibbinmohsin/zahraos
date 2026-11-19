@@ -12,6 +12,7 @@ export interface StaffPermissions {
   // Drive permissions
   canViewDrives: boolean;
   canCreateDrives: boolean;
+  canEditDrives: boolean;
   canPublishDrives: boolean;
 
   // Applications / Triage
@@ -87,8 +88,9 @@ export function useStaffPermissions(): StaffPermissions {
   );
 
   // Capability derivations
-  const canViewDrives = isAdmin || hasPerm("opportunities:read") || hasPerm("opportunities:write");
+  const canViewDrives = isAdmin || hasPerm("opportunities:read");
   const canCreateDrives = isAdmin || hasPerm("opportunities:write");
+  const canEditDrives = isAdmin || hasPerm("opportunities:update");
   const canPublishDrives = isAdmin || hasPerm("noticeboard:write");
 
   const canViewApplications = isAdmin || hasPerm("applications:read") || hasPerm("applications:update");
@@ -169,6 +171,7 @@ export function useStaffPermissions(): StaffPermissions {
     () => ({
       canViewDrives,
       canCreateDrives,
+      canEditDrives,
       canPublishDrives,
       canViewApplications,
       canTriageApplications,
@@ -191,6 +194,7 @@ export function useStaffPermissions(): StaffPermissions {
     [
       canViewDrives,
       canCreateDrives,
+      canEditDrives,
       canPublishDrives,
       canViewApplications,
       canTriageApplications,

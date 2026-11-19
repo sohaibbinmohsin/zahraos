@@ -24,6 +24,7 @@ const allPerms: StaffPermissions = {
   canAccessDashboard: true,
   canViewDrives: true,
   canCreateDrives: true,
+  canEditDrives: true,
   canPublishDrives: true,
   canViewApplications: true,
   canTriageApplications: true,
@@ -493,7 +494,7 @@ describe("YouthRepublicOpportunitiesPage", () => {
       expect(screen.queryByRole("button", { name: /Create Drive/i })).not.toBeInTheDocument();
     });
 
-    it("hides Publish drive button when user lacks canPublishDrives", async () => {
+    it("hides Publish drive button when user lacks canEditDrives even if canPublishDrives is true", async () => {
       vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
         opportunities: [{
           id: "opp-draft",
@@ -515,14 +516,51 @@ describe("YouthRepublicOpportunitiesPage", () => {
         total: 1,
         facets: { cities: [], orgs: [] },
       });
-      vi.mocked(useStaffPermissions).mockReturnValue({ ...allPerms, canPublishDrives: false });
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canEditDrives: false,
+        canPublishDrives: true,
+      });
       renderWithSwr(<YouthRepublicOpportunitiesPage />);
 
       await screen.findByText("Draft Drive");
       expect(screen.queryByRole("button", { name: /Publish drive/i })).not.toBeInTheDocument();
     });
 
-    it("hides Edit button when user lacks chapter opportunities:write permission", async () => {
+    it("shows Publish drive button when user has canEditDrives", async () => {
+      vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
+        opportunities: [{
+          id: "opp-draft",
+          name: "Draft Drive Publishable",
+          orgName: "Green Org",
+          orgLogoUrl: null,
+          type: "community",
+          city: "Lahore",
+          online: false,
+          computedStatus: "draft",
+          description: "Draft desc",
+          capacity: 10,
+          filledCount: 0,
+          applicationDeadline: null,
+          activityStartAt: null,
+          activityEndAt: null,
+          deactivatedAt: null,
+        }],
+        total: 1,
+        facets: { cities: [], orgs: [] },
+      });
+      vi.mocked(useStaffPermissions).mockReturnValue({
+        ...allPerms,
+        canEditDrives: true,
+        canPublishDrives: false,
+      });
+      renderWithSwr(<YouthRepublicOpportunitiesPage />);
+
+      await screen.findByText("Draft Drive Publishable");
+      expect(screen.getByRole("button", { name: /Publish drive/i })).toBeInTheDocument();
+    });
+
+    it("hides Edit button when user lacks chapter opportunities:update permission", async () => {
       vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
         opportunities: [{
           id: "opp-ch-1",
@@ -548,7 +586,7 @@ describe("YouthRepublicOpportunitiesPage", () => {
       vi.mocked(useStaffPermissions).mockReturnValue({
         ...allPerms,
         hasChapterPermission: (key, targetChapterId) => {
-          if (key === "opportunities:write" && targetChapterId === "ch-99") return false;
+          if (key === "opportunities:update" && targetChapterId === "ch-99") return false;
           return true;
         },
       });

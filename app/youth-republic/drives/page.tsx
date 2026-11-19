@@ -546,7 +546,7 @@ export default function YouthRepublicDrivesPage() {
                     )
                   ) : (
                     <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
-                      {perms.hasChapterPermission("opportunities:write", opp.chapterId) && (
+                      {perms.hasChapterPermission("opportunities:update", opp.chapterId) && (
                         <LoadingButton
                           className="btn btn-secondary btn-xs"
                           disabled={openingEditorId !== null}
@@ -565,7 +565,7 @@ export default function YouthRepublicDrivesPage() {
                       )}
 
                       {isDraft ? (
-                        perms.canPublishDrives && (
+                        perms.canEditDrives && (
                           <LoadingButton
                             className="btn btn-dark btn-xs"
                             disabled={publishingId !== null || openingEditorId !== null}
