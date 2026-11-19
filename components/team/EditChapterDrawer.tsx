@@ -256,7 +256,7 @@ export function EditChapterDrawer({
           );
         })
         .catch(() => {
-          showToast("Failed to load chapter team members.");
+          showToast("Failed to load chapter team members.", "error");
         })
         .finally(() => {
           setRosterLoading(false);
@@ -270,7 +270,7 @@ export function EditChapterDrawer({
     const file = e.target.files?.[0];
     if (!file || !organizationId || !chapter) return;
     if (!file.type.startsWith("image/")) {
-      showToast("Please choose an image file.");
+      showToast("Please choose an image file.", "error");
       return;
     }
     setLogoUploading(true);
@@ -291,7 +291,7 @@ export function EditChapterDrawer({
       setLogoError(false);
       showToast("Logo uploaded successfully.");
     } catch (err) {
-      showToast(err instanceof Error ? `Logo upload failed: ${err.message}` : "Logo upload failed.");
+      showToast(err instanceof Error ? `Logo upload failed: ${err.message}` : "Logo upload failed.", "error");
     } finally {
       setLogoUploading(false);
     }
@@ -345,12 +345,12 @@ export function EditChapterDrawer({
 
   function handleAddMember() {
     if (!verifiedVolunteer) {
-      showToast("Please verify a Youth Republic ID first.");
+      showToast("Please verify a Youth Republic ID first.", "error");
       return;
     }
     if (!designationInput.trim()) {
       setDesignationError("Designation is required to add a member.");
-      showToast("Designation is required to add a member.");
+      showToast("Designation is required to add a member.", "error");
       const designationInputEl = document.getElementById("designation-input");
       designationInputEl?.focus();
       return;
@@ -362,7 +362,7 @@ export function EditChapterDrawer({
       (m) => m.volunteerCode.trim().toUpperCase() === normalizedCode && (m.term?.trim() || null) === term
     );
     if (isDuplicate) {
-      showToast("This member is already on the roster for this term.");
+      showToast("This member is already on the roster for this term.", "error");
       return;
     }
 
@@ -428,7 +428,7 @@ export function EditChapterDrawer({
       onSuccess?.();
       onClose();
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to save chapter.");
+      showToast(err instanceof Error ? err.message : "Failed to save chapter.", "error");
     } finally {
       setSaving(false);
     }

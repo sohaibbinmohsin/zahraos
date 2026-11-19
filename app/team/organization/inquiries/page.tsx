@@ -95,7 +95,7 @@ export default function InquiriesPage() {
 
   async function handleStatusChange(inquiryId: string, status: InquiryStatus) {
     if (!canManageInquiries) {
-      showToast('You have read-only access to partner inquiries.');
+      showToast('You have read-only access to partner inquiries.', 'error');
       return;
     }
     if (isSaving9Demo) {
@@ -113,7 +113,7 @@ export default function InquiriesPage() {
       );
       showToast('Inquiry status updated successfully.');
     } catch (err: any) {
-      showToast(`Error updating status: ${err.message}`);
+      showToast(`Error updating status: ${err.message}`, "error");
     }
   }
 

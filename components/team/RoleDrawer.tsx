@@ -379,10 +379,10 @@ export function RoleDrawer({
   }
 
   async function save() {
-    if (!name.trim()) { showToast("Please specify a role title."); return; }
+    if (!name.trim()) { showToast("Please specify a role title.", "error"); return; }
     if (!accessToken) return;
     if (request?.mode === "edit" && !source) {
-      showToast("This role is no longer available — reopen it.");
+      showToast("This role is no longer available — reopen it.", "error");
       return;
     }
     setBusy(true);
@@ -399,9 +399,9 @@ export function RoleDrawer({
       onClose();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      if (msg === "role_name_taken") showToast("A role with that name already exists.");
-      else if (msg === "system_role_immutable") showToast("System roles can't be edited.");
-      else showToast("Failed to save role.");
+      if (msg === "role_name_taken") showToast("A role with that name already exists.", "error");
+      else if (msg === "system_role_immutable") showToast("System roles can't be edited.", "error");
+      else showToast("Failed to save role.", "error");
     } finally {
       setBusy(false);
     }

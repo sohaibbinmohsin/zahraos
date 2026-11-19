@@ -112,7 +112,7 @@ export default function YouthRepublicHoursPage() {
       showToast("Shift hours accredited.");
       await load();
     } catch (err) {
-      showToast(err instanceof Error ? `Could not accredit hours: ${err.message}` : "Could not accredit hours.");
+      showToast(err instanceof Error ? `Could not accredit hours: ${err.message}` : "Could not accredit hours.", "error");
     } finally {
       setVerifyingId(null);
     }

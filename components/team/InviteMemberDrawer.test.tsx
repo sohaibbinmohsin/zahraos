@@ -76,6 +76,6 @@ describe("InviteMemberDrawer", () => {
     render(<InviteMemberDrawer open onClose={vi.fn()} />);
     await user.click(screen.getByRole("button", { name: "Create Member" }));
     expect(invite).not.toHaveBeenCalled();
-    expect(showToast).toHaveBeenCalledWith("Please enter the member's full name and work email.");
+    expect(showToast).toHaveBeenCalledWith("Please enter the member's full name and work email.", "error");
   });
 });

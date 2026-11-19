@@ -120,6 +120,7 @@ function ApplicationsContent() {
       onError: (err) =>
         showToast(
           err instanceof Error ? `Could not load applications: ${err.message}` : "Could not load applications.",
+          "error",
         ),
     },
   );
@@ -137,6 +138,7 @@ function ApplicationsContent() {
     } catch (err) {
       showToast(
         err instanceof Error ? `Could not update application: ${err.message}` : "Could not update application.",
+        "error",
       );
       throw err;
     } finally {

@@ -1,5 +1,37 @@
 import type { CapabilityGrid } from "./capabilityMap";
 
+// Auth admin calls (create, delete, or replace a sign-in) keep running on the
+// server after a short client abort. Eight seconds is enough for a read and
+// too short for those calls, which is how a member can be created while the
+// admin never receives the temporary password ("signal timed out").
+const AUTH_ADMIN_FUNCTIONS = new Set([
+  "invite-staff-member",
+  "remove-staff-member",
+  "issue-staff-temporary-password",
+]);
+
+export class RequestTimeoutError extends Error {
+  constructor() {
+    super("The request timed out before the server finished. Refresh the page and check whether the change was saved.");
+    this.name = "RequestTimeoutError";
+  }
+}
+
+function timeoutSignal(name: string): AbortSignal {
+  const ms = AUTH_ADMIN_FUNCTIONS.has(name) ? 60_000 : 8_000;
+  return AbortSignal.timeout(ms);
+}
+
+function rethrowRequestFailure(err: unknown): never {
+  if (
+    (err instanceof DOMException && (err.name === "TimeoutError" || err.name === "AbortError")) ||
+    (err instanceof Error && /signal timed out|aborted due to timeout/i.test(err.message))
+  ) {
+    throw new RequestTimeoutError();
+  }
+  throw err;
+}
+
 async function callFunction<TResponse>(
   name: string,
   body: unknown,
@@ -29,20 +61,24 @@ async function callFunction<TResponse>(
   const isVitestMock = typeof process !== "undefined" && process.env.NODE_ENV === "test";
 
   if (!isVitestMock && typeof window !== "undefined" && isPlatformLocalAction) {
-    const localRes = await fetch(`/api/platform/${name}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${accessToken}`,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(8000),
-    });
-    if (localRes.ok) {
-      return (await localRes.json()) as TResponse;
+    try {
+      const localRes = await fetch(`/api/platform/${name}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(body),
+        signal: timeoutSignal(name),
+      });
+      if (localRes.ok) {
+        return (await localRes.json()) as TResponse;
+      }
+      const errData = await localRes.json().catch(() => ({}));
+      throw new Error(errData?.error ?? "request_failed");
+    } catch (err) {
+      rethrowRequestFailure(err);
     }
-    const errData = await localRes.json().catch(() => ({}));
-    throw new Error(errData?.error ?? "request_failed");
   }
 
   let response: Response;
@@ -54,7 +90,7 @@ async function callFunction<TResponse>(
         Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(8000),
+      signal: timeoutSignal(name),
     });
   } catch (err) {
     if (typeof window !== "undefined" && isPlatformLocalAction) {
@@ -65,13 +101,13 @@ async function callFunction<TResponse>(
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(8000),
+        signal: timeoutSignal(name),
       });
       if (localRes.ok) {
         return (await localRes.json()) as TResponse;
       }
     }
-    throw err;
+    rethrowRequestFailure(err);
   }
 
   // If remote returns 403 or 404 and we are in the browser, fallback to Next.js route handler
@@ -84,7 +120,7 @@ async function callFunction<TResponse>(
           Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(8000),
+        signal: timeoutSignal(name),
       });
       if (localRes.ok) {
         return (await localRes.json()) as TResponse;
@@ -188,6 +224,25 @@ export interface InviteStaffMemberResponse {
 }
 export function inviteStaffMember(payload: InviteStaffMemberPayload, accessToken: string) {
   return callFunction<InviteStaffMemberResponse>("invite-staff-member", payload, accessToken);
+}
+
+export interface IssueStaffTemporaryPasswordPayload {
+  staffId: string;
+  organizationId: string;
+}
+export interface IssueStaffTemporaryPasswordResponse {
+  staffId: string;
+  temporaryPassword: string;
+}
+export function issueStaffTemporaryPassword(
+  payload: IssueStaffTemporaryPasswordPayload,
+  accessToken: string,
+) {
+  return callFunction<IssueStaffTemporaryPasswordResponse>(
+    "issue-staff-temporary-password",
+    payload,
+    accessToken,
+  );
 }
 
 export interface UpdateStaffAccessPayload {

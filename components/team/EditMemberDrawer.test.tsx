@@ -4,11 +4,13 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const updateAccess = vi.fn().mockResolvedValue({ staffId: "m1" });
 const removeMember = vi.fn().mockResolvedValue({ staffId: "m1" });
+const issuePassword = vi.fn().mockResolvedValue({ staffId: "m1", temporaryPassword: "Rizq-Abcd-2345!" });
 const refresh = vi.fn();
 const showToast = vi.fn();
 vi.mock("@/lib/platformFunctions", () => ({
   updateStaffAccess: (...a: unknown[]) => updateAccess(...a),
   removeStaffMember: (...a: unknown[]) => removeMember(...a),
+  issueStaffTemporaryPassword: (...a: unknown[]) => issuePassword(...a),
 }));
 vi.mock("@/components/shell/ToastContext", () => ({ useToast: () => ({ showToast }) }));
 vi.mock("@/components/team/TeamAccessProvider", () => ({
@@ -119,6 +121,19 @@ describe("EditMemberDrawer", () => {
 
     await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
     expect(updateAccess.mock.calls[0][0].expiresAt).toBeNull();
+  });
+
+  it("issues a new temporary password and shows it once", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<EditMemberDrawer memberId="m1" onClose={vi.fn()} />);
+    await user.click(screen.getByRole("button", { name: "Issue new temporary password" }));
+    await waitFor(() => expect(issuePassword).toHaveBeenCalledWith(
+      { staffId: "m1", organizationId: "org-1" },
+      "access-token",
+    ));
+    expect(await screen.findByText("Rizq-Abcd-2345!")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Issue new temporary password" })).not.toBeInTheDocument();
   });
 
   it("removes the member after confirm", async () => {

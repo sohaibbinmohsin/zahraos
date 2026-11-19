@@ -108,11 +108,11 @@ export default function OrganizationPage() {
   async function pickLogo(file: File | undefined) {
     if (!file || !profile || !organizationId || !perms.canManageOrgProfile || !accessToken) return;
     if (!file.type.startsWith("image/")) {
-      showToast("Please choose an image file.");
+      showToast("Please choose an image file.", "error");
       return;
     }
     if (file.size > MAX_LOGO_BYTES) {
-      showToast("Logo must be 512 KB or smaller.");
+      showToast("Logo must be 512 KB or smaller.", "error");
       return;
     }
     setLogoUploading(true);
@@ -131,7 +131,7 @@ export default function OrganizationPage() {
       }
       setProfile({ ...profile, logoUrl: publicUrl });
     } catch (err) {
-      showToast(err instanceof Error ? `Logo upload failed: ${err.message}` : "Logo upload failed.");
+      showToast(err instanceof Error ? `Logo upload failed: ${err.message}` : "Logo upload failed.", "error");
     } finally {
       setLogoUploading(false);
     }
@@ -150,7 +150,7 @@ export default function OrganizationPage() {
       }, accessToken);
       showToast("Organization profile saved.");
     } catch (err) {
-      showToast(err instanceof Error ? err.message : "Failed to save profile.");
+      showToast(err instanceof Error ? err.message : "Failed to save profile.", "error");
     } finally { setSaving(false); }
   }
 

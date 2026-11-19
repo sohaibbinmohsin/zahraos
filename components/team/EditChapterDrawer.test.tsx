@@ -698,6 +698,6 @@ describe("EditChapterDrawer", () => {
 
     // Should display validation requirement message and show toast
     expect(screen.getByText("Designation is required to add a member.")).toBeInTheDocument();
-    expect(showToast).toHaveBeenCalledWith("Designation is required to add a member.");
+    expect(showToast).toHaveBeenCalledWith("Designation is required to add a member.", "error");
   });
 });

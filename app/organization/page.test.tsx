@@ -231,14 +231,14 @@ describe("OrganizationPage", () => {
     // Non-image file
     const textFile = new File(["text-content"], "document.txt", { type: "text/plain" });
     fireEvent.change(fileInput, { target: { files: [textFile] } });
-    expect(showToast).toHaveBeenCalledWith("Please choose an image file.");
+    expect(showToast).toHaveBeenCalledWith("Please choose an image file.", "error");
     expect(requestUpload).not.toHaveBeenCalled();
 
     // Oversized file (> 512 KB)
     const largeContent = new Uint8Array(513 * 1024);
     const largeFile = new File([largeContent], "huge.png", { type: "image/png" });
     fireEvent.change(fileInput, { target: { files: [largeFile] } });
-    expect(showToast).toHaveBeenCalledWith("Logo must be 512 KB or smaller.");
+    expect(showToast).toHaveBeenCalledWith("Logo must be 512 KB or smaller.", "error");
     expect(requestUpload).not.toHaveBeenCalled();
   });
 });

@@ -106,6 +106,7 @@ describe("ChaptersPanel", () => {
     await user.click(screen.getByRole("button", { name: "Add" }));
     await waitFor(() => expect(showToast).toHaveBeenCalledWith(
       "A chapter with that name already exists.",
+      "error",
     ));
   });
 

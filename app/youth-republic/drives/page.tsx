@@ -153,7 +153,7 @@ export default function YouthRepublicDrivesPage() {
       shouldRetryOnError: false,
       revalidateOnFocus: false,
       onError: (err) =>
-        showToast(err instanceof Error ? `Could not load drives: ${err.message}` : "Could not load drives."),
+        showToast(err instanceof Error ? `Could not load drives: ${err.message}` : "Could not load drives.", "error"),
     },
   );
   const loading = isLoading;
@@ -191,7 +191,7 @@ export default function YouthRepublicDrivesPage() {
       });
     } catch (err) {
       console.error(err);
-      showToast(err instanceof Error ? `Could not open drive: ${err.message}` : "Could not open drive.");
+      showToast(err instanceof Error ? `Could not open drive: ${err.message}` : "Could not open drive.", "error");
     } finally {
       setOpeningEditorId(null);
     }
@@ -221,7 +221,7 @@ export default function YouthRepublicDrivesPage() {
       await load();
     } catch (err) {
       console.error(err);
-      showToast(err instanceof Error ? `Failed: ${err.message}` : "Action failed.");
+      showToast(err instanceof Error ? `Failed: ${err.message}` : "Action failed.", "error");
     } finally {
       setBusy(null);
     }
@@ -249,7 +249,7 @@ export default function YouthRepublicDrivesPage() {
       showToast(`Drive "${opp.name}" deleted.`);
     } catch (err) {
       console.error(err);
-      showToast(err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete drive.");
+      showToast(err instanceof Error ? `Failed to delete: ${err.message}` : "Failed to delete drive.", "error");
     } finally {
       setBusy(null);
     }
@@ -262,7 +262,7 @@ export default function YouthRepublicDrivesPage() {
       const detail = await getOpportunityDetail({ opportunityId: opp.id }, staffToken);
       const blockers = publishBlockers(detail);
       if (blockers.length > 0) {
-        showToast(`Can't publish yet — still needs ${blockers[0]}. Opening the editor…`);
+        showToast(`Can't publish yet — still needs ${blockers[0]}. Opening the editor…`, "error");
         await openEditor(opp.id);
         return;
       }
@@ -280,7 +280,7 @@ export default function YouthRepublicDrivesPage() {
       await load();
     } catch (err) {
       console.error(err);
-      showToast(err instanceof Error ? `Failed to publish: ${err.message}` : "Failed to publish drive.");
+      showToast(err instanceof Error ? `Failed to publish: ${err.message}` : "Failed to publish drive.", "error");
     } finally {
       setPublishingId(null);
     }

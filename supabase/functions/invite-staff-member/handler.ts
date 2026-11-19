@@ -6,6 +6,7 @@ import {
   isEmailAlreadyRegistered,
   prepareEmailForNewStaffAccount,
 } from "../_shared/staffIdentity.ts";
+import { temporaryPassword } from "../_shared/temporaryPassword.ts";
 
 export interface RoleAssignmentInput {
   roleId: string;
@@ -25,18 +26,6 @@ export interface InviteStaffMemberInput {
   sendActivationEmail?: boolean;
   /** @deprecated ignored. */
   enforce2fa?: boolean;
-}
-
-// A short, readable one-time password the admin hands to the new member.
-// Meets Supabase complexity (lower + upper + digit + symbol, >= 8 chars); the
-// member is forced to replace it on first login (staff.must_change_password).
-function temporaryPassword(): string {
-  const lower = "abcdefghijkmnpqrstuvwxyz"; // no l/o
-  const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // no I/O
-  const digits = "23456789"; // no 0/1
-  const pick = (set: string, n: number) =>
-    Array.from({ length: n }, () => set[Math.floor(Math.random() * set.length)]).join("");
-  return `Rizq-${pick(upper, 1)}${pick(lower, 3)}-${pick(digits, 4)}!`;
 }
 
 export async function inviteStaffMember(
