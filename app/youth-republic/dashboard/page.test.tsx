@@ -31,6 +31,7 @@ const allPerms: StaffPermissions = {
   canAccessDashboard: true,
   canViewDrives: true,
   canCreateDrives: true,
+  canEditDrives: true,
   canPublishDrives: true,
   canViewApplications: true,
   canTriageApplications: true,
