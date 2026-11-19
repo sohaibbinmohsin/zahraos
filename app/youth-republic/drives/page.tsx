@@ -520,7 +520,7 @@ export default function YouthRepublicDrivesPage() {
                   )}
 
                   {archived ? (
-                    perms.hasChapterPermission("opportunities:write", opp.chapterId) ? (
+                    perms.hasChapterPermission("opportunities:update", opp.chapterId) ? (
                       <div style={{ display: "inline-flex", gap: ".35rem", alignItems: "center" }}>
                         <LoadingButton
                           className="btn btn-secondary btn-xs"

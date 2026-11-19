@@ -135,7 +135,7 @@ export async function loadShellData(
   };
 }
 
-function landingAccessForOrg(shell: ShellData, orgId: string): LandingAccess {
+export function landingAccessForOrg(shell: ShellData, orgId: string): LandingAccess {
   const tier = shell.orgTiers[orgId];
   const isAdmin = Boolean(
     shell.platformOwner ||
@@ -156,7 +156,7 @@ function landingAccessForOrg(shell: ShellData, orgId: string): LandingAccess {
     return !scoped || scoped.length === 0;
   };
 
-  const canViewDrives = has("opportunities:read") || has("opportunities:write");
+  const canViewDrives = has("opportunities:read");
   const canViewApplications = has("applications:read") || has("applications:update");
   const canViewHours = has("hours:read") || has("hours:update");
   const canViewVolunteers = has("volunteers:read");

@@ -598,7 +598,7 @@ describe("YouthRepublicOpportunitiesPage", () => {
       expect(screen.getByRole("link", { name: /View Applicants/i })).toBeInTheDocument();
     });
 
-    it("hides Restore and Delete buttons on archived drive when user lacks chapter opportunities:write permission", async () => {
+    it("hides Restore and Delete buttons on archived drive when user lacks chapter opportunities:update permission", async () => {
       vi.mocked(youthRepublicFunctions.listOpportunities).mockResolvedValue({
         opportunities: [{
           id: "opp-archived",
@@ -623,7 +623,11 @@ describe("YouthRepublicOpportunitiesPage", () => {
       });
       vi.mocked(useStaffPermissions).mockReturnValue({
         ...allPerms,
-        hasChapterPermission: () => false,
+        hasChapterPermission: (key, targetChapterId) => {
+          if (key === "opportunities:update" && targetChapterId === "ch-99") return false;
+          if (key === "opportunities:write" && targetChapterId === "ch-99") return true;
+          return true;
+        },
       });
       renderWithSwr(<YouthRepublicOpportunitiesPage />);
 
