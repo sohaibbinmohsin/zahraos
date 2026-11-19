@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { setPassword } from "@/lib/platformFunctions";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 
 export function SetPasswordForm() {
-  const router = useRouter();
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
@@ -159,8 +157,7 @@ export function SetPasswordForm() {
       } catch {
         // Non-fatal
       }
-      router.push("/");
-      router.refresh();
+      window.location.assign("/");
     } catch (err) {
       const message = err instanceof Error ? err.message : "unknown_error";
       if (message === "new_password_same_as_temporary") {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { firstAllowedDestination, type LandingAccess } from "./landingPath";
+import { firstAllowedDestination, youthRepublicRedirectTarget, type LandingAccess } from "./landingPath";
 
 const none: LandingAccess = {
   canAccessDashboard: false,
@@ -42,5 +42,28 @@ describe("firstAllowedDestination", () => {
 
   it("returns null when no page is allowed", () => {
     expect(firstAllowedDestination(none)).toBeNull();
+  });
+});
+
+describe("youthRepublicRedirectTarget", () => {
+  it("sends an inquiries-only member away from the dashboard before it paints", () => {
+    expect(
+      youthRepublicRedirectTarget({ ...none, canViewInquiries: true }, "/youth-republic/dashboard"),
+    ).toBe("/team/organization/inquiries");
+  });
+
+  it("stays on a Youth Republic page they can open", () => {
+    expect(
+      youthRepublicRedirectTarget(
+        { ...none, canAccessDashboard: true, canViewApplications: true },
+        "/youth-republic/dashboard",
+      ),
+    ).toBeNull();
+  });
+
+  it("sends a closed section to the first page they can open", () => {
+    expect(
+      youthRepublicRedirectTarget({ ...none, canViewDrives: true }, "/youth-republic/hours"),
+    ).toBe("/youth-republic/drives");
   });
 });

@@ -11,9 +11,12 @@ vi.mock("next/navigation", () => ({
 
 describe("LoginForm", () => {
   const signInWithPassword = vi.fn();
+  const assign = vi.fn();
 
   beforeEach(() => {
     signInWithPassword.mockReset();
+    assign.mockReset();
+    vi.stubGlobal("location", { assign });
     vi.mocked(getBrowserSupabaseClient).mockReturnValue({
       auth: { signInWithPassword },
     } as never);
@@ -43,5 +46,6 @@ describe("LoginForm", () => {
     await waitFor(() => {
       expect(signInWithPassword).toHaveBeenCalledWith({ email: "staff@example.com", password: "correct-password" });
     });
+    expect(assign).toHaveBeenCalledWith("/");
   });
 });

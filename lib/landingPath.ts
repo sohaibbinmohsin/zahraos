@@ -41,6 +41,21 @@ export function firstAllowedDestination(access: LandingAccess): LandingDestinati
   return match ? { href: match.href, label: match.label } : null;
 }
 
+/**
+ * Where a Youth Republic URL should send someone who cannot open it.
+ * `null` means the current path is allowed and the page can render.
+ */
+export function youthRepublicRedirectTarget(access: LandingAccess, pathname: string): string | null {
+  if (!pathname.startsWith("/youth-republic")) return null;
+  const section = DESTINATIONS.find(
+    (destination) =>
+      destination.href.startsWith("/youth-republic") &&
+      (pathname === destination.href || pathname.startsWith(`${destination.href}/`)),
+  );
+  if (section?.allow(access)) return null;
+  return firstAllowedDestination(access)?.href ?? "/";
+}
+
 /** Role titles the shell treats as an organization admin when the token tier is missing. */
 export const ORG_ADMIN_ROLE_TITLES = ["super admin", "admin", "org admin", "organization admin"];
 

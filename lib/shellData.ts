@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchStaffToken, decodeStaffTokenClaims, type StaffTokenClaims } from "./staffToken";
 import { resolveOrgSwitcherOptions, pickInitialOrgId } from "./selectedOrg";
 import { deriveRoleTitleFromPermissions } from "./capabilityMap";
-import { firstAllowedDestination, isNamedOrgAdmin, type LandingAccess } from "./landingPath";
+import { firstAllowedDestination, isNamedOrgAdmin, youthRepublicRedirectTarget, type LandingAccess } from "./landingPath";
 
 export interface OrgBrand {
   logoUrl: string | null;
@@ -183,4 +183,17 @@ export function landingPathFor(shell: ShellData | null, cookieOrgId: string | nu
   const orgId = pickInitialOrgId(shell.availableOrgIds, cookieOrgId);
   if (!orgId) return null;
   return firstAllowedDestination(landingAccessForOrg(shell, orgId))?.href ?? null;
+}
+
+/** A server redirect for a Youth Republic URL this person cannot open. `null` means render the page. */
+export function youthRepublicBounceTarget(
+  shell: ShellData | null,
+  cookieOrgId: string | null,
+  pathname: string,
+): string | null {
+  if (!pathname.startsWith("/youth-republic")) return null;
+  if (!shell || shell.availableOrgIds.length === 0) return "/";
+  const orgId = pickInitialOrgId(shell.availableOrgIds, cookieOrgId);
+  if (!orgId) return "/";
+  return youthRepublicRedirectTarget(landingAccessForOrg(shell, orgId), pathname);
 }

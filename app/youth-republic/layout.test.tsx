@@ -1,16 +1,13 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import YouthRepublicModuleLayout from "./layout";
+import { YouthRepublicModuleFrame } from "./ModuleFrame";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { fetchStaffToken } from "@/lib/staffToken";
 import { listApplications, listActivityHours } from "@/lib/youthRepublicFunctions";
 import { useStaffPermissions, type StaffPermissions } from "@/components/shell/useStaffPermissions";
 
-const { replace } = vi.hoisted(() => ({ replace: vi.fn() }));
-
 vi.mock("next/navigation", () => ({
   usePathname: () => "/youth-republic/dashboard",
-  useRouter: () => ({ replace }),
 }));
 vi.mock("@/components/shell/AppShell", () => ({
   useSelectedOrg: () => "org-1",
@@ -76,9 +73,9 @@ describe("YouthRepublicModuleLayout", () => {
 
   it("renders a tab for each of the 5 admin screens plus the page content", async () => {
     render(
-      <YouthRepublicModuleLayout>
+      <YouthRepublicModuleFrame>
         <p>screen content</p>
-      </YouthRepublicModuleLayout>,
+      </YouthRepublicModuleFrame>,
     );
 
     expect(screen.getByRole("link", { name: "Dashboard" })).toBeInTheDocument();
@@ -92,9 +89,9 @@ describe("YouthRepublicModuleLayout", () => {
 
   it("does not render a badge for Opportunities, but renders pending badges for Applications and Hours", async () => {
     render(
-      <YouthRepublicModuleLayout>
+      <YouthRepublicModuleFrame>
         <p>screen content</p>
-      </YouthRepublicModuleLayout>,
+      </YouthRepublicModuleFrame>,
     );
 
     const oppsLink = screen.getByRole("link", { name: "Drives" });
@@ -111,32 +108,6 @@ describe("YouthRepublicModuleLayout", () => {
     expect(oppsLink.querySelector(".count-badge")).toBeNull();
   });
 
-  it("leaves a Youth Republic URL the person cannot open and does not paint the module chrome", async () => {
-    vi.mocked(useStaffPermissions).mockReturnValue({
-      ...allPerms,
-      canAccessDashboard: false,
-      canViewDrives: false,
-      canViewApplications: false,
-      canViewHours: false,
-      canViewVolunteers: false,
-      canViewOrganization: false,
-      canManageTeam: false,
-      canViewInquiries: true,
-    });
-
-    render(
-      <YouthRepublicModuleLayout>
-        <p>screen content</p>
-      </YouthRepublicModuleLayout>,
-    );
-
-    expect(screen.queryByText("screen content")).not.toBeInTheDocument();
-    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
-    await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/team/organization/inquiries");
-    });
-  });
-
   it("does not fetch badges for sections the user is not authorized to view", async () => {
     vi.mocked(useStaffPermissions).mockReturnValue({
       ...allPerms,
@@ -145,9 +116,9 @@ describe("YouthRepublicModuleLayout", () => {
     });
 
     render(
-      <YouthRepublicModuleLayout>
+      <YouthRepublicModuleFrame>
         <p>screen content</p>
-      </YouthRepublicModuleLayout>,
+      </YouthRepublicModuleFrame>,
     );
 
     await waitFor(() => {
