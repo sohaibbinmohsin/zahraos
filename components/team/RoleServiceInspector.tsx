@@ -2,59 +2,32 @@
 
 import { useState } from "react";
 import {
-  SERVICE_MODULES,
-  CAPABILITY_META,
-  getRoleModuleSummaries,
-  type CapabilityGrid,
-  type CapabilityLevel,
-  type ModuleAccessLevel,
-  type RoleModuleSummary,
-} from "@/lib/capabilityMap";
+  AREA_SWITCH_LABEL,
+  moduleBadge,
+  moduleBadgeClass,
+  moduleBadgeShortLabel,
+  switchesFromKeys,
+  type ModuleCatalog,
+} from "@/registry/moduleCatalog";
 
-function serviceBadge(level: ModuleAccessLevel) {
-  switch (level) {
-    case "full":
-      return <span className="badge badge-pos">Full Access</span>;
-    case "limited":
-      return <span className="badge badge-warn">Limited</span>;
-    case "view":
-      return <span className="badge badge-neu">Read Only</span>;
-    case "off":
-      return <span className="badge badge-neg">Restricted</span>;
-  }
-}
-
-function capabilityBadge(level: CapabilityLevel) {
-  switch (level) {
-    case "granted":
-      return <span className="badge badge-pos">Granted</span>;
-    case "view":
-      return <span className="badge badge-neu">Read Only</span>;
-    case "off":
-      return <span className="badge badge-neg">Restricted</span>;
-  }
-}
-
-function formatRatio(summary: RoleModuleSummary): string {
-  const parts: string[] = [];
-  if (summary.grantedCount > 0) parts.push(`${summary.grantedCount} Granted`);
-  if (summary.readOnlyCount > 0) parts.push(`${summary.readOnlyCount} Read Only`);
-  if (summary.offCount > 0) parts.push(`${summary.offCount} Restricted`);
-  if (parts.length === 0) return "0 Granted";
-  return parts.join(" · ");
+function areaBadgeClass(value: "none" | "view" | "manage"): string {
+  if (value === "manage") return "badge-pos";
+  if (value === "view") return "badge-neu";
+  return "badge-neg";
 }
 
 export function RoleServiceInspector({
-  grid,
+  catalogs,
+  permissionKeys,
   roleName,
   readOnly,
 }: {
-  grid: CapabilityGrid;
+  catalogs: ModuleCatalog[];
+  permissionKeys: string[];
   roleName: string;
   readOnly?: boolean;
 }): React.JSX.Element {
   const [expandedModules, setExpandedModules] = useState<Set<string>>(() => new Set());
-  const summaries = getRoleModuleSummaries(grid);
 
   const toggleModule = (moduleKey: string) => {
     setExpandedModules((prev) => {
@@ -76,7 +49,6 @@ export function RoleServiceInspector({
         border: "1px solid var(--line)",
       }}
     >
-      {/* Policy Summary Header */}
       <div
         className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b"
         style={{ borderColor: "var(--line)" }}
@@ -103,36 +75,34 @@ export function RoleServiceInspector({
           </h4>
         </div>
         <div className="text-xs font-medium" style={{ color: "var(--ink-2)" }}>
-          {summaries.length} Governed {summaries.length === 1 ? "Service Module" : "Service Modules"}
+          {catalogs.length} Governed {catalogs.length === 1 ? "Service Module" : "Service Modules"}
         </div>
       </div>
 
-      {/* Service Module Accordions */}
       <div className="flex flex-col gap-2">
-        {summaries.map((summary) => {
-          const isExpanded = expandedModules.has(summary.moduleKey);
-          const modConfig = SERVICE_MODULES.find((m) => m.key === summary.moduleKey);
-          const capabilities = modConfig?.capabilities ?? [];
+        {catalogs.map((catalog) => {
+          const areaSwitches = switchesFromKeys(catalog, permissionKeys);
+          const badge = moduleBadge(catalog, areaSwitches);
+          const isExpanded = expandedModules.has(catalog.key);
 
           return (
             <div
-              key={summary.moduleKey}
+              key={catalog.key}
               className="rounded-md border overflow-hidden transition-all"
               style={{
                 borderColor: isExpanded ? "var(--line)" : "var(--line-subtle)",
                 background: "var(--bg-panel, #FFFFFF)",
               }}
             >
-              {/* Accordion Trigger */}
               <button
                 type="button"
-                onClick={() => toggleModule(summary.moduleKey)}
+                onClick={() => toggleModule(catalog.key)}
                 className="w-full text-left p-3 flex flex-wrap items-center justify-between gap-3 transition-colors cursor-pointer select-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--brand)]"
                 style={{
                   background: isExpanded ? "var(--bg-page, #F8F9FA)" : "transparent",
                 }}
                 aria-expanded={isExpanded}
-                aria-controls={`module-panel-${summary.moduleKey}`}
+                aria-controls={`module-panel-${catalog.key}`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <span
@@ -150,29 +120,23 @@ export function RoleServiceInspector({
                   </span>
                   <div>
                     <div className="font-semibold text-sm" style={{ color: "var(--ink)" }}>
-                      {summary.title}
+                      {catalog.title}
                     </div>
                     <div
                       className="text-xs truncate max-w-xl"
                       style={{ color: "var(--ink-2)", marginTop: "2px" }}
                     >
-                      {summary.description}
+                      {catalog.description}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2.5 ml-auto">
-                  <span className="mono text-xs font-medium" style={{ color: "var(--ink-2)" }}>
-                    {formatRatio(summary)}
-                  </span>
-                  {serviceBadge(summary.level)}
-                </div>
+                <span className={`badge ${moduleBadgeClass(badge)}`}>{moduleBadgeShortLabel(badge)}</span>
               </button>
 
-              {/* Accordion Capability Details */}
               {isExpanded && (
                 <div
-                  id={`module-panel-${summary.moduleKey}`}
+                  id={`module-panel-${catalog.key}`}
                   className="p-3 border-t flex flex-col gap-1.5"
                   style={{
                     borderColor: "var(--line)",
@@ -180,28 +144,24 @@ export function RoleServiceInspector({
                   }}
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {capabilities.map((cap) => {
-                      const meta = CAPABILITY_META[cap];
-                      const title = meta?.column ?? cap;
-                      const level: CapabilityLevel = grid[cap] ?? "off";
-
+                    {catalog.areas.map((area) => {
+                      const level = areaSwitches[area.key] ?? "none";
                       return (
                         <div
-                          key={cap}
-                          data-capability={cap}
+                          key={area.key}
+                          data-area={area.key}
                           className="flex items-center justify-between px-3 py-2 rounded border"
                           style={{
                             borderColor: "var(--line-subtle)",
                             background: "var(--bg-page, #F8F9FA)",
                           }}
                         >
-                          <span
-                            className="text-xs font-medium"
-                            style={{ color: "var(--ink)" }}
-                          >
-                            {title}
+                          <span className="text-xs font-medium" style={{ color: "var(--ink)" }}>
+                            {area.label}
                           </span>
-                          {capabilityBadge(level)}
+                          <span className={`badge ${areaBadgeClass(level)}`}>
+                            {AREA_SWITCH_LABEL[level]}
+                          </span>
                         </div>
                       );
                     })}

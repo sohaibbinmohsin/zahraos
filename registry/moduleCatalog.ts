@@ -292,6 +292,12 @@ export function permissionKeysFromDrawerGrid(
   return [...keys].sort();
 }
 
+export const AREA_SWITCH_LABEL: Record<AreaSwitch, string> = {
+  none: "None",
+  view: "View",
+  manage: "Manage",
+};
+
 export function moduleBadgeLabel(badge: ModuleBadge): string {
   switch (badge) {
     case "full":
@@ -303,6 +309,49 @@ export function moduleBadgeLabel(badge: ModuleBadge): string {
     case "none":
       return "None";
   }
+}
+
+/** Short module badge labels used in the role drawer, table, and inspector. */
+export function moduleBadgeShortLabel(badge: ModuleBadge): string {
+  switch (badge) {
+    case "full":
+      return "Full";
+    case "limited":
+      return "Limited";
+    case "view_only":
+      return "View only";
+    case "none":
+      return "None";
+  }
+}
+
+export function switchesByCatalogFromKeys(
+  catalogs: readonly ModuleCatalog[],
+  permissionKeys: string[],
+): Record<string, Record<string, AreaSwitch>> {
+  const result: Record<string, Record<string, AreaSwitch>> = {};
+  for (const catalog of catalogs) {
+    result[catalog.key] = switchesFromKeys(catalog, permissionKeys);
+  }
+  return result;
+}
+
+export function permissionKeysFromCatalogSwitches(
+  catalogs: readonly ModuleCatalog[],
+  switchesByCatalog: Record<string, Record<string, AreaSwitch>>,
+): string[] {
+  const keys = new Set<string>();
+  for (const catalog of catalogs) {
+    const switches = switchesByCatalog[catalog.key] ?? {};
+    for (const key of expandSwitches(catalog, switches)) {
+      keys.add(key);
+    }
+  }
+  return [...keys].sort();
+}
+
+export function emptySwitchesForCatalog(catalog: ModuleCatalog): Record<string, AreaSwitch> {
+  return Object.fromEntries(catalog.areas.map((area) => [area.key, "none" as AreaSwitch]));
 }
 
 export function moduleBadgeClass(badge: ModuleBadge): string {

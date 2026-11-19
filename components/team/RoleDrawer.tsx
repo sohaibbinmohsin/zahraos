@@ -4,17 +4,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { createCustomRole, updateCustomRole } from "@/lib/platformFunctions";
+import { OFF_GRID, type CapabilityGrid } from "@/lib/capabilityMap";
 import {
-  MODULE_CAPABILITIES, CAPABILITY_META, OFF_GRID, permissionKeysToGrid,
-  type CapabilityGrid, type CapabilityKey, type CapabilityLevel,
-} from "@/lib/capabilityMap";
-import { drawerCatalogs, permissionKeysFromDrawerGrid } from "@/registry/moduleCatalog";
+  AREA_SWITCH_LABEL,
+  emptySwitchesForCatalog,
+  moduleBadge,
+  moduleBadgeClass,
+  moduleBadgeShortLabel,
+  permissionKeysFromCatalogSwitches,
+  permissionKeysFromDrawerGrid,
+  switchesByCatalogFromKeys,
+  type AreaSwitch,
+  drawerCatalogs,
+  type ModuleCatalog,
+} from "@/registry/moduleCatalog";
+import { useModuleCatalogs } from "./useModuleCatalogs";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Select } from "@/components/ui/Select";
-
-const LEVEL_LABEL: Record<CapabilityLevel, string> = {
-  granted: "Granted", view: "Read Only", off: "Restricted",
-};
 
 export interface RoleTemplate {
   name: string;
@@ -175,81 +181,31 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
   },
 ];
 
-export const SERVICES = [
-  {
-    key: "youth-republic",
-    title: "Youth Republic",
-    description: "Volunteer drives, public noticeboard, applicant screening, and shift hours logging.",
-    capabilities: MODULE_CAPABILITIES["youth-republic"],
-  },
-  {
-    key: "team-governance",
-    title: "Team & Governance",
-    description: "Chapter governance, team roster, roles configuration, partner inquiries, and audit logs.",
-    capabilities: MODULE_CAPABILITIES["team-governance"],
-  },
-] as const;
+type CatalogPreset = "full" | "view" | "none";
 
-export type ServicePreset = "full" | "view" | "off";
-
-export function getServiceStatus(
-  serviceCaps: readonly CapabilityKey[],
-  grid: CapabilityGrid,
-): "Full Access" | "Limited" | "Read Only" | "Restricted" {
-  let grantedCount = 0;
-  let readOnlyCount = 0;
-  let offCount = 0;
-
-  for (const cap of serviceCaps) {
-    const level = grid[cap] ?? "off";
-    if (level === "granted") grantedCount++;
-    else if (level === "view") readOnlyCount++;
-    else offCount++;
+function applyPresetToCatalog(catalog: ModuleCatalog, preset: CatalogPreset): Record<string, AreaSwitch> {
+  const next = emptySwitchesForCatalog(catalog);
+  for (const area of catalog.areas) {
+    if (preset === "full") {
+      next[area.key] = area.highest;
+    } else if (preset === "view") {
+      next[area.key] = "view";
+    } else {
+      next[area.key] = "none";
+    }
   }
-
-  const totalCount = serviceCaps.length;
-  if (totalCount === 0 || offCount === totalCount) {
-    return "Restricted";
-  }
-
-  const grantableCaps = serviceCaps.filter(
-    (cap) => CAPABILITY_META[cap]?.levels?.includes("granted"),
-  );
-  const isAllGrantableGranted =
-    grantableCaps.length > 0 &&
-    grantableCaps.every((cap) => grid[cap] === "granted");
-
-  const isStrictFull =
-    offCount === 0 &&
-    totalCount > 0 &&
-    serviceCaps.every((cap) => {
-      const meta = CAPABILITY_META[cap];
-      const maxLevel = meta?.levels?.includes("granted") ? "granted" : "view";
-      return grid[cap] === maxLevel;
-    });
-
-  if (isAllGrantableGranted || isStrictFull) {
-    return "Full Access";
-  }
-
-  if (grantedCount === 0 && readOnlyCount > 0) {
-    return "Read Only";
-  }
-
-  return "Limited";
+  return next;
 }
 
-export function getServiceBadgeClass(status: "Full Access" | "Limited" | "Read Only" | "Restricted"): string {
-  switch (status) {
-    case "Full Access":
-      return "badge-pos";
-    case "Limited":
-      return "badge-warn";
-    case "Read Only":
-      return "badge-neu";
-    case "Restricted":
-      return "badge-neg";
+function areaSwitchOptions(area: ModuleCatalog["areas"][number]) {
+  const options: Array<{ value: AreaSwitch; label: string }> = [
+    { value: "none", label: AREA_SWITCH_LABEL.none },
+    { value: "view", label: AREA_SWITCH_LABEL.view },
+  ];
+  if (area.highest === "manage") {
+    options.push({ value: "manage", label: AREA_SWITCH_LABEL.manage });
   }
+  return options;
 }
 
 export function RoleDrawer({
@@ -260,6 +216,9 @@ export function RoleDrawer({
 }) {
   const { organizationId, accessToken, moduleId, roles, refresh } = useTeamAccess();
   const { showToast } = useToast();
+  const open = request !== null;
+  const { catalogs } = useModuleCatalogs(organizationId, accessToken, open);
+
   const source = request?.roleId
     ? roles.find((r) => r.id === request.roleId)
       ?? (() => {
@@ -280,65 +239,64 @@ export function RoleDrawer({
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [grid, setGrid] = useState<CapabilityGrid>(OFF_GRID);
+  const [switchesByCatalog, setSwitchesByCatalog] = useState<Record<string, Record<string, AreaSwitch>>>({});
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [busy, setBusy] = useState(false);
   const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({});
 
+  const activeCatalogs = catalogs ?? [];
+
   function toggleService(key: string) {
-    setExpandedServices((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setExpandedServices((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  function applyServicePreset(
-    serviceCaps: readonly CapabilityKey[],
-    preset: ServicePreset,
-  ) {
-    setGrid((prev) => {
-      const next = { ...prev };
-      for (const cap of serviceCaps) {
-        const meta = CAPABILITY_META[cap];
-        if (preset === "full") {
-          next[cap] = meta.levels.includes("granted") ? "granted" : "view";
-        } else if (preset === "view") {
-          next[cap] = meta.levels.includes("view") ? "view" : "off";
-        } else {
-          next[cap] = "off";
-        }
-        if (cap === "members") {
-          next.team = next.members === "granted" ? "granted" : "off";
-        }
-      }
-      return next;
-    });
+  function setCatalogSwitches(catalogKey: string, next: Record<string, AreaSwitch>) {
+    setSwitchesByCatalog((prev) => ({ ...prev, [catalogKey]: next }));
+  }
+
+  function applyCatalogPreset(catalog: ModuleCatalog, preset: CatalogPreset) {
+    setCatalogSwitches(catalog.key, applyPresetToCatalog(catalog, preset));
+  }
+
+  function setSwitchesFromPermissionKeys(permissionKeys: string[], loadedCatalogs: readonly ModuleCatalog[]) {
+    setSwitchesByCatalog(switchesByCatalogFromKeys(loadedCatalogs, permissionKeys));
   }
 
   useEffect(() => {
-    if (!request) return;
+    if (!request || !catalogs) return;
+
     if (request.mode === "create") {
-      setName(""); setDescription(""); setSelectedTemplate("");
-      setGrid({ ...OFF_GRID, drive: "granted", publish: "off", triage: "granted", hours: "off", team: "off" });
-      setExpandedServices({ "youth-republic": true, "team-governance": true });
-    } else if (source) {
-      const g = permissionKeysToGrid(source.permissionKeys);
-      setGrid(g);
+      setName("");
+      setDescription("");
+      setSelectedTemplate("");
+      const blank = Object.fromEntries(
+        catalogs.map((catalog) => [catalog.key, applyPresetToCatalog(catalog, "none")]),
+      );
+      if (blank["youth-republic"]) {
+        blank["youth-republic"] = {
+          ...blank["youth-republic"],
+          drives: "manage",
+          applications: "manage",
+        };
+      }
+      setSwitchesByCatalog(blank);
+      setExpandedServices(Object.fromEntries(catalogs.map((catalog) => [catalog.key, true])));
+      return;
+    }
+
+    if (source) {
+      setSwitchesFromPermissionKeys(source.permissionKeys, catalogs);
       setDescription(source.description ?? "");
       setName(request.mode === "clone" ? `${source.name} (Copy)` : source.name);
       setSelectedTemplate("");
       setExpandedServices(
         request.mode === "view"
           ? {}
-          : { "youth-republic": true, "team-governance": true }
+          : Object.fromEntries(catalogs.map((catalog) => [catalog.key, true])),
       );
     }
-    // `source` is intentionally not a dep: it is recomputed every render
-    // (roles.find over a fresh array), so including it would re-run this
-    // effect on every render and fight the state it sets. `request` is a
-    // stable reference from TeamDrawers state and is the real trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request, source?.id]);
+  }, [request, source?.id, catalogs]);
 
   const templateOptions = useMemo(() => {
     const list: Array<{ id: string; name: string }> = [];
@@ -359,17 +317,31 @@ export function RoleDrawer({
   }, [roles]);
 
   function applyTemplate(roleIdOrKey: string) {
+    if (!catalogs) return;
     const fromRoles = roles.find((r) => r.id === roleIdOrKey || r.name === roleIdOrKey);
     if (fromRoles) {
-      setGrid(permissionKeysToGrid(fromRoles.permissionKeys));
+      setSwitchesFromPermissionKeys(fromRoles.permissionKeys, catalogs);
       if (!description) setDescription(fromRoles.description ?? "");
       return;
     }
+
+    for (const catalog of catalogs) {
+      const fromModuleTemplate = catalog.roleTemplates.find(
+        (t) => t.name === roleIdOrKey || `template-${t.name}` === roleIdOrKey,
+      );
+      if (fromModuleTemplate) {
+        setCatalogSwitches(catalog.key, { ...fromModuleTemplate.switches });
+        if (!description) setDescription(fromModuleTemplate.description);
+        return;
+      }
+    }
+
     const fromTmpl = ROLE_TEMPLATES.find(
       (t) => t.name === roleIdOrKey || `template-${t.name}` === roleIdOrKey,
     );
     if (fromTmpl) {
-      setGrid(fromTmpl.capabilities);
+      const keys = permissionKeysFromDrawerGrid(catalogs, fromTmpl.capabilities);
+      setSwitchesFromPermissionKeys(keys, catalogs);
       if (!description) setDescription(fromTmpl.description);
     }
   }
@@ -381,19 +353,20 @@ export function RoleDrawer({
 
   async function save() {
     if (!name.trim()) { showToast("Please specify a role title.", "error"); return; }
-    if (!accessToken) return;
+    if (!accessToken || !catalogs) return;
     if (request?.mode === "edit" && !source) {
       showToast("This role is no longer available — reopen it.", "error");
       return;
     }
     setBusy(true);
+    const permissionKeys = permissionKeysFromCatalogSwitches(catalogs, switchesByCatalog);
     try {
       if (request?.mode === "edit" && source) {
         await updateCustomRole({
           roleId: source.id,
           name: name.trim(),
           description,
-          permissionKeys: permissionKeysFromDrawerGrid(drawerCatalogs, grid),
+          permissionKeys,
         }, accessToken);
         showToast(`Role "${name.trim()}" updated successfully.`);
       } else {
@@ -403,7 +376,7 @@ export function RoleDrawer({
           moduleId,
           name: name.trim(),
           description,
-          permissionKeys: permissionKeysFromDrawerGrid(drawerCatalogs, grid),
+          permissionKeys,
         }, accessToken);
         showToast(`Created new custom role "${name.trim()}".`);
       }
@@ -419,7 +392,6 @@ export function RoleDrawer({
     }
   }
 
-  const open = request !== null;
   const title = request?.mode === "view" ? "System Role Specification"
     : request?.mode === "edit" ? "Edit Custom Role"
     : "Create Custom Role";
@@ -474,28 +446,30 @@ export function RoleDrawer({
               <div className="form-group">
                 <label className="form-label">Granular Module Permissions</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  {SERVICES.map((service) => {
-                    const isOpen = Boolean(expandedServices[service.key]);
-                    const status = getServiceStatus(service.capabilities, grid);
-                    const badgeClass = getServiceBadgeClass(status);
+                  {activeCatalogs.map((catalog) => {
+                    const catalogSwitches = switchesByCatalog[catalog.key] ?? emptySwitchesForCatalog(catalog);
+                    const badge = moduleBadge(catalog, catalogSwitches);
+                    const badgeLabel = moduleBadgeShortLabel(badge);
+                    const badgeClass = moduleBadgeClass(badge);
+                    const isOpen = Boolean(expandedServices[catalog.key]);
 
                     return (
                       <div
-                        key={service.key}
+                        key={catalog.key}
                         className="perm-matrix-group"
-                        data-testid={`service-accordion-${service.key}`}
+                        data-testid={`service-accordion-${catalog.key}`}
                         style={{ minWidth: 0, padding: "0.85rem 1rem" }}
                       >
                         <div
                           role="button"
                           tabIndex={0}
-                          aria-label={`Toggle ${service.title}`}
+                          aria-label={`Toggle ${catalog.title}`}
                           aria-expanded={isOpen}
-                          onClick={() => toggleService(service.key)}
+                          onClick={() => toggleService(catalog.key)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              toggleService(service.key);
+                              toggleService(catalog.key);
                             }
                           }}
                           style={{
@@ -538,17 +512,17 @@ export function RoleDrawer({
                                 >
                                   <polyline points="6 9 12 15 18 9" />
                                 </svg>
-                                <span>{service.title}</span>
+                                <span>{catalog.title}</span>
                               </span>
                               <span
                                 className={`badge ${badgeClass}`}
-                                data-testid={`service-badge-${service.key}`}
+                                data-testid={`service-badge-${catalog.key}`}
                               >
-                                {status}
+                                {badgeLabel}
                               </span>
                             </div>
                             <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", lineHeight: 1.35, paddingLeft: "1.15rem" }}>
-                              {service.description}
+                              {catalog.description}
                             </div>
                           </div>
 
@@ -561,41 +535,41 @@ export function RoleDrawer({
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-xs"
-                                aria-label={`${service.title}: Full Access`}
-                                data-testid={`preset-full-${service.key}`}
+                                aria-label={`${catalog.title}: Full`}
+                                data-testid={`preset-full-${catalog.key}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  applyServicePreset(service.capabilities, "full");
+                                  applyCatalogPreset(catalog, "full");
                                 }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
-                                Full Access
+                                Full
                               </button>
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-xs"
-                                aria-label={`${service.title}: Read Only`}
-                                data-testid={`preset-readonly-${service.key}`}
+                                aria-label={`${catalog.title}: View`}
+                                data-testid={`preset-view-${catalog.key}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  applyServicePreset(service.capabilities, "view");
+                                  applyCatalogPreset(catalog, "view");
                                 }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
-                                Read Only
+                                View
                               </button>
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-xs"
-                                aria-label={`${service.title}: Restricted`}
-                                data-testid={`preset-off-${service.key}`}
+                                aria-label={`${catalog.title}: None`}
+                                data-testid={`preset-none-${catalog.key}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  applyServicePreset(service.capabilities, "off");
+                                  applyCatalogPreset(catalog, "none");
                                 }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
-                                Restricted
+                                None
                               </button>
                             </div>
                           )}
@@ -612,41 +586,40 @@ export function RoleDrawer({
                               borderTop: "1px solid var(--line-subtle)",
                             }}
                           >
-                            {service.capabilities.map((cap) => (
-                              <div className="perm-checkbox-row" key={cap} data-capability={cap}>
-                                <span>{CAPABILITY_META[cap].column}</span>
-                                {readOnly ? (
-                                  <span
-                                    className={`badge ${
-                                      grid[cap] === "granted"
-                                        ? "badge-pos"
-                                        : grid[cap] === "view"
-                                        ? "badge-neu"
-                                        : "badge-neg"
-                                    }`}
-                                    data-testid={`cap-badge-${cap}`}
-                                  >
-                                    {LEVEL_LABEL[grid[cap]]}
-                                  </span>
-                                ) : (
-                                  <Select
-                                    aria-label={CAPABILITY_META[cap].column}
-                                    value={grid[cap]}
-                                    onChange={(val) => {
-                                      const nextGrid = { ...grid, [cap]: val as CapabilityLevel };
-                                      if (cap === "members") {
-                                        nextGrid.team = val === "granted" ? "granted" : "off";
-                                      }
-                                      setGrid(nextGrid);
-                                    }}
-                                    options={CAPABILITY_META[cap].levels.map((lvl) => ({
-                                      value: lvl,
-                                      label: LEVEL_LABEL[lvl],
-                                    }))}
-                                  />
-                                )}
-                              </div>
-                            ))}
+                            {catalog.areas.map((area) => {
+                              const value = catalogSwitches[area.key] ?? "none";
+                              return (
+                                <div className="perm-checkbox-row" key={area.key} data-area={area.key}>
+                                  <span>{area.label}</span>
+                                  {readOnly ? (
+                                    <span
+                                      className={`badge ${
+                                        value === "manage"
+                                          ? "badge-pos"
+                                          : value === "view"
+                                          ? "badge-neu"
+                                          : "badge-neg"
+                                      }`}
+                                      data-testid={`area-badge-${catalog.key}-${area.key}`}
+                                    >
+                                      {AREA_SWITCH_LABEL[value]}
+                                    </span>
+                                  ) : (
+                                    <Select
+                                      aria-label={area.label}
+                                      value={value}
+                                      onChange={(val) => {
+                                        setCatalogSwitches(catalog.key, {
+                                          ...catalogSwitches,
+                                          [area.key]: val as AreaSwitch,
+                                        });
+                                      }}
+                                      options={areaSwitchOptions(area)}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -660,7 +633,13 @@ export function RoleDrawer({
               <div style={{ marginLeft: "auto", display: "flex", gap: ".45rem" }}>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
                 {!readOnly && (
-                  <LoadingButton className="btn btn-primary btn-sm" disabled={busy} loading={busy} loadingText="Saving…" onClick={save}>
+                  <LoadingButton
+                    className="btn btn-primary btn-sm"
+                    disabled={busy || !catalogs}
+                    loading={busy}
+                    loadingText="Saving…"
+                    onClick={save}
+                  >
                     Save Role &amp; Permissions
                   </LoadingButton>
                 )}

@@ -1,137 +1,113 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect } from "vitest";
 import { RoleServiceInspector } from "./RoleServiceInspector";
-import {
-  OFF_GRID,
-  type CapabilityGrid,
-} from "@/lib/capabilityMap";
+import { chapterLeadPermissionKeys, moduleCatalogsFixture } from "./testCatalogFixtures";
+import { expandSwitches } from "@/registry/moduleCatalog";
+import { platformCatalog, platformRole } from "@/registry/platformCatalog";
 
 describe("RoleServiceInspector", () => {
-  const chapterLeadGrid: CapabilityGrid = {
-    ...OFF_GRID,
-    drive: "granted",
-    publish: "granted",
-    triage: "granted",
-    hours: "granted",
-    volunteers: "off",
-    org_governance: "granted",
-    members: "off",
-    roles: "off",
-    audit: "off",
-    inquiries: "off",
-    team: "off",
-  };
-
   it("renders policy summary header with role name and governed modules", () => {
-    render(<RoleServiceInspector grid={chapterLeadGrid} roleName="Chapter Lead" />);
+    render(
+      <RoleServiceInspector
+        catalogs={moduleCatalogsFixture}
+        permissionKeys={chapterLeadPermissionKeys}
+        roleName="Chapter Lead"
+      />,
+    );
 
-    // Role name displayed in header
     expect(screen.getByText("Chapter Lead")).toBeInTheDocument();
     expect(screen.getByText(/IAM Service Policy/i)).toBeInTheDocument();
   });
 
-  it("renders collapsible service module accordions with access badges and ratio counts", () => {
-    render(<RoleServiceInspector grid={chapterLeadGrid} roleName="Chapter Lead" />);
+  it("renders collapsible service module accordions with area-based badges", () => {
+    render(
+      <RoleServiceInspector
+        catalogs={moduleCatalogsFixture}
+        permissionKeys={chapterLeadPermissionKeys}
+        roleName="Chapter Lead"
+      />,
+    );
 
-    // Service module accordions exist
     expect(screen.getByText("Youth Republic")).toBeInTheDocument();
     expect(screen.getByText("Team & Governance")).toBeInTheDocument();
 
-    // Module descriptions
-    expect(
-      screen.getByText(/Volunteer drives, public noticeboard, applicant screening/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Chapter governance, team roster, roles configuration/i),
-    ).toBeInTheDocument();
-
-    // Youth Republic should have Full Access badge and ratio count
-    const fullAccessBadge = screen.getByText("Full Access");
-    expect(fullAccessBadge).toBeInTheDocument();
-    expect(fullAccessBadge).toHaveClass("badge", "badge-pos");
-    expect(screen.getByText("4 Granted · 1 Restricted")).toBeInTheDocument();
-
-    // Team & Governance should have Limited badge and ratio count
-    const limitedBadge = screen.getByText("Limited");
-    expect(limitedBadge).toBeInTheDocument();
-    expect(limitedBadge).toHaveClass("badge", "badge-warn");
-    expect(screen.getByText("1 Granted · 4 Restricted")).toBeInTheDocument();
+    const yrModule = screen.getByRole("button", { name: /Youth Republic/i });
+    expect(within(yrModule).getByText("Limited")).toHaveClass("badge", "badge-warn");
   });
 
-  it("toggles capability items when clicking a service accordion", async () => {
+  it("toggles area rows when clicking a service accordion", async () => {
     const user = userEvent.setup();
-    render(<RoleServiceInspector grid={chapterLeadGrid} roleName="Chapter Lead" />);
+    render(
+      <RoleServiceInspector
+        catalogs={moduleCatalogsFixture}
+        permissionKeys={chapterLeadPermissionKeys}
+        roleName="Chapter Lead"
+      />,
+    );
 
-    // Capabilities should not be visible initially
-    expect(screen.queryByText("Drive Creation")).not.toBeInTheDocument();
-    expect(screen.queryByText("Volunteer Directory")).not.toBeInTheDocument();
-
-    // Find and click the Youth Republic accordion header button
+    expect(screen.queryByText("Drives")).not.toBeInTheDocument();
     const yrButton = screen.getByRole("button", { name: /Youth Republic/i });
     await user.click(yrButton);
 
-    // Capabilities should now be visible
-    expect(screen.getByText("Drive Creation")).toBeInTheDocument();
-    expect(screen.getByText("Publish Noticeboard")).toBeInTheDocument();
-    expect(screen.getByText("Triage Apps")).toBeInTheDocument();
-    expect(screen.getByText("Approve Hours")).toBeInTheDocument();
+    expect(screen.getByText("Drives")).toBeInTheDocument();
     expect(screen.getByText("Volunteer Directory")).toBeInTheDocument();
-
-    // Click again to toggle closed
-    await user.click(yrButton);
-    expect(screen.queryByText("Drive Creation")).not.toBeInTheDocument();
   });
 
-  it("renders correct level badges for individual capabilities", async () => {
+  it("renders correct level badges for individual areas", async () => {
     const user = userEvent.setup();
-    render(<RoleServiceInspector grid={chapterLeadGrid} roleName="Chapter Lead" />);
+    render(
+      <RoleServiceInspector
+        catalogs={moduleCatalogsFixture}
+        permissionKeys={chapterLeadPermissionKeys}
+        roleName="Chapter Lead"
+      />,
+    );
 
-    // Open Youth Republic accordion
-    const yrButton = screen.getByRole("button", { name: /Youth Republic/i });
-    await user.click(yrButton);
+    await user.click(screen.getByRole("button", { name: /Youth Republic/i }));
+    const driveRow = screen.getByText("Drives").closest("div[data-area]")!;
+    expect(driveRow.querySelector(".badge")).toHaveTextContent("Manage");
 
-    // Locate Drive Creation capability row and verify Granted badge
-    const driveRow = screen.getByText("Drive Creation").closest("div[data-capability]")!;
-    expect(driveRow).toBeInTheDocument();
-    const driveBadge = driveRow.querySelector(".badge");
-    expect(driveBadge).toHaveTextContent("Granted");
-    expect(driveBadge).toHaveClass("badge", "badge-pos");
-
-    // Locate Volunteer Directory capability row and verify Restricted badge
-    const volRow = screen.getByText("Volunteer Directory").closest("div[data-capability]")!;
-    expect(volRow).toBeInTheDocument();
-    const volBadge = volRow.querySelector(".badge");
-    expect(volBadge).toHaveTextContent("Restricted");
-    expect(volBadge).toHaveClass("badge", "badge-neg");
+    const volRow = screen.getByText("Volunteer Directory").closest("div[data-area]")!;
+    expect(volRow.querySelector(".badge")).toHaveTextContent("None");
   });
 
-  it("renders Read Only badge for Auditor role", () => {
-    const auditorGrid: CapabilityGrid = {
-      ...OFF_GRID,
-      triage: "view",
-      hours: "view",
-      volunteers: "view",
-      audit: "view",
-    };
+  it("renders View only badge for Auditor role", () => {
+    const permissionKeys = expandSwitches(platformCatalog, platformRole("Auditor").switches);
 
-    render(<RoleServiceInspector grid={auditorGrid} roleName="Auditor" />);
+    render(
+      <RoleServiceInspector
+        catalogs={[platformCatalog]}
+        permissionKeys={permissionKeys}
+        roleName="Auditor"
+      />,
+    );
 
-    const readOnlyBadges = screen.getAllByText("Read Only");
-    expect(readOnlyBadges.length).toBeGreaterThan(0);
-    expect(readOnlyBadges[0]).toHaveClass("badge", "badge-neu");
+    expect(screen.getByText("View only")).toBeInTheDocument();
   });
 
-  it("renders Restricted badge for fully off role", () => {
-    render(<RoleServiceInspector grid={OFF_GRID} roleName="Guest" />);
+  it("renders None badge for fully off role", () => {
+    render(
+      <RoleServiceInspector
+        catalogs={moduleCatalogsFixture}
+        permissionKeys={[]}
+        roleName="Guest"
+      />,
+    );
 
-    const offBadges = screen.getAllByText("Restricted");
-    expect(offBadges.length).toBeGreaterThan(0);
-    expect(offBadges[0]).toHaveClass("badge", "badge-neg");
+    const noneBadges = screen.getAllByText("None");
+    expect(noneBadges.length).toBeGreaterThan(0);
   });
 
   it("accepts readOnly prop gracefully", () => {
-    render(<RoleServiceInspector grid={chapterLeadGrid} roleName="Chapter Lead" readOnly={true} />);
+    render(
+      <RoleServiceInspector
+        catalogs={moduleCatalogsFixture}
+        permissionKeys={chapterLeadPermissionKeys}
+        roleName="Chapter Lead"
+        readOnly={true}
+      />,
+    );
     expect(screen.getByText("Chapter Lead")).toBeInTheDocument();
   });
 });

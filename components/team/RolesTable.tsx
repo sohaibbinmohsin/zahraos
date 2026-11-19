@@ -2,33 +2,28 @@
 
 import { useMemo, useState } from "react";
 import {
-  SERVICE_MODULES,
-  getRoleModuleSummaries,
-  permissionKeysToGrid,
-  type RoleModuleSummary,
-} from "@/lib/capabilityMap";
+  moduleBadge,
+  moduleBadgeClass,
+  moduleBadgeShortLabel,
+  switchesFromKeys,
+  type ModuleCatalog,
+  type ModuleBadge,
+} from "@/registry/moduleCatalog";
 import type { TeamRole } from "./TeamAccessProvider";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Select } from "@/components/ui/Select";
+import { useTeamAccess } from "./TeamAccessProvider";
+import { useModuleCatalogs } from "./useModuleCatalogs";
 
-function moduleBadge(summary: RoleModuleSummary) {
-  let badgeClass = "badge-neg";
-  let label = "Restricted";
-
-  if (summary.level === "full") {
-    badgeClass = "badge-pos";
-    label = "Full Access";
-  } else if (summary.level === "limited") {
-    badgeClass = "badge-warn";
-    label = "Limited";
-  } else if (summary.level === "view") {
-    badgeClass = "badge-neu";
-    label = "Read Only";
-  }
+function renderModuleBadge(catalog: ModuleCatalog, permissionKeys: string[]) {
+  const switches = switchesFromKeys(catalog, permissionKeys);
+  const badge: ModuleBadge = moduleBadge(catalog, switches);
+  const badgeClass = moduleBadgeClass(badge);
+  const label = moduleBadgeShortLabel(badge);
 
   return (
     <span
-      key={summary.moduleKey}
+      key={catalog.key}
       className={`badge ${badgeClass}`}
       style={{
         display: "inline-flex",
@@ -37,7 +32,7 @@ function moduleBadge(summary: RoleModuleSummary) {
         padding: "0.2rem 0.5rem",
       }}
     >
-      {summary.title}: {label}
+      {catalog.title}: {label}
     </span>
   );
 }
@@ -61,35 +56,42 @@ export function RolesTable({
   deletingRoleId?: string | null;
   canManageRoles?: boolean;
 }) {
+  const { organizationId, accessToken } = useTeamAccess();
+  const { catalogs } = useModuleCatalogs(organizationId, accessToken, true);
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [moduleFilter, setModuleFilter] = useState("all");
 
+  const activeCatalogs = catalogs ?? [];
+
   const moduleOptions = useMemo(
     () => [
       { value: "all", label: "All Modules" },
-      ...SERVICE_MODULES.map((m) => ({ value: m.key, label: m.title })),
+      ...activeCatalogs.map((m) => ({ value: m.key, label: m.title })),
     ],
-    [],
+    [activeCatalogs],
   );
 
   const rolesWithSummaries = useMemo(() => {
-    return roles.map((r) => {
-      const grid = permissionKeysToGrid(r.permissionKeys);
-      const summaries = getRoleModuleSummaries(grid);
-      return { role: r, grid, summaries };
-    });
-  }, [roles]);
+    return roles.map((role) => ({
+      role,
+      badges: activeCatalogs.map((catalog) => ({
+        catalog,
+        badge: moduleBadge(catalog, switchesFromKeys(catalog, role.permissionKeys)),
+      })),
+    }));
+  }, [roles, activeCatalogs]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return rolesWithSummaries.filter(({ role: r, summaries }) => {
+    return rolesWithSummaries.filter(({ role: r, badges }) => {
       const matchSearch =
         !q ||
         r.name.toLowerCase().includes(q) ||
         (r.description ?? "").toLowerCase().includes(q) ||
-        summaries.some(
-          (s) => s.level !== "off" && s.title.toLowerCase().includes(q),
+        badges.some(
+          (entry) => entry.badge !== "none" && entry.catalog.title.toLowerCase().includes(q),
         );
 
       const matchType =
@@ -99,8 +101,8 @@ export function RolesTable({
 
       const matchModule =
         moduleFilter === "all" ||
-        summaries.some(
-          (s) => s.moduleKey === moduleFilter && s.level !== "off",
+        badges.some(
+          (entry) => entry.catalog.key === moduleFilter && entry.badge !== "none",
         );
 
       return matchSearch && matchType && matchModule;
@@ -163,7 +165,7 @@ export function RolesTable({
                   </td>
                 </tr>
               ) : (
-                filtered.map(({ role: r, summaries }) => {
+                filtered.map(({ role: r }) => {
                   const count = assignmentCountByRoleId.get(r.id) ?? 0;
 
                   return (
@@ -204,7 +206,7 @@ export function RolesTable({
                             gap: ".35rem",
                           }}
                         >
-                          {summaries.map(moduleBadge)}
+                          {activeCatalogs.map((catalog) => renderModuleBadge(catalog, r.permissionKeys))}
                         </div>
                       </td>
                       <td>
