@@ -926,17 +926,14 @@ h1, h2, h3, h4, h5, h6 {
 .user-pill {
   display: flex;
   align-items: center;
-  gap: .55rem;
-  padding: .25rem .6rem;
-  border: 1px solid var(--line);
-  border-radius: 30px;
-  background: #FFF;
-  font-size: var(--text-sm);
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
   cursor: pointer;
-  transition: all .15s ease;
 }
 
-.user-pill:hover { border-color: var(--ink); }
+.user-pill:hover { border-color: transparent; }
 .user-pill .avatar {
   box-shadow: 0 0 0 2px var(--brand);
 }
@@ -1606,10 +1603,11 @@ h1, h2, h3, h4, h5, h6 {
   gap: .75rem;
   position: relative;
   box-shadow: var(--shadow-sm);
-  /* One height for every card. The title slot below is sized for the
-     80-character drive-name limit, so a full title is never clipped. */
-  height: 276px;
+  /* One height for every card. Tall enough for a full 80-character title
+     (four lines) plus a two-line description, so nothing is sliced off. */
+  height: 320px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .opp-card > div:first-child {
@@ -1617,7 +1615,6 @@ h1, h2, h3, h4, h5, h6 {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 
 .opp-head {
@@ -1636,12 +1633,10 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--ink);
   line-height: 1.25;
   letter-spacing: .01em;
-  /* Four lines covers an 80-character name (including a run of wide glyphs)
-     at the narrowest card width (320px). Do not clamp this. */
+  /* Wrap on word boundaries. Do not clamp the name or break inside a word. */
   flex-shrink: 0;
-  min-height: calc(1.25em * 4);
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow: visible;
+  overflow-wrap: break-word;
 }
 
 .opp-lead {
@@ -1654,7 +1649,9 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  /* Keep the clamped box intact so the ellipsis is visible. */
+  flex-shrink: 0;
 }
 
 .opp-meta-row {

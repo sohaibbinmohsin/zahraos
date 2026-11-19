@@ -89,42 +89,39 @@ export function ChaptersPanel({
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3" style={{ marginBottom: ".75rem" }}>
-        <div>
-          <h2 className="panel-title">Chapters</h2>
+      <div className="flex items-center justify-between gap-3" style={{ marginBottom: ".85rem", flexWrap: "wrap" }}>
+        <h2 className="panel-title" style={{ margin: 0 }}>Chapters</h2>
+        <div className="page-toolbar" style={{ marginLeft: "auto", flexWrap: "nowrap" }}>
+          <input
+            type="search"
+            className="search-input"
+            aria-label="Search chapters by name"
+            placeholder="Search chapter name..."
+            value={nameQuery}
+            onChange={(e) => setNameQuery(e.target.value)}
+          />
+          <Select
+            aria-label="Filter chapters by city"
+            value={cityFilter}
+            onChange={setCityFilter}
+            options={cityOptions}
+          />
+          <Select
+            aria-label="Filter chapters by status"
+            value={statusFilter}
+            onChange={setStatusFilter}
+            options={[
+              { value: "all", label: "All statuses" },
+              { value: "active", label: "Active" },
+              { value: "inactive", label: "Inactive" },
+            ]}
+          />
+          {perms.canCreateChapters && !showForm && (
+            <button type="button" className="btn btn-primary btn-sm flex-shrink-0" onClick={() => setShowForm(true)}>
+              Add Chapter
+            </button>
+          )}
         </div>
-        {perms.canCreateChapters && !showForm && (
-          <button type="button" className="btn btn-primary btn-sm flex-shrink-0" onClick={() => setShowForm(true)}>
-            Add Chapter
-          </button>
-        )}
-      </div>
-
-      <div className="page-toolbar" style={{ marginBottom: ".85rem" }}>
-        <input
-          type="search"
-          className="search-input"
-          aria-label="Search chapters by name"
-          placeholder="Search chapter name..."
-          value={nameQuery}
-          onChange={(e) => setNameQuery(e.target.value)}
-        />
-        <Select
-          aria-label="Filter chapters by city"
-          value={cityFilter}
-          onChange={setCityFilter}
-          options={cityOptions}
-        />
-        <Select
-          aria-label="Filter chapters by status"
-          value={statusFilter}
-          onChange={setStatusFilter}
-          options={[
-            { value: "all", label: "All statuses" },
-            { value: "active", label: "Active" },
-            { value: "inactive", label: "Inactive" },
-          ]}
-        />
       </div>
 
       {perms.canCreateChapters && showForm && (

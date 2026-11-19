@@ -1365,13 +1365,6 @@ function AppShellContent({
                         ? "Maseeha"
                         : "Youth Republic"}
                   </span>
-                  <span className="brand-tagline">
-                    {isGovernanceArea
-                      ? "Administrative Roles & Permissions Management"
-                      : isMaseehaModule
-                        ? "Emergency Response & Pre-Hospital Care"
-                        : "Volunteer Operations & Noticeboard"}
-                  </span>
                 </div>
               </div>
 
@@ -1397,9 +1390,6 @@ function AppShellContent({
                   aria-label="User Profile Menu"
                 >
                   <div className="avatar">{initials}</div>
-                  <div className="user-text-info">
-                    {displayName && <div style={{ fontWeight: 600, lineHeight: 1.1 }}>{displayName}</div>}
-                  </div>
                 </div>
 
                 {/* User Profile Dropdown Menu */}

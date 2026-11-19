@@ -144,7 +144,7 @@ describe("AppShell", () => {
     // The shell holds page content back behind a skeleton until the account
     // (and its selected org) resolves, so no screen flashes a "select an
     // organization" empty state during hydration.
-    await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("OP")).toBeInTheDocument());
     expect(screen.getByText("page content")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Organizations" })).toBeInTheDocument();
   });
@@ -242,7 +242,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Regular Staff")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("RS")).toBeInTheDocument());
     expect(screen.queryByText("Team & Governance")).not.toBeInTheDocument();
     expect(screen.queryByRole("separator")).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Hours" })).not.toBeInTheDocument();
@@ -289,7 +289,7 @@ describe("AppShell", () => {
       supabaseClient.__emitAuthStateChange("SIGNED_IN", { access_token: "fresh-token" });
     });
 
-    await waitFor(() => expect(screen.getByText("Late Login Person")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("LL")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Team Members" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Roles & Permissions" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Audit Log" })).toBeInTheDocument();
@@ -314,7 +314,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("OP")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Organizations" })).toBeInTheDocument();
 
     // The separate header button is removed; signing out happens via the user profile dropdown
@@ -352,8 +352,9 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Sohaib Mohsin")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("SM")).toBeInTheDocument());
     await user.click(screen.getByLabelText("User Profile Menu"));
+    expect(screen.getByText("Sohaib Mohsin")).toBeInTheDocument();
 
     expect(screen.getByText("sohaib@youthrepublic.org")).toBeInTheDocument();
     expect(screen.queryByText(/ID: s1-abc/i)).not.toBeInTheDocument();
@@ -378,12 +379,14 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Rizq Admin")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("RA")).toBeInTheDocument());
 
-    // The header pill shows the name only. The role stays on the card opened from the name.
+    // The header is the initials circle only. The name and role stay on the card.
+    expect(screen.queryByText("Rizq Admin")).not.toBeInTheDocument();
     expect(screen.queryByText("Super Admin")).not.toBeInTheDocument();
 
     await user.click(screen.getByLabelText("User Profile Menu"));
+    expect(screen.getByText("Rizq Admin")).toBeInTheDocument();
     expect(screen.getByText("admin@rizq.example.com")).toBeInTheDocument();
     expect(screen.getByText("Super Admin")).toBeInTheDocument();
   });
@@ -406,7 +409,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Admin Staff")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("AS")).toBeInTheDocument());
 
     // Sidebar brand header: the selected org's name + its uploaded logo
     await waitFor(() => expect(screen.getByText("Rizq Foundation")).toBeInTheDocument());
@@ -474,7 +477,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Admin Staff")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("AS")).toBeInTheDocument());
 
     const aside = container.querySelector("aside.app-sidebar");
     expect(aside).not.toBeNull();
@@ -521,7 +524,7 @@ describe("AppShell", () => {
     // Prior to claims resolving, non-authorized headers must not render (zero orphaned headers)
     expect(screen.queryByText("Team & Governance")).not.toBeInTheDocument();
 
-    await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("OP")).toBeInTheDocument());
     expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry" })).not.toBeInTheDocument();
     expect(screen.getByText("Team & Governance")).toBeInTheDocument();
@@ -554,7 +557,7 @@ describe("AppShell", () => {
 
     await user.click(screen.getByRole("button", { name: "Retry" }));
 
-    await waitFor(() => expect(screen.getByText("Recovered Person")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("RP")).toBeInTheDocument());
     expect(screen.queryByText(/could not load your account/i)).not.toBeInTheDocument();
   });
 
@@ -582,7 +585,7 @@ describe("AppShell", () => {
         </AppShell>,
       );
 
-      await waitFor(() => expect(screen.getByText("Owner Person")).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByText("OP")).toBeInTheDocument());
       expect(fetchStaffToken).toHaveBeenCalledTimes(1);
       expect(screen.queryByRole("link", { name: "Organizations" })).not.toBeInTheDocument();
 
@@ -629,7 +632,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Youth Officer")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("YO")).toBeInTheDocument());
 
     // Team & Governance label and its preceding separator must not exist in DOM
     expect(screen.queryByText("Team & Governance")).not.toBeInTheDocument();
@@ -666,7 +669,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getAllByText("Application Reviewer").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getByText("AR")).toBeInTheDocument());
 
     // Hours verification link must not be present
     expect(screen.queryByText("Hours Verification")).not.toBeInTheDocument();
@@ -706,7 +709,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Hours Auditor")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("HA")).toBeInTheDocument());
 
     expect(screen.getByText("Hours Verification")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Hours" })).toBeInTheDocument();
@@ -744,7 +747,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Hours And Inquiries")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("HA")).toBeInTheDocument());
     const groups = [...document.querySelectorAll(".sidebar-nav .nav-group-label")];
     expect(groups.map((el) => el.textContent)).toEqual(["Youth Republic", "Team & Governance"]);
     expect(groups[0]).not.toHaveClass("nav-group-follow");
@@ -783,7 +786,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Inquiries Reader")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("IR")).toBeInTheDocument());
     expect(screen.getByRole("link", { name: "Partner Inquiries" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Team Members" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Organization" })).not.toBeInTheDocument();
@@ -826,7 +829,7 @@ describe("AppShell", () => {
       </AppShell>,
     );
 
-    await waitFor(() => expect(screen.getByText("Chapter Lead")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("CL")).toBeInTheDocument());
     // Organization link is shown because canManageTeam is true
     expect(screen.getByRole("link", { name: "Organization" })).toBeInTheDocument();
     // Partner Inquiries must be hidden

@@ -454,7 +454,7 @@ export default function YouthRepublicDrivesPage() {
                   </div>
 
                   <div className="opp-title">
-                    <span>{opp.name}</span>
+                    <span className="opp-title-text">{opp.name}</span>
                     {running && (
                       <span
                         className="live-pill"
