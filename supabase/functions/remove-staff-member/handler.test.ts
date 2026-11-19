@@ -1,5 +1,6 @@
 import { assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { createClient } from "@supabase/supabase-js";
+import { inviteStaffMember } from "../invite-staff-member/handler.ts";
 import { removeStaffMember } from "./handler.ts";
 
 function testClient() {
@@ -38,13 +39,29 @@ Deno.test("removeStaffMember deletes assignments, deactivates, and audits", asyn
 
   const { data: rows } = await supabase.from("staff_role_assignments").select("id").eq("staff_id", member!.id);
   assertEquals(rows!.length, 0);
-  const { data: s } = await supabase.from("staff").select("status").eq("id", member!.id).single();
+  const { data: s } = await supabase.from("staff").select("status, email, auth_user_id").eq("id", member!.id).single();
   assertEquals(s!.status, "deactivated");
-  const { data: bannedUser } = await supabase.auth.admin.getUserById(mAuth!.user!.id);
-  assertEquals(Boolean(bannedUser?.user?.banned_until), true);
+  assertEquals(s!.email, memEmail);
+  assertEquals(s!.auth_user_id, null);
+  const { data: deletedAuth } = await supabase.auth.admin.getUserById(mAuth!.user!.id);
+  assertEquals(deletedAuth?.user ?? null, null);
   const { data: audit } = await supabase.from("admin_audit_log").select("action")
     .eq("entity_id", member!.id).eq("action", "Member Removed").single();
   assertEquals(audit!.action, "Member Removed");
+
+  const again = await inviteStaffMember(supabase, admin!.id, false, {
+    organizationId: org!.id,
+    fullName: "Rm Member Again",
+    email: memEmail,
+    roles: [{ roleId: role!.id, scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+  });
+  assertEquals(again.staffId === member!.id, false);
+  const { data: recreated } = await supabase.from("staff").select("status, email").eq("id", again.staffId).single();
+  assertEquals(recreated!.status, "active");
+  assertEquals(recreated!.email, memEmail);
+  const { data: history } = await supabase.from("staff").select("status, email").eq("id", member!.id).single();
+  assertEquals(history!.status, "deactivated");
+  assertEquals(history!.email, memEmail);
 
   await assertRejects(
     () => removeStaffMember(supabase, member!.id, false, { staffId: admin!.id, organizationId: org!.id }),

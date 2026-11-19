@@ -1,6 +1,11 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { actorName, writeAuditLog } from "../_shared/auditLog.ts";
 import { assertCallerIsOrgAdminOrAbove } from "../_shared/orgAdminAuthz.ts";
+import {
+  EMAIL_ALREADY_REGISTERED,
+  isEmailAlreadyRegistered,
+  prepareEmailForNewStaffAccount,
+} from "../_shared/staffIdentity.ts";
 
 export interface RoleAssignmentInput {
   roleId: string;
@@ -42,7 +47,8 @@ export async function inviteStaffMember(
 ): Promise<{ staffId: string; invitationId: string; temporaryPassword: string }> {
   await assertCallerIsOrgAdminOrAbove(supabase, callerStaffId, callerPlatformOwner, input.organizationId);
 
-  if (!input.fullName?.trim() || !input.email?.trim()) throw new Error("missing_fields");
+  const email = input.email?.trim() ?? "";
+  if (!input.fullName?.trim() || !email) throw new Error("missing_fields");
   if (!input.roles?.length) throw new Error("no_roles");
 
   const { data: orgModule } = await supabase.from("org_modules")
@@ -69,19 +75,30 @@ export async function inviteStaffMember(
   }
 
   const tempPassword = temporaryPassword();
+  // Drops a banned auth user left behind by a previous remove, and refuses
+  // when a live account already holds this email.
+  await prepareEmailForNewStaffAccount(supabase, email);
   const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-    email: input.email, password: tempPassword, email_confirm: true,
+    email, password: tempPassword, email_confirm: true,
   });
-  if (authError || !authUser.user) throw authError ?? new Error("failed_to_create_auth_user");
+  if (authError || !authUser.user) {
+    if (authError && isEmailAlreadyRegistered(authError)) throw new Error(EMAIL_ALREADY_REGISTERED);
+    throw authError ?? new Error("failed_to_create_auth_user");
+  }
 
   // Active straight away — the member signs in with the temporary password and
   // is forced to set their own on first login (must_change_password → the
   // /set-password redirect in middleware).
   const { data: staff, error: staffError } = await supabase.from("staff").insert({
-    auth_user_id: authUser.user.id, full_name: input.fullName, email: input.email,
+    auth_user_id: authUser.user.id, full_name: input.fullName, email,
     status: "active", must_change_password: true, expires_at: input.expiresAt ?? null,
   }).select("id").single();
-  if (staffError) throw staffError;
+  if (staffError) {
+    if (staffError.code === "23505" && /email/i.test(staffError.message ?? "")) {
+      throw new Error(EMAIL_ALREADY_REGISTERED);
+    }
+    throw staffError;
+  }
 
   const { error: assignError } = await supabase.from("staff_role_assignments").insert(
     input.roles.map((r) => ({
@@ -121,7 +138,7 @@ export async function inviteStaffMember(
 
   // Kept as an audit trail of who added whom. No email/token flow any more.
   const { data: invite, error: inviteError } = await supabase.from("staff_invitations").insert({
-    organization_id: input.organizationId, staff_id: staff.id, email: input.email,
+    organization_id: input.organizationId, staff_id: staff.id, email,
     full_name: input.fullName, phone: input.phone ?? null, enforce_2fa: false,
     send_activation_email: false, token_hash: null, invited_by: callerStaffId,
     status: "accepted", accepted_at: new Date().toISOString(),
