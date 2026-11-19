@@ -18,6 +18,7 @@ import {
   drawerCatalogs,
   type ModuleCatalog,
 } from "@/registry/moduleCatalog";
+import { ModuleCatalogStatusBanner } from "./ModuleCatalogStatusBanner";
 import { useModuleCatalogs } from "./useModuleCatalogs";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Select } from "@/components/ui/Select";
@@ -217,7 +218,11 @@ export function RoleDrawer({
   const { organizationId, accessToken, moduleId, roles, refresh } = useTeamAccess();
   const { showToast } = useToast();
   const open = request !== null;
-  const { catalogs } = useModuleCatalogs(organizationId, accessToken, open);
+  const { catalogs, error: catalogError, loading: catalogsLoading, ready: catalogsReady } = useModuleCatalogs(
+    organizationId,
+    accessToken,
+    open,
+  );
 
   const source = request?.roleId
     ? roles.find((r) => r.id === request.roleId)
@@ -415,6 +420,7 @@ export function RoleDrawer({
             </div>
 
             <div className="drawer-body">
+              <ModuleCatalogStatusBanner error={catalogError} loading={catalogsLoading} />
               <div className="form-group">
                 <label className="form-label" htmlFor="role-name">Role Title *</label>
                 <input id="role-name" className="form-input" value={name} disabled={readOnly}
@@ -635,7 +641,7 @@ export function RoleDrawer({
                 {!readOnly && (
                   <LoadingButton
                     className="btn btn-primary btn-sm"
-                    disabled={busy || !catalogs}
+                    disabled={busy || !catalogsReady || Boolean(catalogError)}
                     loading={busy}
                     loadingText="Saving…"
                     onClick={save}

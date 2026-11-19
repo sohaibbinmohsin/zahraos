@@ -22,9 +22,13 @@ vi.mock("@/components/team/TeamAccessProvider", () => ({
 }));
 
 import { InviteMemberDrawer } from "./InviteMemberDrawer";
+import { mockModuleCatalogsFetch } from "./testCatalogFixtures";
 
 describe("InviteMemberDrawer", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("fetch", mockModuleCatalogsFetch());
+  });
 
   it("creates the member, then reveals the temporary password instead of closing", async () => {
     const user = userEvent.setup();
@@ -33,6 +37,7 @@ describe("InviteMemberDrawer", () => {
 
     await user.type(screen.getByLabelText(/Full Name/i), "Tariq Mehmood");
     await user.type(screen.getByLabelText(/Work Email/i), "tariq@x.org");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Create Member" })).not.toBeDisabled());
     await user.click(screen.getByRole("button", { name: "Create Member" }));
 
     await waitFor(() => expect(invite).toHaveBeenCalledTimes(1));
@@ -65,10 +70,23 @@ describe("InviteMemberDrawer", () => {
     await user.type(screen.getByLabelText(/Full Name/i), "Tariq Mehmood");
     await user.type(screen.getByLabelText(/Work Email/i), "tariq@x.org");
     await user.type(screen.getByLabelText("Access expires"), "2026-12-31");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Create Member" })).not.toBeDisabled());
     await user.click(screen.getByRole("button", { name: "Create Member" }));
 
     await waitFor(() => expect(invite).toHaveBeenCalledTimes(1));
     expect(invite.mock.calls[0][0].expiresAt).toBe("2026-12-31");
+  });
+
+  it("disables create when module catalogs fail to load", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ error: "module_catalog_unavailable" }), { status: 502 })),
+    );
+    render(<InviteMemberDrawer open onClose={vi.fn()} />);
+    expect(
+      await screen.findByRole("alert"),
+    ).toHaveTextContent(/Module permission catalogs could not be loaded/i);
+    expect(screen.getByRole("button", { name: "Create Member" })).toBeDisabled();
   });
 
   it("blocks submit with no name/email", async () => {

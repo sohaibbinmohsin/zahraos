@@ -19,9 +19,13 @@ describe("rolesWithTemplatePlace", () => {
     expect(merged.find((r) => r.name === "Chapter Lead")?.place).toBe("chapters");
   });
 
-  it("falls back to platform catalog when module catalogs are not loaded", () => {
-    const merged = rolesWithTemplatePlace(dbRoles, null);
-    expect(merged.find((r) => r.name === "Super Admin")?.place).toBe("none");
-    expect(merged.find((r) => r.name === "City Lead")?.place).toBeUndefined();
+  it("does not assign place until catalogs have loaded", () => {
+    const mergedNull = rolesWithTemplatePlace(dbRoles, null);
+    const mergedEmpty = rolesWithTemplatePlace(dbRoles, []);
+    for (const merged of [mergedNull, mergedEmpty]) {
+      expect(merged.find((r) => r.name === "City Lead")?.place).toBeUndefined();
+      expect(merged.find((r) => r.name === "Chapter Lead")?.place).toBeUndefined();
+      expect(merged.find((r) => r.name === "Super Admin")?.place).toBeUndefined();
+    }
   });
 });

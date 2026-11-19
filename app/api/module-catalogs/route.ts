@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { loadEnabledCatalogs } from "@/registry/loadEnabledCatalogs";
 import { MODULE_REGISTRY } from "@/registry/modules";
 import type { ModuleCatalog } from "@/registry/moduleCatalog";
+import { callerBelongsToOrganization } from "@/lib/callerOrgAccess";
 import { createPlatformAdminClient, resolvePlatformCaller } from "@/lib/resolvePlatformCaller";
 
 async function fetchModuleCatalog(moduleKey: string, authHeader: string): Promise<ModuleCatalog> {
@@ -56,6 +57,16 @@ export async function GET(request: NextRequest) {
   const caller = await resolvePlatformCaller(supabaseAdmin, token);
   if (!caller) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const belongs = await callerBelongsToOrganization(
+    supabaseAdmin,
+    caller.staffId,
+    organizationId,
+    caller.platformOwner,
+  );
+  if (!belongs) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   const { data: orgModules, error: orgModulesError } = await supabaseAdmin

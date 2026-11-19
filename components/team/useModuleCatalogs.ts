@@ -52,5 +52,8 @@ export function useModuleCatalogs(
     };
   }, [organizationId, accessToken, enabled]);
 
-  return { catalogs, error };
+  const loading = Boolean(enabled && organizationId && accessToken && catalogs === null && !error);
+  const ready = catalogs !== null && !error;
+
+  return { catalogs, error, loading, ready };
 }

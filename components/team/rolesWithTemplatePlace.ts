@@ -1,5 +1,4 @@
 import type { ModuleCatalog, PlaceParameter } from "@/registry/moduleCatalog";
-import { platformCatalog } from "@/registry/platformCatalog";
 
 export function buildRolePlaceIndex(catalogs: ModuleCatalog[]): Map<string, PlaceParameter> {
   const map = new Map<string, PlaceParameter>();
@@ -15,8 +14,15 @@ export function rolesWithTemplatePlace(
   roles: { id: string; name: string; isSystem: boolean; permissionKeys?: string[] }[],
   catalogs: ModuleCatalog[] | null,
 ): { id: string; name: string; isSystem: boolean; permissionKeys?: string[]; place?: PlaceParameter }[] {
-  const catalogsForIndex = catalogs?.length ? catalogs : [platformCatalog];
-  const placeByName = buildRolePlaceIndex(catalogsForIndex);
+  if (!catalogs?.length) {
+    return roles.map((r) => ({
+      id: r.id,
+      name: r.name,
+      isSystem: r.isSystem,
+      permissionKeys: r.permissionKeys,
+    }));
+  }
+  const placeByName = buildRolePlaceIndex(catalogs);
   return roles.map((r) => ({
     id: r.id,
     name: r.name,
