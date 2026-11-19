@@ -200,8 +200,9 @@ export function assignStaffOrgRole(payload: AssignStaffOrgRolePayload, accessTok
 
 export interface RoleAssignmentInput {
   roleId: string;
-  scopeKind: "org_wide" | "chapter";
+  scopeKind: "org_wide" | "chapter" | "city";
   chapterId?: string | null;
+  city?: string | null;
   scopeLabel: string;
 }
 

@@ -73,7 +73,7 @@ describe("RoleScopeRepeater", () => {
       },
     ];
     expect(rowsToAssignmentPayload(rows, chapters)).toEqual([
-      { roleId: "r1", scopeKind: "org_wide", chapterId: null, scopeLabel: "National / All Chapters" },
+      { roleId: "r1", scopeKind: "org_wide", chapterId: null, city: null, scopeLabel: "National / All Chapters" },
       { roleId: "r2", scopeKind: "chapter", chapterId: "c1", scopeLabel: "Lahore Chapter" },
     ]);
   });
@@ -477,6 +477,82 @@ describe("RoleScopeRepeater", () => {
     ];
     expect(rowsToAssignmentPayload(rows, chapters)).toEqual([
       { roleId: "r2", scopeKind: "chapter", chapterId: null, scopeLabel: "Chapter" },
+    ]);
+  });
+
+  it("renders one city control for a City Lead role with place city", () => {
+    const cityRoles = [
+      { id: "r-city", name: "City Lead", isSystem: true, place: "city" as const },
+    ];
+    const chaptersWithCity = [
+      { id: "c1", name: "Lahore Chapter", city: "Lahore" },
+      { id: "c2", name: "Karachi Chapter", city: "Karachi" },
+    ];
+    const rows: RoleScopeRow[] = [
+      { key: "k1", roleId: "r-city", scopeKind: "city", chapterIds: [], city: null, scopeLabel: "City" },
+    ];
+    render(
+      <RoleScopeRepeater
+        rows={rows}
+        roles={cityRoles}
+        chapters={chaptersWithCity}
+        onChange={vi.fn()}
+        addLabel="+ Add Role"
+      />,
+    );
+    expect(screen.getByRole("combobox", { name: "City" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Add Chapter" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Specific Chapters")).not.toBeInTheDocument();
+  });
+
+  it("renders chapter multi-select for Chapter Lead with place chapters", () => {
+    const chapterRoles = [
+      { id: "r-ch", name: "Chapter Lead", isSystem: true, place: "chapters" as const },
+    ];
+    const rows: RoleScopeRow[] = [
+      { key: "k1", roleId: "r-ch", scopeKind: "chapter", chapterIds: [], scopeLabel: "Chapter" },
+    ];
+    render(
+      <RoleScopeRepeater
+        rows={rows}
+        roles={chapterRoles}
+        chapters={chapters}
+        onChange={vi.fn()}
+        addLabel="+ Add Role"
+      />,
+    );
+    expect(screen.getByRole("combobox", { name: "Add Chapter" })).toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "City" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Specific Chapters")).not.toBeInTheDocument();
+  });
+
+  it("renders no place control for Auditor with place none", () => {
+    const auditorRoles = [
+      { id: "r-aud", name: "Auditor", isSystem: true, place: "none" as const, permissionKeys: ["admin_action_log:read"] },
+    ];
+    const rows: RoleScopeRow[] = [
+      { key: "k1", roleId: "r-aud", scopeKind: "org_wide", chapterIds: [], scopeLabel: "National / All Chapters" },
+    ];
+    render(
+      <RoleScopeRepeater
+        rows={rows}
+        roles={auditorRoles}
+        chapters={chapters}
+        onChange={vi.fn()}
+        addLabel="+ Add Role"
+      />,
+    );
+    expect(screen.queryByRole("combobox", { name: "City" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: "Add Chapter" })).not.toBeInTheDocument();
+    expect(screen.getByText("Organization-wide")).toBeInTheDocument();
+  });
+
+  it("maps a city scope row to assignment payload", () => {
+    const rows: RoleScopeRow[] = [
+      { key: "k1", roleId: "r-city", scopeKind: "city", chapterIds: [], city: "Lahore", scopeLabel: "Lahore" },
+    ];
+    expect(rowsToAssignmentPayload(rows, chapters)).toEqual([
+      { roleId: "r-city", scopeKind: "city", chapterId: null, city: "Lahore", scopeLabel: "Lahore" },
     ]);
   });
 });

@@ -81,3 +81,18 @@ begin
     on conflict do nothing;
   end loop;
 end $$;
+
+-- 3. City-scoped assignments: one row per city (chapter_id null, city set)
+alter table staff_role_assignments add column city text;
+
+alter table staff_role_assignments drop constraint staff_role_assignments_scope_shape;
+alter table staff_role_assignments drop constraint staff_role_assignments_scope_kind_check;
+
+alter table staff_role_assignments add constraint staff_role_assignments_scope_kind_check
+  check (scope_kind in ('org_wide', 'chapter', 'city'));
+
+alter table staff_role_assignments add constraint staff_role_assignments_scope_shape check (
+  (scope_kind = 'org_wide' and chapter_id is null and city is null) or
+  (scope_kind = 'chapter' and chapter_id is not null and city is null) or
+  (scope_kind = 'city' and chapter_id is null and city is not null)
+);

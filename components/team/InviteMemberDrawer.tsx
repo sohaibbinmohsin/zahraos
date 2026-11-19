@@ -158,7 +158,7 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
                 <RoleScopeRepeater
                   rows={rows}
                   roles={roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem, permissionKeys: r.permissionKeys }))}
-                  chapters={chapters.map((c) => ({ id: c.id, name: c.name }))}
+                  chapters={chapters.map((c) => ({ id: c.id, name: c.name, city: c.city }))}
                   onChange={setRows}
                   addLabel="+ Add Another Role"
                 />

@@ -45,7 +45,7 @@ export async function mintStaffToken(
 
   const { data: assignmentRows } = await supabase
     .from("staff_role_assignments")
-    .select("organization_id, module_id, role_id, scope_kind, chapter_id")
+    .select("organization_id, module_id, role_id, scope_kind, chapter_id, city")
     .eq("staff_id", staffId);
 
   const roleIds = [...new Set((assignmentRows ?? []).map((r) => r.role_id))];
@@ -96,6 +96,7 @@ export async function mintStaffToken(
     moduleKey: string,
     permKey: string,
     row: { scope_kind: string; chapter_id: string | null },
+    resolvedChapterIds?: string[],
   ) {
     const mapKey = `${orgId}:${moduleKey}`;
     let perKey = keyScopes.get(mapKey);
@@ -110,6 +111,9 @@ export async function mintStaffToken(
     }
     if (row.scope_kind === "org_wide") cur.anyOrgWide = true;
     else if (row.chapter_id) cur.chapters.add(row.chapter_id);
+    else if (resolvedChapterIds) {
+      for (const chapterId of resolvedChapterIds) cur.chapters.add(chapterId);
+    }
   }
 
   async function moduleKeyFor(moduleId: string): Promise<string> {
@@ -171,12 +175,28 @@ export async function mintStaffToken(
     }
 
     addPermissions(row.organization_id as string, moduleKey, permissions);
+    let resolvedCityChapterIds: string[] | undefined;
+    if (row.scope_kind === "city") {
+      const cityName = (row as { city?: string | null }).city;
+      if (cityName) {
+        const { data: cityChapters } = await supabase
+          .from("chapters")
+          .select("id")
+          .eq("organization_id", row.organization_id as string)
+          .eq("city", cityName)
+          .eq("status", "active");
+        resolvedCityChapterIds = (cityChapters ?? []).map((c) => c.id as string);
+      } else {
+        resolvedCityChapterIds = [];
+      }
+    }
     for (const permKey of permissions) {
       notePermScope(
         row.organization_id as string,
         moduleKey,
         permKey,
         row as { scope_kind: string; chapter_id: string | null },
+        resolvedCityChapterIds,
       );
     }
   }
@@ -186,7 +206,7 @@ export async function mintStaffToken(
     if (!perKey) return entry;
     const chapter_scopes: Record<string, string[]> = {};
     for (const [permKey, scope] of perKey) {
-      if (!scope.anyOrgWide && scope.chapters.size > 0) {
+      if (!scope.anyOrgWide) {
         chapter_scopes[permKey] = Array.from(scope.chapters);
       }
     }

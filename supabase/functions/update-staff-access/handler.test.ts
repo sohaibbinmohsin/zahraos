@@ -180,3 +180,46 @@ Deno.test("updateStaffAccess synchronizes staff_org_roles on promotion and delet
   assertEquals(sor, null);
 });
 
+Deno.test("updateStaffAccess persists city scope for City Lead", async () => {
+  const { supabase, orgId, adminId, memberId, roleByName } = await setup();
+  const cityLead = await roleByName("City Lead");
+
+  await updateStaffAccess(supabase, adminId, false, {
+    staffId: memberId, organizationId: orgId, status: "active",
+    roles: [{ roleId: cityLead, scopeKind: "city", city: "Lahore", scopeLabel: "Lahore" }],
+  });
+
+  const { data: rows } = await supabase.from("staff_role_assignments")
+    .select("scope_kind, chapter_id, city").eq("staff_id", memberId).eq("organization_id", orgId);
+  assertEquals(rows!.length, 1);
+  assertEquals(rows![0].scope_kind, "city");
+  assertEquals(rows![0].chapter_id, null);
+  assertEquals(rows![0].city, "Lahore");
+});
+
+Deno.test("updateStaffAccess rejects City Lead saved as org_wide", async () => {
+  const { supabase, orgId, adminId, memberId, roleByName } = await setup();
+  const cityLead = await roleByName("City Lead");
+
+  await assertRejects(
+    async () => updateStaffAccess(supabase, adminId, false, {
+      staffId: memberId, organizationId: orgId, status: "active",
+      roles: [{ roleId: cityLead, scopeKind: "org_wide", scopeLabel: "National / All Chapters" }],
+    }),
+    Error, "city_lead_requires_city_scope",
+  );
+});
+
+Deno.test("updateStaffAccess rejects Auditor saved with a city", async () => {
+  const { supabase, orgId, adminId, memberId, roleByName } = await setup();
+  const auditor = await roleByName("Auditor");
+
+  await assertRejects(
+    async () => updateStaffAccess(supabase, adminId, false, {
+      staffId: memberId, organizationId: orgId, status: "active",
+      roles: [{ roleId: auditor, scopeKind: "city", city: "Lahore", scopeLabel: "Lahore" }],
+    }),
+    Error, "role_cannot_be_scoped",
+  );
+});
+

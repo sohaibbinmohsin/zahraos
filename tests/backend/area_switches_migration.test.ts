@@ -21,4 +21,11 @@ describe("0022 area switches", () => {
     expect(sql).not.toContain("update staff_role_assignments");
     expect(sql).not.toContain("delete from staff_role_assignments");
   });
+
+  it("adds a city place without rewriting existing assignment rows", () => {
+    expect(sql).toContain("add column city text");
+    expect(sql).toContain("scope_kind in ('org_wide', 'chapter', 'city')");
+    expect(sql).not.toContain("update staff_role_assignments");
+    expect(sql).not.toContain("delete from staff_role_assignments");
+  });
 });
