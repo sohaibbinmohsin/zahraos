@@ -127,11 +127,13 @@ function ApplicationsContent() {
 
   // Throws on failure so the review drawer can keep itself open; the table
   // rows call it through `void`, relying on the toast for the error.
+  // `busy` keeps Select/Waitlist/Reject disabled for this row until the
+  // request (including any post-abort reconcile) finishes — prevents double-submits.
   async function handleDecide(applicationId: string, decision: DecideApplicationPayload["decision"]) {
-    if (!staffToken) return;
+    if (!staffToken || !organizationId) return;
     setBusy({ id: applicationId, decision });
     try {
-      await decideApplication({ applicationId, decision }, staffToken);
+      await decideApplication({ applicationId, decision }, staffToken, { organizationId });
       showToast(`Application ${DECISION_META[decision].toast}.`);
       setReconsideringId(null);
       await load();

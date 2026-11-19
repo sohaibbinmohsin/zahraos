@@ -17,6 +17,8 @@ import {
   verifyHours,
   bulkAssignHours,
   exportYouthRepublicCsv,
+  YouthRepublicRequestTimeoutError,
+  isYouthRepublicAbortError,
 } from "./youthRepublicFunctions";
 
 const YOUTH_REPUBLIC_FUNCTIONS_URL = "http://localhost:54322/functions/v1";
@@ -265,8 +267,109 @@ describe("youthRepublicFunctions", () => {
     await decideApplication({ applicationId: "app-1", decision: "selected" }, STAFF_TOKEN);
     expect(fetch).toHaveBeenCalledWith(
       `${YOUTH_REPUBLIC_FUNCTIONS_URL}/decide-application`,
-      expect.objectContaining({ body: JSON.stringify({ applicationId: "app-1", decision: "selected" }) }),
+      expect.objectContaining({
+        body: JSON.stringify({ applicationId: "app-1", decision: "selected" }),
+        signal: expect.any(AbortSignal),
+      }),
     );
+  });
+
+  it("decideApplication uses a 60s timeout so Select is not aborted while the server finishes", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    mockOk({ applicationId: "app-1", participationId: "p-1" });
+    await decideApplication({ applicationId: "app-1", decision: "selected" }, STAFF_TOKEN);
+    expect(timeoutSpy).toHaveBeenCalledWith(60_000);
+    timeoutSpy.mockRestore();
+  });
+
+  it("listApplications keeps the default 8s timeout", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    mockOk({ applications: [], total: 0 });
+    await listApplications({ organizationId: "org-1" }, STAFF_TOKEN);
+    expect(timeoutSpy).toHaveBeenCalledWith(8_000);
+    timeoutSpy.mockRestore();
+  });
+
+  it("decideApplication reconciles via list-applications when the decide fetch aborts but the status already changed", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(fetch)
+        .mockRejectedValueOnce(new DOMException("The operation was aborted due to timeout", "TimeoutError"))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            applications: [{ id: "app-1", status: "selected" }],
+            total: 1,
+          }),
+        } as Response);
+
+      const resultPromise = decideApplication(
+        { applicationId: "app-1", decision: "selected" },
+        STAFF_TOKEN,
+        { organizationId: "org-1" },
+      );
+      await vi.advanceTimersByTimeAsync(500);
+      await expect(resultPromise).resolves.toEqual({ applicationId: "app-1", participationId: null });
+      expect(fetch).toHaveBeenNthCalledWith(
+        2,
+        `${YOUTH_REPUBLIC_FUNCTIONS_URL}/list-applications`,
+        expect.objectContaining({
+          body: JSON.stringify({ organizationId: "org-1", status: "selected", limit: 100 }),
+        }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("decideApplication throws YouthRepublicRequestTimeoutError when abort cannot be reconciled", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(fetch)
+        .mockRejectedValueOnce(new DOMException("Fetch is aborted", "AbortError"))
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            applications: [{ id: "app-1", status: "pending_review" }],
+            total: 1,
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            applications: [{ id: "app-1", status: "pending_review" }],
+            total: 1,
+          }),
+        } as Response);
+
+      const resultPromise = decideApplication(
+        { applicationId: "app-1", decision: "selected" },
+        STAFF_TOKEN,
+        { organizationId: "org-1" },
+      );
+      // Attach rejection handler before advancing timers so the rejection is not
+      // reported as unhandled while the reconcile pause is still pending.
+      const expectation = expect(resultPromise).rejects.toBeInstanceOf(YouthRepublicRequestTimeoutError);
+      await vi.advanceTimersByTimeAsync(500);
+      await expectation;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("decideApplication throws YouthRepublicRequestTimeoutError on abort when organizationId is not provided for reconcile", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(
+      new DOMException("The operation was aborted due to timeout", "TimeoutError"),
+    );
+    await expect(
+      decideApplication({ applicationId: "app-1", decision: "selected" }, STAFF_TOKEN),
+    ).rejects.toBeInstanceOf(YouthRepublicRequestTimeoutError);
+  });
+
+  it("isYouthRepublicAbortError recognizes browser abort messages", () => {
+    expect(isYouthRepublicAbortError(new DOMException("Fetch is aborted", "AbortError"))).toBe(true);
+    expect(isYouthRepublicAbortError(new YouthRepublicRequestTimeoutError())).toBe(true);
+    expect(isYouthRepublicAbortError(new Error("forbidden"))).toBe(false);
   });
 
   it("verifyHours posts to verify-hours with a required decision field", async () => {
