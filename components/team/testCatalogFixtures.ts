@@ -1,10 +1,13 @@
 import { vi } from "vitest";
 import { platformCatalog } from "@/registry/platformCatalog";
-import { expandSwitches, youthRepublicCatalog } from "@/registry/moduleCatalog";
+import {
+  expandSwitches,
+  type ModuleCatalog,
+  type ModuleRoleTemplate,
+  youthRepublicCatalog,
+} from "@/registry/moduleCatalog";
 
-export const yrCatalogFixture = {
-  ...youthRepublicCatalog,
-  roleTemplates: [
+const yrRoleTemplates: ModuleRoleTemplate[] = [
     {
       name: "City Lead",
       description: "Full Youth Republic access for every chapter in the assigned city.",
@@ -53,10 +56,14 @@ export const yrCatalogFixture = {
         volunteers: "none",
       },
     },
-  ],
+];
+
+export const yrCatalogFixture: ModuleCatalog = {
+  ...youthRepublicCatalog,
+  roleTemplates: yrRoleTemplates,
 };
 
-export const moduleCatalogsFixture = [platformCatalog, yrCatalogFixture];
+export const moduleCatalogsFixture: ModuleCatalog[] = [platformCatalog, yrCatalogFixture];
 
 export const chapterLeadPermissionKeys = [
   ...expandSwitches(yrCatalogFixture, yrCatalogFixture.roleTemplates[0].switches),

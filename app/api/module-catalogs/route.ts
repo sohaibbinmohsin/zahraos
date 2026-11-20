@@ -78,9 +78,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "org_modules_lookup_failed" }, { status: 500 });
   }
 
-  const enabledModuleKeys = (orgModules ?? []).map(
-    (row) => (row as { modules: { key: string } }).modules.key,
-  );
+  const enabledModuleKeys = (orgModules ?? []).map((row) => {
+    const modules = (row as { modules: { key: string } | { key: string }[] }).modules;
+    return (Array.isArray(modules) ? modules[0] : modules).key;
+  });
 
   try {
     const catalogs = await loadEnabledCatalogs(enabledModuleKeys, async (key) =>
