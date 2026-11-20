@@ -328,3 +328,88 @@ Deno.test("mintStaffToken strictly pins chapter_scopes for Chapter Admin", async
   assertEquals(entry.chapter_scopes["hours:update"], [chapter!.id]);
 });
 
+Deno.test("mintStaffToken resolves a city lead to active chapters in that city", async () => {
+  Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
+  const supabase = testClient();
+  const { data: org } = await supabase.from("organizations").insert({
+    name: "City Scope Org", slug: `city-scope-${crypto.randomUUID()}`,
+  }).select("id").single();
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: org!.id, p_module_id: mod!.id });
+  const { data: cityLeadRole } = await supabase.from("roles")
+    .select("id").eq("organization_id", org!.id).eq("name", "City Lead").single();
+
+  const { data: lahore1 } = await supabase.from("chapters").insert({
+    organization_id: org!.id, name: `Lahore-A-${crypto.randomUUID()}`, city: "Lahore", status: "active",
+  }).select("id").single();
+  const { data: lahore2 } = await supabase.from("chapters").insert({
+    organization_id: org!.id, name: `Lahore-B-${crypto.randomUUID()}`, city: "Lahore", status: "active",
+  }).select("id").single();
+  const { data: karachiChapter } = await supabase.from("chapters").insert({
+    organization_id: org!.id, name: `Karachi-${crypto.randomUUID()}`, city: "Karachi", status: "active",
+  }).select("id").single();
+
+  const email = `city-lead-${crypto.randomUUID()}@example.com`;
+  const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser!.user!.id, full_name: "City Lead", email,
+  }).select("id").single();
+
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: staff!.id,
+    organization_id: org!.id,
+    module_id: mod!.id,
+    role_id: cityLeadRole!.id,
+    scope_kind: "city",
+    city: "Lahore",
+    scope_label: "Lahore",
+  });
+
+  const token = await mintStaffToken(supabase, staff!.id, false);
+  const entry = JSON.parse(atob(token.split(".")[1])).module_access
+    .find((m: { module: string }) => m.module === "youth-republic");
+
+  const oppReadScope = entry.chapter_scopes["opportunities:read"] as string[];
+  assertEquals(oppReadScope.includes(lahore1!.id), true);
+  assertEquals(oppReadScope.includes(lahore2!.id), true);
+  assertEquals(oppReadScope.length, 2);
+  assertEquals(oppReadScope.includes(karachiChapter!.id), false);
+});
+
+Deno.test("mintStaffToken emits empty chapter_scopes when city matches no chapter", async () => {
+  Deno.env.set("STAFF_JWT_SECRET", "test-shared-secret-32-characters!");
+  const supabase = testClient();
+  const { data: org } = await supabase.from("organizations").insert({
+    name: "Empty City Org", slug: `empty-city-${crypto.randomUUID()}`,
+  }).select("id").single();
+  const { data: mod } = await supabase.from("modules").select("id").eq("key", "youth-republic").single();
+  await supabase.from("org_modules").insert({ organization_id: org!.id, module_id: mod!.id });
+  await supabase.rpc("seed_youth_republic_system_roles", { p_org_id: org!.id, p_module_id: mod!.id });
+  const { data: cityLeadRole } = await supabase.from("roles")
+    .select("id").eq("organization_id", org!.id).eq("name", "City Lead").single();
+
+  const email = `empty-city-${crypto.randomUUID()}@example.com`;
+  const { data: authUser } = await supabase.auth.admin.createUser({ email, email_confirm: true });
+  const { data: staff } = await supabase.from("staff").insert({
+    auth_user_id: authUser!.user!.id, full_name: "Empty City", email,
+  }).select("id").single();
+
+  await supabase.from("staff_role_assignments").insert({
+    staff_id: staff!.id,
+    organization_id: org!.id,
+    module_id: mod!.id,
+    role_id: cityLeadRole!.id,
+    scope_kind: "city",
+    city: "Islamabad",
+    scope_label: "Islamabad",
+  });
+
+  const token = await mintStaffToken(supabase, staff!.id, false);
+  const entry = JSON.parse(atob(token.split(".")[1])).module_access
+    .find((m: { module: string }) => m.module === "youth-republic");
+
+  assertEquals(Array.isArray(entry.chapter_scopes["opportunities:read"]), true);
+  assertEquals(entry.chapter_scopes["opportunities:read"], []);
+});
+

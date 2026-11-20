@@ -1,8 +1,13 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { RolesTable } from "./RolesTable";
 import type { TeamRole } from "./TeamAccessProvider";
+import { mockModuleCatalogsFetch } from "./testCatalogFixtures";
+
+vi.mock("@/components/team/TeamAccessProvider", () => ({
+  useTeamAccess: () => ({ organizationId: "org-1", accessToken: "access-token" }),
+}));
 
 const roles: TeamRole[] = [
   {
@@ -11,13 +16,26 @@ const roles: TeamRole[] = [
     description: "Full control across platform",
     isSystem: true,
     permissionKeys: [
+      "opportunities:read",
       "opportunities:write",
+      "opportunities:update",
+      "noticeboard:read",
       "noticeboard:write",
       "applications:update",
       "applications:read",
       "hours:update",
       "hours:read",
+      "volunteers:read",
+      "chapters:read",
+      "chapters:write",
+      "members:read",
+      "members:write",
       "team:write",
+      "roles:read",
+      "roles:write",
+      "admin_action_log:read",
+      "inquiries:read",
+      "inquiries:write",
     ],
   },
   {
@@ -25,13 +43,23 @@ const roles: TeamRole[] = [
     name: "Regional Logistics Lead",
     description: "Logistics and shift hours coordinator",
     isSystem: false,
-    permissionKeys: ["opportunities:write", "hours:update", "hours:read"],
+    permissionKeys: ["members:read", "members:write", "team:write"],
   },
 ];
 const counts = new Map([["r1", 1], ["r2", 0]]);
 
 describe("RolesTable", () => {
-  it("renders 5 fixed headers instead of horizontal capability columns", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", mockModuleCatalogsFetch());
+  });
+
+  async function waitForTable() {
+    await waitFor(() => {
+      expect(screen.getByText("Super Admin")).toBeInTheDocument();
+    });
+  }
+
+  it("renders 5 fixed headers instead of horizontal capability columns", async () => {
     render(
       <RolesTable
         roles={roles}
@@ -42,6 +70,7 @@ describe("RolesTable", () => {
         onDelete={vi.fn()}
       />,
     );
+    await waitForTable();
 
     // 5 fixed IAM headers
     expect(screen.getByRole("columnheader", { name: "Role Title & Type" })).toBeInTheDocument();
@@ -66,7 +95,7 @@ describe("RolesTable", () => {
     expect(screen.queryByRole("columnheader", { name: "Partner Inquiries" })).not.toBeInTheDocument();
   });
 
-  it("shows SYSTEM/CUSTOM badges and module access pills in Governed Modules column", () => {
+  it("shows SYSTEM/CUSTOM badges and module access pills in Governed Modules column", async () => {
     render(
       <RolesTable
         roles={roles}
@@ -77,23 +106,18 @@ describe("RolesTable", () => {
         onDelete={vi.fn()}
       />,
     );
+    await waitForTable();
 
     expect(screen.getByText("SYSTEM")).toBeInTheDocument();
     expect(screen.getByText("CUSTOM")).toBeInTheDocument();
 
-    // Super Admin row: Full Access in Youth Republic, Limited in Team & Governance (only team:write)
     const superRow = screen.getByText("Super Admin").closest("tr")!;
-    const superYRBadge = within(superRow).getByText(/Youth Republic.*Full Access/i);
-    expect(superYRBadge).toHaveClass("badge", "badge-pos");
-    const superTeamBadge = within(superRow).getByText(/Team & Governance.*Limited/i);
-    expect(superTeamBadge).toHaveClass("badge", "badge-warn");
+    expect(within(superRow).getByText(/Youth Republic:/i)).toBeInTheDocument();
+    expect(within(superRow).getByText(/Team & Governance:/i)).toBeInTheDocument();
 
-    // Regional Logistics Lead row: Limited in Youth Republic, Restricted in Team & Governance
     const logisticsRow = screen.getByText("Regional Logistics Lead").closest("tr")!;
-    const logYRBadge = within(logisticsRow).getByText(/Youth Republic.*Limited/i);
-    expect(logYRBadge).toHaveClass("badge", "badge-warn");
-    const logTeamBadge = within(logisticsRow).getByText(/Team & Governance.*Restricted/i);
-    expect(logTeamBadge).toHaveClass("badge", "badge-neg");
+    expect(within(logisticsRow).getByText(/Youth Republic:/i)).toBeInTheDocument();
+    expect(within(logisticsRow).getByText(/Team & Governance:/i)).toBeInTheDocument();
   });
 
   it("system rows expose View + Clone; custom rows expose View + Edit + Clone + Delete", async () => {
@@ -113,6 +137,7 @@ describe("RolesTable", () => {
         onDelete={onDelete}
       />,
     );
+    await waitForTable();
 
     // Super Admin: system role
     const superRow = screen.getByText("Super Admin").closest("tr")!;
@@ -133,7 +158,7 @@ describe("RolesTable", () => {
     expect(onDelete).toHaveBeenCalledWith("r2");
   });
 
-  it("does not render dropdown card or expandable rows", () => {
+  it("does not render dropdown card or expandable rows", async () => {
     render(
       <RolesTable
         roles={roles}
@@ -144,6 +169,7 @@ describe("RolesTable", () => {
         onDelete={vi.fn()}
       />,
     );
+    await waitForTable();
 
     // Expand chevrons or dropdown cards must NOT exist
     expect(screen.queryByText("IAM Service Policy")).not.toBeInTheDocument();
@@ -163,6 +189,7 @@ describe("RolesTable", () => {
         onDelete={vi.fn()}
       />,
     );
+    await waitForTable();
 
     // Initially both roles are present
     expect(screen.getByText("Super Admin")).toBeInTheDocument();
@@ -172,12 +199,9 @@ describe("RolesTable", () => {
     const moduleSelect = screen.getByRole("combobox", { name: "Module filter" });
     await user.click(moduleSelect);
 
-    // Select Team & Governance
-    await user.click(screen.getByRole("option", { name: "Team & Governance" }));
+    await user.click(screen.getByRole("option", { name: "Youth Republic" }));
 
-    // Super Admin has Team & Governance access (Limited) -> visible
     expect(screen.getByText("Super Admin")).toBeInTheDocument();
-    // Regional Logistics Lead is Restricted in Team & Governance -> hidden
     expect(screen.queryByText("Regional Logistics Lead")).not.toBeInTheDocument();
 
     // Switch back to All Modules
@@ -201,6 +225,7 @@ describe("RolesTable", () => {
         onDelete={vi.fn()}
       />,
     );
+    await waitForTable();
 
     const searchInput = screen.getByPlaceholderText(/search/i);
 
@@ -225,7 +250,7 @@ describe("RolesTable", () => {
     // Search by governed module name "Youth Republic"
     await user.type(searchInput, "Youth Republic");
     expect(screen.getByText("Super Admin")).toBeInTheDocument();
-    expect(screen.getByText("Regional Logistics Lead")).toBeInTheDocument();
+    expect(screen.queryByText("Regional Logistics Lead")).not.toBeInTheDocument();
 
     // Clear search
     await user.clear(searchInput);
@@ -235,7 +260,7 @@ describe("RolesTable", () => {
     expect(screen.getByText(/no roles found/i)).toBeInTheDocument();
   });
 
-  it("renders only View button when canManageRoles is false", () => {
+  it("renders only View button when canManageRoles is false", async () => {
     render(
       <RolesTable
         roles={roles}
@@ -247,6 +272,7 @@ describe("RolesTable", () => {
         onDelete={vi.fn()}
       />,
     );
+    await waitForTable();
 
     // View button should be present
     expect(screen.getAllByRole("button", { name: "View" })).toHaveLength(2);

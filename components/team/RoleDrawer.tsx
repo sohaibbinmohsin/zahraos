@@ -1,19 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { createCustomRole, updateCustomRole } from "@/lib/platformFunctions";
+import { OFF_GRID, type CapabilityGrid } from "@/lib/capabilityMap";
 import {
-  MODULE_CAPABILITIES, CAPABILITY_META, RESTRICTED_GRID, permissionKeysToGrid, gridToPermissionKeys,
-  type CapabilityGrid, type CapabilityKey, type CapabilityLevel,
-} from "@/lib/capabilityMap";
+  AREA_SWITCH_LABEL,
+  emptySwitchesForCatalog,
+  moduleBadge,
+  moduleBadgeClass,
+  moduleBadgeShortLabel,
+  permissionKeysFromCatalogSwitches,
+  permissionKeysFromDrawerGrid,
+  switchesByCatalogFromKeys,
+  type AreaSwitch,
+  drawerCatalogs,
+  type ModuleCatalog,
+} from "@/registry/moduleCatalog";
+import { ModuleCatalogStatusBanner } from "./ModuleCatalogStatusBanner";
+import { useModuleCatalogs } from "./useModuleCatalogs";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Select } from "@/components/ui/Select";
-
-const LEVEL_LABEL: Record<CapabilityLevel, string> = {
-  granted: "Granted", read_only: "Read Only", restricted: "Restricted",
-};
 
 export interface RoleTemplate {
   name: string;
@@ -26,16 +34,16 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Super Admin",
     description: "Full platform control and unconstrained administrative privileges across all operational modules.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
       hours: "granted",
-      volunteers: "read_only",
+      volunteers: "view",
       org_governance: "granted",
       members: "granted",
       roles: "granted",
-      audit: "read_only",
+      audit: "view",
       inquiries: "granted",
       team: "granted",
     },
@@ -44,17 +52,17 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Org Admin",
     description: "Full operational permissions and organization-wide team governance.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
       hours: "granted",
-      volunteers: "read_only",
+      volunteers: "view",
       org_governance: "granted",
       members: "granted",
-      roles: "read_only",
-      audit: "read_only",
-      inquiries: "read_only",
+      roles: "view",
+      audit: "view",
+      inquiries: "view",
       team: "granted",
     },
   },
@@ -62,25 +70,25 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Chapter Admin",
     description: "Full chapter-level operational permissions and local chapter roster governance.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
       hours: "granted",
-      volunteers: "read_only",
+      volunteers: "view",
       org_governance: "granted",
       members: "granted",
-      roles: "restricted",
-      audit: "read_only",
-      inquiries: "restricted",
-      team: "restricted",
+      roles: "off",
+      audit: "view",
+      inquiries: "off",
+      team: "off",
     },
   },
   {
     name: "Chapter Lead",
     description: "Oversees local chapter operations, drive execution, applicant selection, hours verification, and chapter roster governance.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
@@ -92,7 +100,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "City Lead",
     description: "Oversees multi-chapter regional operations, drive execution, applicant selection, hours verification, and chapter roster governance.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
@@ -104,151 +112,101 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     name: "Operations Lead",
     description: "Oversees local chapter operations, drive execution, applicant selection, and field shift oversight.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
       triage: "granted",
       hours: "granted",
-      volunteers: "restricted",
-      org_governance: "restricted",
-      members: "restricted",
-      roles: "restricted",
-      audit: "restricted",
-      inquiries: "restricted",
-      team: "restricted",
+      volunteers: "off",
+      org_governance: "off",
+      members: "off",
+      roles: "off",
+      audit: "off",
+      inquiries: "off",
+      team: "off",
     },
   },
   {
     name: "Drive Coordinator",
     description: "Manages on-ground drive shifts, volunteer gate attendance, and direct shift hours logging.",
     capabilities: {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
-      publish: "restricted",
+      publish: "off",
       triage: "granted",
       hours: "granted",
-      volunteers: "restricted",
-      org_governance: "restricted",
-      members: "restricted",
-      roles: "restricted",
-      audit: "restricted",
-      inquiries: "restricted",
-      team: "restricted",
+      volunteers: "off",
+      org_governance: "off",
+      members: "off",
+      roles: "off",
+      audit: "off",
+      inquiries: "off",
+      team: "off",
     },
   },
   {
     name: "Application Reviewer",
     description: "Screens and shortlists volunteer applicants, assesses question responses, and assigns candidate statuses.",
     capabilities: {
-      ...RESTRICTED_GRID,
-      drive: "restricted",
-      publish: "restricted",
+      ...OFF_GRID,
+      drive: "off",
+      publish: "off",
       triage: "granted",
-      hours: "restricted",
-      volunteers: "restricted",
-      org_governance: "restricted",
-      members: "restricted",
-      roles: "restricted",
-      audit: "restricted",
-      inquiries: "restricted",
-      team: "restricted",
+      hours: "off",
+      volunteers: "off",
+      org_governance: "off",
+      members: "off",
+      roles: "off",
+      audit: "off",
+      inquiries: "off",
+      team: "off",
     },
   },
   {
     name: "Auditor",
     description: "Read-only compliance officer auditing hours logs, certifications, and operational activity records.",
     capabilities: {
-      ...RESTRICTED_GRID,
-      drive: "restricted",
-      publish: "restricted",
-      triage: "read_only",
-      hours: "read_only",
-      volunteers: "read_only",
-      org_governance: "restricted",
-      members: "restricted",
-      roles: "restricted",
-      audit: "read_only",
-      inquiries: "restricted",
-      team: "restricted",
+      ...OFF_GRID,
+      drive: "off",
+      publish: "off",
+      triage: "view",
+      hours: "view",
+      volunteers: "view",
+      org_governance: "off",
+      members: "off",
+      roles: "off",
+      audit: "view",
+      inquiries: "off",
+      team: "off",
     },
   },
 ];
 
-export const SERVICES = [
-  {
-    key: "youth-republic",
-    title: "Youth Republic",
-    description: "Volunteer drives, public noticeboard, applicant screening, and shift hours logging.",
-    capabilities: MODULE_CAPABILITIES["youth-republic"],
-  },
-  {
-    key: "team-governance",
-    title: "Team & Governance",
-    description: "Chapter governance, team roster, roles configuration, partner inquiries, and audit logs.",
-    capabilities: MODULE_CAPABILITIES["team-governance"],
-  },
-] as const;
+type CatalogPreset = "full" | "view" | "none";
 
-export type ServicePreset = "full" | "read_only" | "restricted";
-
-export function getServiceStatus(
-  serviceCaps: readonly CapabilityKey[],
-  grid: CapabilityGrid,
-): "Full Access" | "Limited" | "Read Only" | "Restricted" {
-  let grantedCount = 0;
-  let readOnlyCount = 0;
-  let restrictedCount = 0;
-
-  for (const cap of serviceCaps) {
-    const level = grid[cap] ?? "restricted";
-    if (level === "granted") grantedCount++;
-    else if (level === "read_only") readOnlyCount++;
-    else restrictedCount++;
+function applyPresetToCatalog(catalog: ModuleCatalog, preset: CatalogPreset): Record<string, AreaSwitch> {
+  const next = emptySwitchesForCatalog(catalog);
+  for (const area of catalog.areas) {
+    if (preset === "full") {
+      next[area.key] = area.highest;
+    } else if (preset === "view") {
+      next[area.key] = "view";
+    } else {
+      next[area.key] = "none";
+    }
   }
-
-  const totalCount = serviceCaps.length;
-  if (totalCount === 0 || restrictedCount === totalCount) {
-    return "Restricted";
-  }
-
-  const grantableCaps = serviceCaps.filter(
-    (cap) => CAPABILITY_META[cap]?.levels?.includes("granted"),
-  );
-  const isAllGrantableGranted =
-    grantableCaps.length > 0 &&
-    grantableCaps.every((cap) => grid[cap] === "granted");
-
-  const isStrictFull =
-    restrictedCount === 0 &&
-    totalCount > 0 &&
-    serviceCaps.every((cap) => {
-      const meta = CAPABILITY_META[cap];
-      const maxLevel = meta?.levels?.includes("granted") ? "granted" : "read_only";
-      return grid[cap] === maxLevel;
-    });
-
-  if (isAllGrantableGranted || isStrictFull) {
-    return "Full Access";
-  }
-
-  if (grantedCount === 0 && readOnlyCount > 0) {
-    return "Read Only";
-  }
-
-  return "Limited";
+  return next;
 }
 
-export function getServiceBadgeClass(status: "Full Access" | "Limited" | "Read Only" | "Restricted"): string {
-  switch (status) {
-    case "Full Access":
-      return "badge-pos";
-    case "Limited":
-      return "badge-warn";
-    case "Read Only":
-      return "badge-neu";
-    case "Restricted":
-      return "badge-neg";
+function areaSwitchOptions(area: ModuleCatalog["areas"][number]) {
+  const options: Array<{ value: AreaSwitch; label: string }> = [
+    { value: "none", label: AREA_SWITCH_LABEL.none },
+    { value: "view", label: AREA_SWITCH_LABEL.view },
+  ];
+  if (area.highest === "manage") {
+    options.push({ value: "manage", label: AREA_SWITCH_LABEL.manage });
   }
+  return options;
 }
 
 export function RoleDrawer({
@@ -259,6 +217,13 @@ export function RoleDrawer({
 }) {
   const { organizationId, accessToken, moduleId, roles, refresh } = useTeamAccess();
   const { showToast } = useToast();
+  const open = request !== null;
+  const { catalogs, error: catalogError, loading: catalogsLoading, ready: catalogsReady } = useModuleCatalogs(
+    organizationId,
+    accessToken,
+    open,
+  );
+
   const source = request?.roleId
     ? roles.find((r) => r.id === request.roleId)
       ?? (() => {
@@ -271,7 +236,7 @@ export function RoleDrawer({
           name: tmpl.name,
           description: tmpl.description,
           isSystem: true,
-          permissionKeys: gridToPermissionKeys(tmpl.capabilities),
+          permissionKeys: permissionKeysFromDrawerGrid(drawerCatalogs, tmpl.capabilities),
         };
       })()
     : null;
@@ -279,65 +244,64 @@ export function RoleDrawer({
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [grid, setGrid] = useState<CapabilityGrid>(RESTRICTED_GRID);
+  const [switchesByCatalog, setSwitchesByCatalog] = useState<Record<string, Record<string, AreaSwitch>>>({});
   const [selectedTemplate, setSelectedTemplate] = useState("");
   const [busy, setBusy] = useState(false);
   const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({});
 
+  const activeCatalogs = catalogs ?? [];
+
   function toggleService(key: string) {
-    setExpandedServices((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
+    setExpandedServices((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  function applyServicePreset(
-    serviceCaps: readonly CapabilityKey[],
-    preset: ServicePreset,
-  ) {
-    setGrid((prev) => {
-      const next = { ...prev };
-      for (const cap of serviceCaps) {
-        const meta = CAPABILITY_META[cap];
-        if (preset === "full") {
-          next[cap] = meta.levels.includes("granted") ? "granted" : "read_only";
-        } else if (preset === "read_only") {
-          next[cap] = meta.levels.includes("read_only") ? "read_only" : "restricted";
-        } else {
-          next[cap] = "restricted";
-        }
-        if (cap === "members") {
-          next.team = next.members === "granted" ? "granted" : "restricted";
-        }
-      }
-      return next;
-    });
+  function setCatalogSwitches(catalogKey: string, next: Record<string, AreaSwitch>) {
+    setSwitchesByCatalog((prev) => ({ ...prev, [catalogKey]: next }));
   }
 
-  useEffect(() => {
-    if (!request) return;
+  function applyCatalogPreset(catalog: ModuleCatalog, preset: CatalogPreset) {
+    setCatalogSwitches(catalog.key, applyPresetToCatalog(catalog, preset));
+  }
+
+  function setSwitchesFromPermissionKeys(permissionKeys: string[], loadedCatalogs: readonly ModuleCatalog[]) {
+    setSwitchesByCatalog(switchesByCatalogFromKeys(loadedCatalogs, permissionKeys));
+  }
+
+  useLayoutEffect(() => {
+    if (!request || !catalogs) return;
+
     if (request.mode === "create") {
-      setName(""); setDescription(""); setSelectedTemplate("");
-      setGrid({ ...RESTRICTED_GRID, drive: "granted", publish: "restricted", triage: "granted", hours: "restricted", team: "restricted" });
-      setExpandedServices({ "youth-republic": true, "team-governance": true });
-    } else if (source) {
-      const g = permissionKeysToGrid(source.permissionKeys);
-      setGrid(g);
+      setName("");
+      setDescription("");
+      setSelectedTemplate("");
+      const blank = Object.fromEntries(
+        catalogs.map((catalog) => [catalog.key, applyPresetToCatalog(catalog, "none")]),
+      );
+      if (blank["youth-republic"]) {
+        blank["youth-republic"] = {
+          ...blank["youth-republic"],
+          drives: "manage",
+          applications: "manage",
+        };
+      }
+      setSwitchesByCatalog(blank);
+      setExpandedServices(Object.fromEntries(catalogs.map((catalog) => [catalog.key, true])));
+      return;
+    }
+
+    if (source) {
+      setSwitchesFromPermissionKeys(source.permissionKeys, catalogs);
       setDescription(source.description ?? "");
       setName(request.mode === "clone" ? `${source.name} (Copy)` : source.name);
       setSelectedTemplate("");
       setExpandedServices(
         request.mode === "view"
           ? {}
-          : { "youth-republic": true, "team-governance": true }
+          : Object.fromEntries(catalogs.map((catalog) => [catalog.key, true])),
       );
     }
-    // `source` is intentionally not a dep: it is recomputed every render
-    // (roles.find over a fresh array), so including it would re-run this
-    // effect on every render and fight the state it sets. `request` is a
-    // stable reference from TeamDrawers state and is the real trigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [request, source?.id]);
+  }, [request, source?.id, catalogs]);
 
   const templateOptions = useMemo(() => {
     const list: Array<{ id: string; name: string }> = [];
@@ -358,17 +322,31 @@ export function RoleDrawer({
   }, [roles]);
 
   function applyTemplate(roleIdOrKey: string) {
+    if (!catalogs) return;
     const fromRoles = roles.find((r) => r.id === roleIdOrKey || r.name === roleIdOrKey);
     if (fromRoles) {
-      setGrid(permissionKeysToGrid(fromRoles.permissionKeys));
+      setSwitchesFromPermissionKeys(fromRoles.permissionKeys, catalogs);
       if (!description) setDescription(fromRoles.description ?? "");
       return;
     }
+
+    for (const catalog of catalogs) {
+      const fromModuleTemplate = catalog.roleTemplates.find(
+        (t) => t.name === roleIdOrKey || `template-${t.name}` === roleIdOrKey,
+      );
+      if (fromModuleTemplate) {
+        setCatalogSwitches(catalog.key, { ...fromModuleTemplate.switches });
+        if (!description) setDescription(fromModuleTemplate.description);
+        return;
+      }
+    }
+
     const fromTmpl = ROLE_TEMPLATES.find(
       (t) => t.name === roleIdOrKey || `template-${t.name}` === roleIdOrKey,
     );
     if (fromTmpl) {
-      setGrid(fromTmpl.capabilities);
+      const keys = permissionKeysFromDrawerGrid(catalogs, fromTmpl.capabilities);
+      setSwitchesFromPermissionKeys(keys, catalogs);
       if (!description) setDescription(fromTmpl.description);
     }
   }
@@ -380,19 +358,31 @@ export function RoleDrawer({
 
   async function save() {
     if (!name.trim()) { showToast("Please specify a role title.", "error"); return; }
-    if (!accessToken) return;
+    if (!accessToken || !catalogs) return;
     if (request?.mode === "edit" && !source) {
       showToast("This role is no longer available — reopen it.", "error");
       return;
     }
     setBusy(true);
+    const permissionKeys = permissionKeysFromCatalogSwitches(catalogs, switchesByCatalog);
     try {
       if (request?.mode === "edit" && source) {
-        await updateCustomRole({ roleId: source.id, name: name.trim(), description, capabilities: grid }, accessToken);
+        await updateCustomRole({
+          roleId: source.id,
+          name: name.trim(),
+          description,
+          permissionKeys,
+        }, accessToken);
         showToast(`Role "${name.trim()}" updated successfully.`);
       } else {
         if (!organizationId || !moduleId) return;
-        await createCustomRole({ organizationId, moduleId, name: name.trim(), description, capabilities: grid }, accessToken);
+        await createCustomRole({
+          organizationId,
+          moduleId,
+          name: name.trim(),
+          description,
+          permissionKeys,
+        }, accessToken);
         showToast(`Created new custom role "${name.trim()}".`);
       }
       await refresh();
@@ -407,7 +397,6 @@ export function RoleDrawer({
     }
   }
 
-  const open = request !== null;
   const title = request?.mode === "view" ? "System Role Specification"
     : request?.mode === "edit" ? "Edit Custom Role"
     : "Create Custom Role";
@@ -431,6 +420,7 @@ export function RoleDrawer({
             </div>
 
             <div className="drawer-body">
+              <ModuleCatalogStatusBanner error={catalogError} loading={catalogsLoading} />
               <div className="form-group">
                 <label className="form-label" htmlFor="role-name">Role Title *</label>
                 <input id="role-name" className="form-input" value={name} disabled={readOnly}
@@ -462,28 +452,30 @@ export function RoleDrawer({
               <div className="form-group">
                 <label className="form-label">Granular Module Permissions</label>
                 <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-                  {SERVICES.map((service) => {
-                    const isOpen = Boolean(expandedServices[service.key]);
-                    const status = getServiceStatus(service.capabilities, grid);
-                    const badgeClass = getServiceBadgeClass(status);
+                  {activeCatalogs.map((catalog) => {
+                    const catalogSwitches = switchesByCatalog[catalog.key] ?? emptySwitchesForCatalog(catalog);
+                    const badge = moduleBadge(catalog, catalogSwitches);
+                    const badgeLabel = moduleBadgeShortLabel(badge);
+                    const badgeClass = moduleBadgeClass(badge);
+                    const isOpen = Boolean(expandedServices[catalog.key]);
 
                     return (
                       <div
-                        key={service.key}
+                        key={catalog.key}
                         className="perm-matrix-group"
-                        data-testid={`service-accordion-${service.key}`}
+                        data-testid={`service-accordion-${catalog.key}`}
                         style={{ minWidth: 0, padding: "0.85rem 1rem" }}
                       >
                         <div
                           role="button"
                           tabIndex={0}
-                          aria-label={`Toggle ${service.title}`}
+                          aria-label={`Toggle ${catalog.title}`}
                           aria-expanded={isOpen}
-                          onClick={() => toggleService(service.key)}
+                          onClick={() => toggleService(catalog.key)}
                           onKeyDown={(e) => {
                             if (e.key === "Enter" || e.key === " ") {
                               e.preventDefault();
-                              toggleService(service.key);
+                              toggleService(catalog.key);
                             }
                           }}
                           style={{
@@ -526,17 +518,17 @@ export function RoleDrawer({
                                 >
                                   <polyline points="6 9 12 15 18 9" />
                                 </svg>
-                                <span>{service.title}</span>
+                                <span>{catalog.title}</span>
                               </span>
                               <span
                                 className={`badge ${badgeClass}`}
-                                data-testid={`service-badge-${service.key}`}
+                                data-testid={`service-badge-${catalog.key}`}
                               >
-                                {status}
+                                {badgeLabel}
                               </span>
                             </div>
                             <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", lineHeight: 1.35, paddingLeft: "1.15rem" }}>
-                              {service.description}
+                              {catalog.description}
                             </div>
                           </div>
 
@@ -549,41 +541,41 @@ export function RoleDrawer({
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-xs"
-                                aria-label={`${service.title}: Full Access`}
-                                data-testid={`preset-full-${service.key}`}
+                                aria-label={`${catalog.title}: Full`}
+                                data-testid={`preset-full-${catalog.key}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  applyServicePreset(service.capabilities, "full");
+                                  applyCatalogPreset(catalog, "full");
                                 }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
-                                Full Access
+                                Full
                               </button>
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-xs"
-                                aria-label={`${service.title}: Read Only`}
-                                data-testid={`preset-readonly-${service.key}`}
+                                aria-label={`${catalog.title}: View`}
+                                data-testid={`preset-view-${catalog.key}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  applyServicePreset(service.capabilities, "read_only");
+                                  applyCatalogPreset(catalog, "view");
                                 }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
-                                Read Only
+                                View
                               </button>
                               <button
                                 type="button"
                                 className="btn btn-secondary btn-xs"
-                                aria-label={`${service.title}: Restricted`}
-                                data-testid={`preset-restricted-${service.key}`}
+                                aria-label={`${catalog.title}: None`}
+                                data-testid={`preset-none-${catalog.key}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  applyServicePreset(service.capabilities, "restricted");
+                                  applyCatalogPreset(catalog, "none");
                                 }}
                                 style={{ fontSize: "var(--text-xs)", padding: "0.15rem 0.5rem" }}
                               >
-                                Restricted
+                                None
                               </button>
                             </div>
                           )}
@@ -600,41 +592,40 @@ export function RoleDrawer({
                               borderTop: "1px solid var(--line-subtle)",
                             }}
                           >
-                            {service.capabilities.map((cap) => (
-                              <div className="perm-checkbox-row" key={cap} data-capability={cap}>
-                                <span>{CAPABILITY_META[cap].column}</span>
-                                {readOnly ? (
-                                  <span
-                                    className={`badge ${
-                                      grid[cap] === "granted"
-                                        ? "badge-pos"
-                                        : grid[cap] === "read_only"
-                                        ? "badge-neu"
-                                        : "badge-neg"
-                                    }`}
-                                    data-testid={`cap-badge-${cap}`}
-                                  >
-                                    {LEVEL_LABEL[grid[cap]]}
-                                  </span>
-                                ) : (
-                                  <Select
-                                    aria-label={CAPABILITY_META[cap].column}
-                                    value={grid[cap]}
-                                    onChange={(val) => {
-                                      const nextGrid = { ...grid, [cap]: val as CapabilityLevel };
-                                      if (cap === "members") {
-                                        nextGrid.team = val === "granted" ? "granted" : "restricted";
-                                      }
-                                      setGrid(nextGrid);
-                                    }}
-                                    options={CAPABILITY_META[cap].levels.map((lvl) => ({
-                                      value: lvl,
-                                      label: LEVEL_LABEL[lvl],
-                                    }))}
-                                  />
-                                )}
-                              </div>
-                            ))}
+                            {catalog.areas.map((area) => {
+                              const value = catalogSwitches[area.key] ?? "none";
+                              return (
+                                <div className="perm-checkbox-row" key={area.key} data-area={area.key}>
+                                  <span>{area.label}</span>
+                                  {readOnly ? (
+                                    <span
+                                      className={`badge ${
+                                        value === "manage"
+                                          ? "badge-pos"
+                                          : value === "view"
+                                          ? "badge-neu"
+                                          : "badge-neg"
+                                      }`}
+                                      data-testid={`area-badge-${catalog.key}-${area.key}`}
+                                    >
+                                      {AREA_SWITCH_LABEL[value]}
+                                    </span>
+                                  ) : (
+                                    <Select
+                                      aria-label={area.label}
+                                      value={value}
+                                      onChange={(val) => {
+                                        setCatalogSwitches(catalog.key, {
+                                          ...catalogSwitches,
+                                          [area.key]: val as AreaSwitch,
+                                        });
+                                      }}
+                                      options={areaSwitchOptions(area)}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -648,7 +639,13 @@ export function RoleDrawer({
               <div style={{ marginLeft: "auto", display: "flex", gap: ".45rem" }}>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={onClose}>Cancel</button>
                 {!readOnly && (
-                  <LoadingButton className="btn btn-primary btn-sm" disabled={busy} loading={busy} loadingText="Saving…" onClick={save}>
+                  <LoadingButton
+                    className="btn btn-primary btn-sm"
+                    disabled={busy || !catalogsReady || Boolean(catalogError)}
+                    loading={busy}
+                    loadingText="Saving…"
+                    onClick={save}
+                  >
                     Save Role &amp; Permissions
                   </LoadingButton>
                 )}

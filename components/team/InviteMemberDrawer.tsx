@@ -5,6 +5,9 @@ import { useTeamAccess } from "./TeamAccessProvider";
 import { useToast } from "@/components/shell/ToastContext";
 import { inviteStaffMember, RequestTimeoutError } from "@/lib/platformFunctions";
 import { RoleScopeRepeater, makeRoleScopeRow, rowsToAssignmentPayload, type RoleScopeRow } from "./RoleScopeRepeater";
+import { ModuleCatalogStatusBanner } from "./ModuleCatalogStatusBanner";
+import { useModuleCatalogs } from "./useModuleCatalogs";
+import { rolesWithTemplatePlace } from "./rolesWithTemplatePlace";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 
 interface CreatedMember {
@@ -15,6 +18,13 @@ interface CreatedMember {
 
 export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { organizationId, accessToken, roles, chapters, refresh } = useTeamAccess();
+  const { catalogs, error: catalogError, loading: catalogsLoading, ready: catalogsReady } = useModuleCatalogs(
+    organizationId,
+    accessToken,
+    open,
+  );
+  const scopeRepeaterRoles = catalogsReady ? rolesWithTemplatePlace(roles, catalogs) : [];
+  const roleAssignmentBlocked = !catalogsReady || Boolean(catalogError);
   const { showToast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -38,6 +48,10 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
   async function submit() {
     if (!name.trim() || !email.trim()) {
       showToast("Please enter the member's full name and work email.", "error");
+      return;
+    }
+    if (roleAssignmentBlocked) {
+      showToast("Module catalogs must load before you can assign roles.", "error");
       return;
     }
     if (!organizationId || !accessToken) return;
@@ -155,13 +169,16 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
 
               <div className="form-group">
                 <label className="form-label">Assigned Roles *</label>
-                <RoleScopeRepeater
-                  rows={rows}
-                  roles={roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem, permissionKeys: r.permissionKeys }))}
-                  chapters={chapters.map((c) => ({ id: c.id, name: c.name }))}
-                  onChange={setRows}
-                  addLabel="+ Add Another Role"
-                />
+                <ModuleCatalogStatusBanner error={catalogError} loading={catalogsLoading} />
+                {catalogsReady ? (
+                  <RoleScopeRepeater
+                    rows={rows}
+                    roles={scopeRepeaterRoles}
+                    chapters={chapters.map((c) => ({ id: c.id, name: c.name, city: c.city }))}
+                    onChange={setRows}
+                    addLabel="+ Add Another Role"
+                  />
+                ) : null}
               </div>
 
               <p className="text-xs text-[var(--ink-2)]">
@@ -171,7 +188,13 @@ export function InviteMemberDrawer({ open, onClose }: { open: boolean; onClose: 
 
             <div className="drawer-footer">
               <button type="button" className="btn btn-secondary btn-sm" onClick={onClose} disabled={busy}>Cancel</button>
-              <LoadingButton className="btn btn-primary btn-sm" disabled={busy} loading={busy} loadingText="Creating…" onClick={submit}>
+              <LoadingButton
+                className="btn btn-primary btn-sm"
+                disabled={busy || roleAssignmentBlocked}
+                loading={busy}
+                loadingText="Creating…"
+                onClick={submit}
+              >
                 Create Member
               </LoadingButton>
             </div>

@@ -27,12 +27,12 @@ Deno.test("updateCustomRole rewrites permissions and rejects system roles", asyn
   const { supabase, orgId, moduleId, adminId } = await setup();
   const { roleId } = await createCustomRole(supabase, adminId, false, {
     organizationId: orgId, moduleId, name: "Editable", description: "v1",
-    capabilities: { drive: "granted", publish: "restricted", triage: "restricted", hours: "restricted", team: "restricted" },
+    permissionKeys: ["opportunities:write"],
   });
 
   await updateCustomRole(supabase, adminId, false, {
     roleId, name: "Editable v2", description: "v2",
-    capabilities: { drive: "restricted", publish: "restricted", triage: "granted", hours: "read_only", team: "restricted" },
+    permissionKeys: ["applications:read", "applications:update", "hours:read"],
   });
 
   const { data: role } = await supabase.from("roles").select("name, description").eq("id", roleId).single();
@@ -50,7 +50,15 @@ Deno.test("updateCustomRole rewrites permissions and rejects system roles", asyn
   await assertRejects(
     () => updateCustomRole(supabase, adminId, false, {
       roleId: sysRole!.id, name: "Hacked", description: "",
-      capabilities: { drive: "granted", publish: "granted", triage: "granted", hours: "granted", team: "granted" },
+      permissionKeys: [
+        "opportunities:write",
+        "noticeboard:write",
+        "applications:update",
+        "applications:read",
+        "hours:update",
+        "hours:read",
+        "team:write",
+      ],
     }),
     Error, "system_role_immutable",
   );
@@ -60,11 +68,11 @@ Deno.test("updateCustomRole rejects renaming onto another role's name and leaves
   const { supabase, orgId, moduleId, adminId } = await setup();
   const { roleId: firstRoleId } = await createCustomRole(supabase, adminId, false, {
     organizationId: orgId, moduleId, name: "First Role", description: "v1",
-    capabilities: { drive: "granted", publish: "restricted", triage: "restricted", hours: "restricted", team: "restricted" },
+    permissionKeys: ["opportunities:write"],
   });
   const { roleId: secondRoleId } = await createCustomRole(supabase, adminId, false, {
     organizationId: orgId, moduleId, name: "Second Role", description: "v1",
-    capabilities: { drive: "restricted", publish: "restricted", triage: "granted", hours: "restricted", team: "restricted" },
+    permissionKeys: ["applications:read", "applications:update"],
   });
 
   const { data: beforePerms } = await supabase.from("role_permissions")
@@ -77,7 +85,15 @@ Deno.test("updateCustomRole rejects renaming onto another role's name and leaves
   await assertRejects(
     () => updateCustomRole(supabase, adminId, false, {
       roleId: secondRoleId, name: "First Role", description: "renamed onto first",
-      capabilities: { drive: "granted", publish: "granted", triage: "granted", hours: "granted", team: "granted" },
+      permissionKeys: [
+        "opportunities:write",
+        "noticeboard:write",
+        "applications:update",
+        "applications:read",
+        "hours:update",
+        "hours:read",
+        "team:write",
+      ],
     }),
     Error, "role_name_taken",
   );

@@ -3,6 +3,7 @@
 import { useCallback, useEffect } from "react";
 import { Select } from "@/components/ui/Select";
 import type { RoleAssignmentInput } from "@/lib/platformFunctions";
+import type { PlaceParameter } from "@/registry/moduleCatalog";
 
 const ORG_WIDE_LABEL = "National / All Chapters";
 
@@ -23,9 +24,10 @@ export function roleSupportsChapterScope(permissionKeys: string[] | undefined): 
 export interface RoleScopeRow {
   key: string;
   roleId: string;
-  scopeKind: "org_wide" | "chapter";
+  scopeKind: "org_wide" | "chapter" | "city";
   chapterIds: string[];
   scopeLabel: string;
+  city?: string | null;
   /** @deprecated For backwards compatibility */
   chapterId?: string | null;
 }
@@ -54,7 +56,16 @@ export function rowsToAssignmentPayload(
         roleId: r.roleId,
         scopeKind: "org_wide",
         chapterId: null,
+        city: null,
         scopeLabel: ORG_WIDE_LABEL,
+      });
+    } else if (r.scopeKind === "city") {
+      payload.push({
+        roleId: r.roleId,
+        scopeKind: "city",
+        chapterId: null,
+        city: r.city ?? null,
+        scopeLabel: r.city?.trim() || "City",
       });
     } else {
       const ids =
@@ -95,8 +106,9 @@ export function groupAssignmentsToRows(
   assignments: Array<{
     id?: string;
     roleId: string;
-    scopeKind: "org_wide" | "chapter";
+    scopeKind: "org_wide" | "chapter" | "city";
     chapterId?: string | null;
+    city?: string | null;
     scopeLabel?: string;
   }>,
   chapters?: { id: string; name: string }[],
@@ -113,7 +125,18 @@ export function groupAssignmentsToRows(
         scopeKind: "org_wide",
         chapterIds: [],
         chapterId: null,
+        city: null,
         scopeLabel: a.scopeLabel || ORG_WIDE_LABEL,
+      });
+    } else if (a.scopeKind === "city") {
+      rows.push({
+        key: a.id || crypto.randomUUID(),
+        roleId: a.roleId,
+        scopeKind: "city",
+        chapterIds: [],
+        chapterId: null,
+        city: a.city ?? null,
+        scopeLabel: a.scopeLabel || a.city || "City",
       });
     } else {
       const existing = chapterRowByRole.get(a.roleId);
@@ -154,8 +177,8 @@ export function RoleScopeRepeater({
   addLabel,
 }: {
   rows: RoleScopeRow[];
-  roles: { id: string; name: string; isSystem: boolean; permissionKeys?: string[] }[];
-  chapters: { id: string; name: string }[];
+  roles: { id: string; name: string; isSystem: boolean; permissionKeys?: string[]; place?: PlaceParameter }[];
+  chapters: { id: string; name: string; city?: string | null }[];
   onChange: (rows: RoleScopeRow[]) => void;
   addLabel: string;
 }) {
@@ -167,14 +190,36 @@ export function RoleScopeRepeater({
     [roles]
   );
 
+  const rolePlace = useCallback(
+    (roleId: string): PlaceParameter | null => {
+      const role = roles.find((r) => r.id === roleId);
+      if (role?.place) return role.place;
+      if (isSuperAdminRole(roleId)) return "none";
+      return roleSupportsChapterScope(role?.permissionKeys) ? null : "none";
+    },
+    [roles, isSuperAdminRole],
+  );
+
   const showsChapterScope = useCallback(
     (roleId: string): boolean => {
+      const place = rolePlace(roleId);
+      if (place === "chapters" || place === "city") return true;
+      if (place === "none") return false;
       if (isSuperAdminRole(roleId)) return false;
       const role = roles.find((r) => r.id === roleId);
       return roleSupportsChapterScope(role?.permissionKeys);
     },
-    [roles, isSuperAdminRole]
+    [roles, isSuperAdminRole, rolePlace],
   );
+
+  const distinctCities = useCallback((): { value: string; label: string }[] => {
+    const cities = new Set<string>();
+    for (const c of chapters) {
+      const city = c.city?.trim();
+      if (city) cities.add(city);
+    }
+    return [...cities].sort().map((city) => ({ value: city, label: city }));
+  }, [chapters]);
 
   function update(idx: number, patch: Partial<RoleScopeRow>) {
     onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -186,12 +231,42 @@ export function RoleScopeRepeater({
       scopeKind: "org_wide" as const,
       chapterIds: [] as string[],
       chapterId: null,
+      city: null,
       scopeLabel: ORG_WIDE_LABEL,
     };
   }
 
+  function lockCityScope(roleId: string) {
+    return {
+      roleId,
+      scopeKind: "city" as const,
+      chapterIds: [] as string[],
+      chapterId: null,
+      city: null as string | null,
+      scopeLabel: "City",
+    };
+  }
+
+  function lockChapterScope(roleId: string) {
+    return {
+      roleId,
+      scopeKind: "chapter" as const,
+      chapterIds: [] as string[],
+      chapterId: null,
+      city: null,
+      scopeLabel: "Chapter",
+    };
+  }
+
   function handleRoleChange(idx: number, roleId: string) {
-    if (!showsChapterScope(roleId)) {
+    const place = rolePlace(roleId);
+    if (place === "none") {
+      update(idx, lockOrgWide(roleId));
+    } else if (place === "city") {
+      update(idx, lockCityScope(roleId));
+    } else if (place === "chapters") {
+      update(idx, lockChapterScope(roleId));
+    } else if (!showsChapterScope(roleId)) {
       update(idx, lockOrgWide(roleId));
     } else {
       update(idx, { roleId });
@@ -249,36 +324,60 @@ export function RoleScopeRepeater({
   useEffect(() => {
     let modified = false;
     const nextRows = rows.map((r) => {
+      const place = rolePlace(r.roleId);
+      if (place === "none") {
+        if (
+          r.scopeKind !== "org_wide" ||
+          (r.chapterIds && r.chapterIds.length > 0) ||
+          r.chapterId !== null ||
+          r.city
+        ) {
+          modified = true;
+          return { ...r, ...lockOrgWide(r.roleId) };
+        }
+        return r;
+      }
+      if (place === "city") {
+        if (r.scopeKind !== "city") {
+          modified = true;
+          return { ...r, ...lockCityScope(r.roleId) };
+        }
+        return r;
+      }
+      if (place === "chapters") {
+        if (r.scopeKind !== "chapter") {
+          modified = true;
+          return { ...r, ...lockChapterScope(r.roleId) };
+        }
+        return r;
+      }
       if (
         !showsChapterScope(r.roleId) &&
         (r.scopeKind !== "org_wide" ||
           (r.chapterIds && r.chapterIds.length > 0) ||
           r.chapterId !== null ||
+          r.city ||
           r.scopeLabel !== ORG_WIDE_LABEL)
       ) {
         modified = true;
-        return {
-          ...r,
-          scopeKind: "org_wide" as const,
-          chapterIds: [],
-          chapterId: null,
-          scopeLabel: ORG_WIDE_LABEL,
-        };
+        return { ...r, ...lockOrgWide(r.roleId) };
       }
       return r;
     });
     if (modified) {
       onChange(nextRows);
     }
-  }, [rows, showsChapterScope, onChange]);
+  }, [rows, showsChapterScope, rolePlace, onChange]);
 
   return (
     <div className="role-repeater-box">
       {rows.map((row, idx) => {
         const isSuperAdmin = isSuperAdminRole(row.roleId);
+        const place = rolePlace(row.roleId);
         const showScope = showsChapterScope(row.roleId);
         const currentChapterIds = row.chapterIds ?? (row.chapterId ? [row.chapterId] : []);
         const availableChapters = chapters.filter((c) => !currentChapterIds.includes(c.id));
+        const cityOptions = distinctCities();
 
         return (
           <div
@@ -324,9 +423,94 @@ export function RoleScopeRepeater({
               <div>
                 <span className="badge badge-pos">National / All Chapters (Full Platform Access)</span>
               </div>
-            ) : !showScope ? (
+            ) : !showScope || place === "none" ? (
               <div>
                 <span className="badge">Organization-wide</span>
+              </div>
+            ) : place === "city" ? (
+              <div style={{ maxWidth: 300 }}>
+                <Select
+                  aria-label="City"
+                  value={row.city ?? ""}
+                  onChange={(city) =>
+                    update(idx, {
+                      scopeKind: "city",
+                      city: city || null,
+                      chapterIds: [],
+                      chapterId: null,
+                      scopeLabel: city || "City",
+                    })
+                  }
+                  options={[{ value: "", label: "Select city…" }, ...cityOptions]}
+                />
+              </div>
+            ) : place === "chapters" ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "0.15rem" }}>
+                {currentChapterIds.length > 0 ? (
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.4rem" }}>
+                    {currentChapterIds.map((chId) => {
+                      const chapter = chapters.find((c) => c.id === chId);
+                      const chapterName = chapter ? chapter.name : chId;
+                      return (
+                        <span
+                          key={chId}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "0.35rem",
+                            padding: "0.2rem 0.55rem",
+                            borderRadius: "9999px",
+                            fontSize: "var(--text-xs)",
+                            fontWeight: 500,
+                            background: "var(--brand-tint, #eef2ff)",
+                            color: "var(--on-brand, #312e81)",
+                            border: "1px solid var(--brand-bd, #c7d2fe)",
+                          }}
+                        >
+                          <span>{chapterName}</span>
+                          <button
+                            type="button"
+                            style={{
+                              background: "none",
+                              border: "none",
+                              padding: 0,
+                              cursor: "pointer",
+                              color: "inherit",
+                              fontSize: "0.75rem",
+                              lineHeight: 1,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              opacity: 0.8,
+                            }}
+                            aria-label={`Remove ${chapterName}`}
+                            onClick={() => handleRemoveChapter(idx, chId)}
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: "var(--text-xs)", color: "var(--ink-2)", fontStyle: "italic" }}>
+                    No chapters selected. Add at least one chapter below.
+                  </div>
+                )}
+                <div style={{ maxWidth: 300 }}>
+                  <Select
+                    aria-label="Add Chapter"
+                    value=""
+                    disabled={availableChapters.length === 0}
+                    onChange={(val) => handleAddChapter(idx, val)}
+                    options={[
+                      {
+                        value: "",
+                        label: availableChapters.length > 0 ? "+ Add chapter…" : "All chapters added",
+                      },
+                      ...availableChapters.map((c) => ({ value: c.id, label: c.name })),
+                    ]}
+                  />
+                </div>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>

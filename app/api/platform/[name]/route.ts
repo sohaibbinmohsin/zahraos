@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { decodeStaffTokenClaims } from "@/lib/staffToken";
-import { gridToPermissionKeys } from "@/lib/capabilityMap";
+import { requirePermissionKeys } from "@/app/api/platform/requirePermissionKeys";
 import { resolveInquiryAccess } from "@/lib/partnerInquiryAccess";
 
 async function checkIsSuperAdmin(
@@ -501,9 +501,16 @@ export async function POST(
   // Handle create-custom-role
   if (name === "create-custom-role") {
     const body = await request.json().catch(() => ({}));
-    const { organizationId, moduleId, name: roleName, description, capabilities } = body;
+    const { organizationId, moduleId, name: roleName, description } = body;
     if (!organizationId || !moduleId || !roleName?.trim()) {
       return NextResponse.json({ error: "missing_required_fields" }, { status: 400 });
+    }
+
+    let keys: string[];
+    try {
+      keys = requirePermissionKeys(body);
+    } catch {
+      return NextResponse.json({ error: "permission_keys_required" }, { status: 400 });
     }
 
     const isAuthorized = await checkIsSuperAdmin(supabaseAdmin, callerStaffId, callerPlatformOwner, organizationId);
@@ -522,7 +529,6 @@ export async function POST(
       return NextResponse.json({ error: "module_not_enabled" }, { status: 400 });
     }
 
-    const keys = gridToPermissionKeys(capabilities ?? {});
     let permissionIds: string[] = [];
     if (keys.length > 0) {
       const { data: perms } = await supabaseAdmin
@@ -531,7 +537,11 @@ export async function POST(
         .eq("module_id", moduleId);
 
       const byKey = new Map((perms ?? []).map((p: any) => [`${p.resource}:${p.action}`, p.id as string]));
-      permissionIds = keys.map((k) => byKey.get(k)).filter(Boolean) as string[];
+      const resolved = keys.map((k) => byKey.get(k));
+      if (resolved.some((id) => !id)) {
+        return NextResponse.json({ error: "permission_not_available" }, { status: 400 });
+      }
+      permissionIds = resolved as string[];
     }
 
     const { data: role, error: roleError } = await supabaseAdmin
@@ -584,9 +594,16 @@ export async function POST(
   // Handle update-custom-role
   if (name === "update-custom-role") {
     const body = await request.json().catch(() => ({}));
-    const { roleId, name: roleName, description, capabilities } = body;
+    const { roleId, name: roleName, description } = body;
     if (!roleId || !roleName?.trim()) {
       return NextResponse.json({ error: "missing_required_fields" }, { status: 400 });
+    }
+
+    let keys: string[];
+    try {
+      keys = requirePermissionKeys(body);
+    } catch {
+      return NextResponse.json({ error: "permission_keys_required" }, { status: 400 });
     }
 
     const { data: role, error: fetchError } = await supabaseAdmin
@@ -607,7 +624,6 @@ export async function POST(
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
     }
 
-    const keys = gridToPermissionKeys(capabilities ?? {});
     let permissionIds: string[] = [];
     if (keys.length > 0) {
       const { data: perms } = await supabaseAdmin
@@ -616,7 +632,11 @@ export async function POST(
         .eq("module_id", role.module_id);
 
       const byKey = new Map((perms ?? []).map((p: any) => [`${p.resource}:${p.action}`, p.id as string]));
-      permissionIds = keys.map((k) => byKey.get(k)).filter(Boolean) as string[];
+      const resolved = keys.map((k) => byKey.get(k));
+      if (resolved.some((id) => !id)) {
+        return NextResponse.json({ error: "permission_not_available" }, { status: 400 });
+      }
+      permissionIds = resolved as string[];
     }
 
     const { error: updateError } = await supabaseAdmin

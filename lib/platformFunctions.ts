@@ -1,4 +1,3 @@
-import type { CapabilityGrid } from "./capabilityMap";
 
 // Auth admin calls (create, delete, or replace a sign-in) keep running on the
 // server after a short client abort. Eight seconds is enough for a read and
@@ -201,8 +200,9 @@ export function assignStaffOrgRole(payload: AssignStaffOrgRolePayload, accessTok
 
 export interface RoleAssignmentInput {
   roleId: string;
-  scopeKind: "org_wide" | "chapter";
+  scopeKind: "org_wide" | "chapter" | "city";
   chapterId?: string | null;
+  city?: string | null;
   scopeLabel: string;
 }
 
@@ -268,7 +268,7 @@ export interface CreateCustomRolePayload {
   moduleId: string;
   name: string;
   description: string;
-  capabilities: CapabilityGrid;
+  permissionKeys: string[];
 }
 export interface CreateCustomRoleResponse { roleId: string }
 export function createCustomRole(payload: CreateCustomRolePayload, accessToken: string) {
@@ -279,7 +279,7 @@ export interface UpdateCustomRolePayload {
   roleId: string;
   name: string;
   description: string;
-  capabilities: CapabilityGrid;
+  permissionKeys: string[];
 }
 export interface UpdateCustomRoleResponse { roleId: string }
 export function updateCustomRole(payload: UpdateCustomRolePayload, accessToken: string) {

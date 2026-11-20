@@ -4,7 +4,13 @@ import { MODULE_REGISTRY } from "./modules";
 describe("MODULE_REGISTRY", () => {
   it("registers the Youth Republic module", () => {
     expect(MODULE_REGISTRY).toEqual([
-      { key: "youth-republic", navLabel: "Youth Republic", route: "/youth-republic", icon: "🤝" },
+      {
+        key: "youth-republic",
+        navLabel: "Youth Republic",
+        route: "/youth-republic",
+        icon: "🤝",
+        functionsEnv: "YOUTH_REPUBLIC_BACKEND_FUNCTIONS_URL",
+      },
     ]);
   });
 });

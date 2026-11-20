@@ -76,6 +76,26 @@ Deno.test("inviteStaffMember persists expiresAt to staff.expires_at", async () =
   assertEquals(new Date(staff!.expires_at as string).getTime(), new Date(when).getTime());
 });
 
+Deno.test("inviteStaffMember persists city scope for City Lead", async () => {
+  const { supabase, orgId, adminId } = await setup();
+  const cityLead = (await supabase.from("roles").select("id")
+    .eq("organization_id", orgId).eq("name", "City Lead").single()).data!.id as string;
+  const email = `city-invite-${crypto.randomUUID()}@example.com`;
+
+  const result = await inviteStaffMember(supabase, adminId, false, {
+    organizationId: orgId, fullName: "City Invitee", email,
+    roles: [{ roleId: cityLead, scopeKind: "city", city: "Lahore", scopeLabel: "Lahore" }],
+  });
+
+  const { data: row } = await supabase.from("staff_role_assignments")
+    .select("scope_kind, chapter_id, city")
+    .eq("staff_id", result.staffId)
+    .single();
+  assertEquals(row!.scope_kind, "city");
+  assertEquals(row!.chapter_id, null);
+  assertEquals(row!.city, "Lahore");
+});
+
 Deno.test("inviteStaffMember rejects a non-admin caller", async () => {
   const { supabase, orgId, roleId } = await setup();
   const outsiderEmail = `outsider-${crypto.randomUUID()}@example.com`;

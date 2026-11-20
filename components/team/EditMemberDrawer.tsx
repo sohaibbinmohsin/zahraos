@@ -7,6 +7,9 @@ import { useConfirm } from "@/components/ui/ConfirmDialog";
 import { issueStaffTemporaryPassword, removeStaffMember, updateStaffAccess } from "@/lib/platformFunctions";
 import { effectivePermissionTags } from "@/lib/capabilityMap";
 import { RoleScopeRepeater, rowsToAssignmentPayload, groupAssignmentsToRows, type RoleScopeRow } from "./RoleScopeRepeater";
+import { ModuleCatalogStatusBanner } from "./ModuleCatalogStatusBanner";
+import { useModuleCatalogs } from "./useModuleCatalogs";
+import { rolesWithTemplatePlace } from "./rolesWithTemplatePlace";
 import { LoadingButton } from "@/components/ui/LoadingButton";
 import { Select } from "@/components/ui/Select";
 
@@ -19,6 +22,13 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
   const { showToast } = useToast();
   const confirm = useConfirm();
   const member = members.find((m) => m.id === memberId) ?? null;
+  const { catalogs, error: catalogError, loading: catalogsLoading, ready: catalogsReady } = useModuleCatalogs(
+    organizationId,
+    accessToken,
+    member !== null,
+  );
+  const scopeRepeaterRoles = catalogsReady ? rolesWithTemplatePlace(roles, catalogs) : [];
+  const roleAssignmentBlocked = !catalogsReady || Boolean(catalogError);
   const [rows, setRows] = useState<RoleScopeRow[]>([]);
   const [status, setStatus] = useState<"active" | "invited" | "deactivated">("active");
   const [expiresAt, setExpiresAt] = useState("");
@@ -42,6 +52,10 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
 
   async function save() {
     if (!member || !organizationId || !accessToken) return;
+    if (roleAssignmentBlocked) {
+      showToast("Module catalogs must load before you can change role assignments.", "error");
+      return;
+    }
     setBusy("save");
     try {
       await updateStaffAccess({
@@ -190,13 +204,16 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
 
               <div className="form-group">
                 <label className="form-label">Assigned Roles</label>
-                <RoleScopeRepeater
-                  rows={rows}
-                  roles={roles.map((r) => ({ id: r.id, name: r.name, isSystem: r.isSystem, permissionKeys: r.permissionKeys }))}
-                  chapters={chapters.map((c) => ({ id: c.id, name: c.name }))}
-                  onChange={setRows}
-                  addLabel="+ Add Role"
-                />
+                <ModuleCatalogStatusBanner error={catalogError} loading={catalogsLoading} />
+                {catalogsReady ? (
+                  <RoleScopeRepeater
+                    rows={rows}
+                    roles={scopeRepeaterRoles}
+                    chapters={chapters.map((c) => ({ id: c.id, name: c.name, city: c.city }))}
+                    onChange={setRows}
+                    addLabel="+ Add Role"
+                  />
+                ) : null}
               </div>
 
               <div className="form-group">
@@ -240,7 +257,15 @@ export function EditMemberDrawer({ memberId, onClose }: { memberId: string | nul
               <LoadingButton className="btn btn-danger btn-xs" disabled={busy !== null} loading={busy === "remove"} loadingText="Removing…" onClick={remove}>Remove from Team</LoadingButton>
               <div style={{ display: "flex", gap: ".45rem" }}>
                 <button type="button" className="btn btn-secondary btn-xs" onClick={onClose} disabled={busy !== null}>Cancel</button>
-                <LoadingButton className="btn btn-primary btn-xs" disabled={busy !== null} loading={busy === "save"} loadingText="Saving…" onClick={save}>Save Changes</LoadingButton>
+                <LoadingButton
+                  className="btn btn-primary btn-xs"
+                  disabled={busy !== null || roleAssignmentBlocked}
+                  loading={busy === "save"}
+                  loadingText="Saving…"
+                  onClick={save}
+                >
+                  Save Changes
+                </LoadingButton>
               </div>
             </div>
           </>

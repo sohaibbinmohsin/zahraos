@@ -10,8 +10,9 @@ import { temporaryPassword } from "../_shared/temporaryPassword.ts";
 
 export interface RoleAssignmentInput {
   roleId: string;
-  scopeKind: "org_wide" | "chapter";
+  scopeKind: "org_wide" | "chapter" | "city";
   chapterId?: string | null;
+  city?: string | null;
   scopeLabel: string;
 }
 
@@ -58,8 +59,26 @@ export async function inviteStaffMember(
 
   for (const r of input.roles) {
     const roleName = roleNameById.get(r.roleId);
-    if (roleName === "Super Admin" && (r.scopeKind === "chapter" || r.chapterId)) {
+    if (roleName === "Super Admin" && (r.scopeKind === "chapter" || r.chapterId || r.scopeKind === "city" || r.city)) {
       throw new Error("super_admin_cannot_be_scoped");
+    }
+    if (roleName === "City Lead" && r.scopeKind === "org_wide") {
+      throw new Error("city_lead_requires_city_scope");
+    }
+    if (roleName === "City Lead" && r.scopeKind !== "city") {
+      throw new Error("city_lead_requires_city_scope");
+    }
+    if (
+      (roleName === "Org Admin" || roleName === "Auditor") &&
+      (r.scopeKind === "chapter" || r.chapterId || r.scopeKind === "city" || r.city)
+    ) {
+      throw new Error("role_cannot_be_scoped");
+    }
+    if (
+      (roleName === "Chapter Lead" || roleName === "Drive Coordinator" || roleName === "Application Reviewer") &&
+      r.scopeKind !== "chapter"
+    ) {
+      throw new Error("role_requires_chapter_scope");
     }
   }
 
@@ -92,7 +111,9 @@ export async function inviteStaffMember(
   const { error: assignError } = await supabase.from("staff_role_assignments").insert(
     input.roles.map((r) => ({
       staff_id: staff.id, organization_id: input.organizationId, module_id: modId, role_id: r.roleId,
-      scope_kind: r.scopeKind, chapter_id: r.scopeKind === "chapter" ? r.chapterId : null,
+      scope_kind: r.scopeKind,
+      chapter_id: r.scopeKind === "chapter" ? r.chapterId : null,
+      city: r.scopeKind === "city" ? (r.city ?? null) : null,
       scope_label: r.scopeLabel, created_by: callerStaffId,
     })),
   );

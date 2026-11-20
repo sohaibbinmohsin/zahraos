@@ -1,12 +1,18 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { type CapabilityGrid, gridToPermissionKeys } from "../_shared/capabilityMap.ts";
 import { actorName, writeAuditLog } from "../_shared/auditLog.ts";
 
 export interface UpdateCustomRoleInput {
   roleId: string;
   name: string;
   description: string;
-  capabilities: CapabilityGrid;
+  permissionKeys: string[];
+}
+
+function requirePermissionKeys(keys: unknown): string[] {
+  if (!Array.isArray(keys) || keys.some((key) => typeof key !== "string")) {
+    throw new Error("permission_keys_required");
+  }
+  return keys as string[];
 }
 
 export async function updateCustomRole(
@@ -59,7 +65,7 @@ export async function updateCustomRole(
   }
   if (!input.name?.trim()) throw new Error("missing_name");
 
-  const keys = gridToPermissionKeys(input.capabilities);
+  const keys = requirePermissionKeys(input.permissionKeys);
   const { data: perms } = await supabase.from("permissions").select("id, resource, action")
     .eq("module_id", role.module_id);
   const byKey = new Map((perms ?? []).map((p) => [`${p.resource}:${p.action}`, p.id as string]));

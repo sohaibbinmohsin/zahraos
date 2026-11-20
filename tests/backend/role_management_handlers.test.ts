@@ -170,13 +170,7 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
         moduleId: mockModuleId,
         name: "New Field Coordinator",
         description: "Field ops",
-        capabilities: {
-          drive: "granted",
-          publish: "restricted",
-          triage: "restricted",
-          hours: "read_only",
-          team: "restricted",
-        },
+        permissionKeys: ["opportunities:write", "hours:read"],
       });
 
       expect(result).toEqual({ roleId: "new-role-id" });
@@ -190,13 +184,7 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
           moduleId: mockModuleId,
           name: "New Org Role",
           description: "Org description",
-          capabilities: {
-            drive: "granted",
-            publish: "restricted",
-            triage: "restricted",
-            hours: "read_only",
-            team: "restricted",
-          },
+          permissionKeys: ["opportunities:write", "hours:read"],
         }),
       ).rejects.toThrow("forbidden");
     });
@@ -209,13 +197,7 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
           moduleId: mockModuleId,
           name: "Unauthorized Role",
           description: "",
-          capabilities: {
-            drive: "granted",
-            publish: "restricted",
-            triage: "restricted",
-            hours: "restricted",
-            team: "restricted",
-          },
+          permissionKeys: ["opportunities:write"],
         }),
       ).rejects.toThrow("forbidden");
     });
@@ -228,13 +210,7 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
         roleId: "target-role-id",
         name: "Updated Field Coordinator",
         description: "Updated description",
-        capabilities: {
-          drive: "granted",
-          publish: "restricted",
-          triage: "restricted",
-          hours: "restricted",
-          team: "restricted",
-        },
+        permissionKeys: ["opportunities:write"],
       });
 
       expect(result).toEqual({ roleId: "target-role-id" });
@@ -247,13 +223,7 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
           roleId: "target-role-id",
           name: "Attempted Org Admin Update",
           description: "",
-          capabilities: {
-            drive: "granted",
-            publish: "restricted",
-            triage: "restricted",
-            hours: "restricted",
-            team: "restricted",
-          },
+          permissionKeys: ["opportunities:write"],
         }),
       ).rejects.toThrow("forbidden");
     });
@@ -268,13 +238,7 @@ describe("Backend Role Management Handlers: Super Admin & Org Admin Authorizatio
           roleId: "target-role-id",
           name: "Attempted System Role Rename",
           description: "",
-          capabilities: {
-            drive: "granted",
-            publish: "restricted",
-            triage: "restricted",
-            hours: "restricted",
-            team: "restricted",
-          },
+          permissionKeys: ["opportunities:write"],
         }),
       ).rejects.toThrow("system_role_immutable");
     });

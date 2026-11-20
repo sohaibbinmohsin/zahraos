@@ -1,18 +1,16 @@
 import { describe, it, expect } from "vitest";
 import {
-  gridToPermissionKeys,
   permissionKeysToGrid,
   effectivePermissionTags,
   deriveRoleTitleFromPermissions,
-  RESTRICTED_GRID,
+  OFF_GRID,
   MODULE_CAPABILITIES,
   SERVICE_MODULES,
   getRoleModuleSummaries,
   type CapabilityGrid,
-  type RoleModuleSummary,
-  type ModuleAccessLevel,
   type ServiceModuleConfig,
 } from "./capabilityMap";
+import { drawerCatalogs, permissionKeysFromDrawerGrid } from "@/registry/moduleCatalog";
 
 describe("capabilityMap", () => {
   it("exports MODULE_CAPABILITIES organized by module", () => {
@@ -26,34 +24,37 @@ describe("capabilityMap", () => {
 
   it("expands a modular grid to sorted permission keys including inquiries and team", () => {
     const grid: CapabilityGrid = {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
-      publish: "restricted",
+      publish: "off",
       triage: "granted",
-      hours: "read_only",
+      hours: "view",
       inquiries: "granted",
-      org_governance: "read_only",
+      org_governance: "view",
       team: "granted",
     };
-    expect(gridToPermissionKeys(grid)).toEqual([
+    expect(permissionKeysFromDrawerGrid(drawerCatalogs, grid)).toEqual([
       "applications:read",
       "applications:update",
       "chapters:read",
       "hours:read",
       "inquiries:read",
       "inquiries:write",
+      "members:read",
+      "members:write",
       "opportunities:read",
+      "opportunities:update",
       "opportunities:write",
       "team:write",
     ]);
   });
 
-  it("expands read_only inquiries to inquiries:read only", () => {
+  it("expands view inquiries to inquiries:read only", () => {
     const grid: CapabilityGrid = {
-      ...RESTRICTED_GRID,
-      inquiries: "read_only",
+      ...OFF_GRID,
+      inquiries: "view",
     };
-    expect(gridToPermissionKeys(grid)).toEqual(["inquiries:read"]);
+    expect(permissionKeysFromDrawerGrid(drawerCatalogs, grid)).toEqual(["inquiries:read"]);
   });
 
   it("converts modular permission keys into modular capability grid", () => {
@@ -81,8 +82,8 @@ describe("capabilityMap", () => {
     expect(grid.team).toBe("granted");
     expect(grid.inquiries).toBe("granted");
     expect(grid.org_governance).toBe("granted");
-    expect(grid.volunteers).toBe("read_only");
-    expect(grid.audit).toBe("read_only");
+    expect(grid.volunteers).toBe("view");
+    expect(grid.audit).toBe("view");
   });
 
   it("provides backwards compatibility for existing team:write mapping to team and members", () => {
@@ -93,17 +94,17 @@ describe("capabilityMap", () => {
 
   it("round-trips modular grid <-> keys", () => {
     const grid: CapabilityGrid = {
-      ...RESTRICTED_GRID,
+      ...OFF_GRID,
       drive: "granted",
       publish: "granted",
-      triage: "read_only",
-      hours: "restricted",
+      triage: "view",
+      hours: "off",
       inquiries: "granted",
-      org_governance: "read_only",
-      audit: "read_only",
-      volunteers: "read_only",
+      org_governance: "view",
+      audit: "view",
+      volunteers: "view",
     };
-    const keys = gridToPermissionKeys(grid);
+    const keys = permissionKeysFromDrawerGrid(drawerCatalogs, grid);
     const roundTripped = permissionKeysToGrid(keys);
     expect(roundTripped.drive).toBe(grid.drive);
     expect(roundTripped.publish).toBe(grid.publish);
@@ -115,19 +116,19 @@ describe("capabilityMap", () => {
     expect(roundTripped.volunteers).toBe(grid.volunteers);
   });
 
-  it("RESTRICTED_GRID contains all modular capabilities as restricted", () => {
-    expect(RESTRICTED_GRID).toMatchObject({
-      drive: "restricted",
-      publish: "restricted",
-      triage: "restricted",
-      hours: "restricted",
-      volunteers: "restricted",
-      org_governance: "restricted",
-      members: "restricted",
-      roles: "restricted",
-      audit: "restricted",
-      inquiries: "restricted",
-      team: "restricted",
+  it("OFF_GRID contains all modular capabilities as off", () => {
+    expect(OFF_GRID).toMatchObject({
+      drive: "off",
+      publish: "off",
+      triage: "off",
+      hours: "off",
+      volunteers: "off",
+      org_governance: "off",
+      members: "off",
+      roles: "off",
+      audit: "off",
+      inquiries: "off",
+      team: "off",
     });
   });
 
@@ -227,11 +228,11 @@ describe("capabilityMap", () => {
         publish: "granted",
         triage: "granted",
         hours: "granted",
-        volunteers: "read_only",
+        volunteers: "view",
         org_governance: "granted",
         members: "granted",
         roles: "granted",
-        audit: "read_only",
+        audit: "view",
         inquiries: "granted",
         team: "granted",
       };
@@ -245,7 +246,7 @@ describe("capabilityMap", () => {
       expect(yr.level).toBe("full");
       expect(yr.grantedCount).toBe(4);
       expect(yr.readOnlyCount).toBe(1);
-      expect(yr.restrictedCount).toBe(0);
+      expect(yr.offCount).toBe(0);
       expect(yr.totalCount).toBe(5);
 
       const tg = summaries.find((s) => s.moduleKey === "team-governance")!;
@@ -254,18 +255,18 @@ describe("capabilityMap", () => {
       expect(tg.level).toBe("full");
       expect(tg.grantedCount).toBe(4);
       expect(tg.readOnlyCount).toBe(1);
-      expect(tg.restrictedCount).toBe(0);
+      expect(tg.offCount).toBe(0);
       expect(tg.totalCount).toBe(5);
     });
 
     it("derives full access for Youth Republic and limited for Team Governance for Chapter Lead", () => {
       const chapterLeadGrid: CapabilityGrid = {
-        ...RESTRICTED_GRID,
+        ...OFF_GRID,
         drive: "granted",
         publish: "granted",
         triage: "granted",
         hours: "granted",
-        volunteers: "restricted",
+        volunteers: "off",
         org_governance: "granted",
       };
 
@@ -274,18 +275,18 @@ describe("capabilityMap", () => {
       expect(yr.level).toBe("full");
       expect(yr.grantedCount).toBe(4);
       expect(yr.readOnlyCount).toBe(0);
-      expect(yr.restrictedCount).toBe(1);
+      expect(yr.offCount).toBe(1);
       expect(yr.totalCount).toBe(5);
 
       const tg = summaries.find((s) => s.moduleKey === "team-governance")!;
       expect(tg.level).toBe("limited");
       expect(tg.grantedCount).toBe(1);
       expect(tg.readOnlyCount).toBe(0);
-      expect(tg.restrictedCount).toBe(4);
+      expect(tg.offCount).toBe(4);
       expect(tg.totalCount).toBe(5);
     });
 
-    it("derives restricted for an empty capability module", () => {
+    it("derives off for an empty capability module", () => {
       const emptyModule: ServiceModuleConfig = {
         key: "empty-module",
         title: "Empty Module",
@@ -293,46 +294,46 @@ describe("capabilityMap", () => {
         capabilities: [],
       };
 
-      const summaries = getRoleModuleSummaries(RESTRICTED_GRID, [emptyModule]);
+      const summaries = getRoleModuleSummaries(OFF_GRID, [emptyModule]);
       expect(summaries).toHaveLength(1);
-      expect(summaries[0].level).toBe("restricted");
+      expect(summaries[0].level).toBe("off");
       expect(summaries[0].totalCount).toBe(0);
       expect(summaries[0].grantedCount).toBe(0);
-      expect(summaries[0].restrictedCount).toBe(0);
+      expect(summaries[0].offCount).toBe(0);
     });
 
-    it("derives restricted access for fully restricted grid", () => {
-      const summaries = getRoleModuleSummaries(RESTRICTED_GRID);
+    it("derives off access for fully off grid", () => {
+      const summaries = getRoleModuleSummaries(OFF_GRID);
       for (const summary of summaries) {
-        expect(summary.level).toBe("restricted");
+        expect(summary.level).toBe("off");
         expect(summary.grantedCount).toBe(0);
         expect(summary.readOnlyCount).toBe(0);
-        expect(summary.restrictedCount).toBe(5);
+        expect(summary.offCount).toBe(5);
         expect(summary.totalCount).toBe(5);
       }
     });
 
-    it("derives read_only access for Auditor role", () => {
+    it("derives view access for Auditor role", () => {
       const auditorGrid: CapabilityGrid = {
-        ...RESTRICTED_GRID,
-        triage: "read_only",
-        hours: "read_only",
-        volunteers: "read_only",
-        audit: "read_only",
+        ...OFF_GRID,
+        triage: "view",
+        hours: "view",
+        volunteers: "view",
+        audit: "view",
       };
 
       const summaries = getRoleModuleSummaries(auditorGrid);
       const yr = summaries.find((s) => s.moduleKey === "youth-republic")!;
-      expect(yr.level).toBe("read_only");
+      expect(yr.level).toBe("view");
       expect(yr.grantedCount).toBe(0);
       expect(yr.readOnlyCount).toBe(3);
-      expect(yr.restrictedCount).toBe(2);
+      expect(yr.offCount).toBe(2);
 
       const tg = summaries.find((s) => s.moduleKey === "team-governance")!;
-      expect(tg.level).toBe("read_only");
+      expect(tg.level).toBe("view");
       expect(tg.grantedCount).toBe(0);
       expect(tg.readOnlyCount).toBe(1);
-      expect(tg.restrictedCount).toBe(4);
+      expect(tg.offCount).toBe(4);
     });
 
     it("accepts permission keys array directly", () => {
@@ -368,7 +369,7 @@ describe("capabilityMap", () => {
       };
 
       const grid: CapabilityGrid = {
-        ...RESTRICTED_GRID,
+        ...OFF_GRID,
         drive: "granted",
         hours: "granted",
       };

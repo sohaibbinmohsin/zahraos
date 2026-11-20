@@ -78,9 +78,13 @@ vi.mock("@/components/team/TeamAccessProvider", () => ({
 }));
 
 import { EditMemberDrawer } from "./EditMemberDrawer";
+import { mockModuleCatalogsFetch } from "./testCatalogFixtures";
 
 describe("EditMemberDrawer", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("fetch", mockModuleCatalogsFetch());
+  });
 
   it("preloads the member's assignments and saves changes", async () => {
     const user = userEvent.setup();
@@ -90,6 +94,7 @@ describe("EditMemberDrawer", () => {
 
     await user.click(screen.getByRole("combobox", { name: "Account Access Status" }));
     await user.click(screen.getByRole("option", { name: "Pending Invitation" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Save Changes/i })).not.toBeDisabled());
     await user.click(screen.getByRole("button", { name: /Save Changes/i }));
 
     await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
@@ -107,6 +112,7 @@ describe("EditMemberDrawer", () => {
 
     await user.clear(screen.getByLabelText("Access expires"));
     await user.type(screen.getByLabelText("Access expires"), "2028-01-15");
+    await waitFor(() => expect(screen.getByRole("button", { name: /Save Changes/i })).not.toBeDisabled());
     await user.click(screen.getByRole("button", { name: /Save Changes/i }));
 
     await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
@@ -117,6 +123,7 @@ describe("EditMemberDrawer", () => {
     const user = userEvent.setup();
     render(<EditMemberDrawer memberId="m1" onClose={vi.fn()} />);
     await user.clear(screen.getByLabelText("Access expires"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Save Changes/i })).not.toBeDisabled());
     await user.click(screen.getByRole("button", { name: /Save Changes/i }));
 
     await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
@@ -154,9 +161,11 @@ describe("EditMemberDrawer", () => {
     const onClose = vi.fn();
     render(<EditMemberDrawer memberId="m1" onClose={onClose} />);
 
+    await screen.findByLabelText("Specific Chapters");
     await user.click(screen.getByLabelText("Specific Chapters"));
     await user.click(screen.getByRole("combobox", { name: "Add Chapter" }));
     await user.click(screen.getByRole("option", { name: "Lahore Chapter" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: /Save Changes/i })).not.toBeDisabled());
     await user.click(screen.getByRole("button", { name: /Save Changes/i }));
 
     await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
@@ -176,13 +185,15 @@ describe("EditMemberDrawer", () => {
     render(<EditMemberDrawer memberId="m2" onClose={onClose} />);
     expect(screen.getByText("Bilal Khan")).toBeInTheDocument();
 
-    // Verify chips for both chapters are rendered
-    expect(screen.getByText("Lahore Chapter")).toBeInTheDocument();
-    expect(screen.getByText("Karachi Chapter")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("Lahore Chapter")).toBeInTheDocument();
+      expect(screen.getByText("Karachi Chapter")).toBeInTheDocument();
+    });
 
     // Verify only ONE role selector is rendered for this role
     expect(screen.getAllByRole("combobox", { name: "Role" })).toHaveLength(1);
 
+    await waitFor(() => expect(screen.getByRole("button", { name: /Save Changes/i })).not.toBeDisabled());
     await user.click(screen.getByRole("button", { name: /Save Changes/i }));
     await waitFor(() => expect(updateAccess).toHaveBeenCalledTimes(1));
     const [payload] = updateAccess.mock.calls[0];
